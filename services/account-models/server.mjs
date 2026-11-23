@@ -1,6 +1,7 @@
 import http from 'node:http';
 import {once} from 'node:events';
 import {fault,publicRoute} from './registry.mjs';
+import {AccountModelStream} from './stream.mjs';
 const ROOT='/api/desktop-models/v1';
 async function body(req,max=4*1024*1024){let n=0,chunks=[];for await(const c of req){n+=c.length;if(n>max)throw fault('ACCOUNT_MODEL_BODY_TOO_LARGE',413);chunks.push(c);}try{return JSON.parse(Buffer.concat(chunks));}catch{throw fault('ACCOUNT_MODEL_JSON_INVALID');}}
 export function accountModelServer({store,registry,authenticate,origin,request=fetch}){
@@ -20,7 +21,7 @@ export function accountModelServer({store,registry,authenticate,origin,request=f
  if(!upstream.ok){await upstream.body?.cancel();store.finish(requestId,[400,401,403,404,422,429].includes(upstream.status)?'rejected':'unknown');throw fault('ACCOUNT_MODEL_UPSTREAM_REJECTED',upstream.status===429?429:502);}
  const type=upstream.headers.get('content-type')??'';if(!(value.stream?type.includes('text/event-stream'):type.includes('application/json')))throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);
  if(!value.stream){const raw=await upstream.text();if(raw.length>32*1024*1024)throw fault('ACCOUNT_MODEL_RESPONSE_TOO_LARGE',502);let parsed;try{parsed=JSON.parse(raw);}catch{throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);}if(parsed.error)throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);store.finish(requestId,'stream_complete');send(200,parsed);return;}
- res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store','X-Accel-Buffering':'no'});let bytes=0,pending='',complete=false;const decoder=new TextDecoder();for await(const chunk of upstream.body){bytes+=chunk.length;if(bytes>32*1024*1024)throw fault('ACCOUNT_MODEL_RESPONSE_TOO_LARGE',502);pending+=decoder.decode(chunk,{stream:true});if(pending.length>2*1024*1024)throw fault('ACCOUNT_MODEL_RESPONSE_TOO_LARGE',502);const lines=pending.split('\n');pending=lines.pop();for(const line of lines){if(!line.startsWith('data:'))continue;const text=line.slice(5).trim();if(text==='[DONE]'){complete=true;continue;}let event;try{event=JSON.parse(text);}catch{throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);}if(event.error||['error','response.failed','response.incomplete'].includes(event.type))throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);if(['message_stop','response.completed'].includes(event.type))complete=true;}if(!res.write(chunk))await once(res,'drain',{signal:controller.signal});}if(!complete)throw fault('ACCOUNT_MODEL_UPSTREAM_INCOMPLETE',502);store.finish(requestId,'stream_complete');res.end();
+ res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store','X-Accel-Buffering':'no'});const completion=new AccountModelStream(route.api);for await(const chunk of upstream.body){const done=completion.push(chunk);if(!res.write(chunk))await once(res,'drain',{signal:controller.signal});if(done)break;}completion.finish();store.finish(requestId,'stream_complete');res.end();
  }finally{res.off('close',gone);controllers.delete(controller);}return;}
  const admin=url.pathname.startsWith(ROOT+'/admin/');const actor=await authenticate(req,{admin});
  if(req.method==='POST'&&(req.headers['x-naumi-account-models']!=='1'||req.headers.origin!==origin))throw fault('ACCOUNT_MODEL_SAME_ORIGIN_REQUIRED',403);
