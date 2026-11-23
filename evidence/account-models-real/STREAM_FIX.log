@@ -1,0 +1,23 @@
+✔ protocol completion is incremental, frame-delimited and strict about the selected wire format (1.1937ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (14.3406ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.503ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (296.1214ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (377.5988ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (74.7194ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (33.2697ms)
+✔ new unprovisioned server stays unchanged, enrollment prevents rollback, cross-account late response is discarded (1.9907ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (8.7401ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.5142ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (15.6339ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (32.8067ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (199.6142ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (4.8313ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (44.9402ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1457.4281

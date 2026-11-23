@@ -1,0 +1,31 @@
+{
+  "status": "FAIL",
+  "run": "f3287448-f052-4a8d-9e75-4dbeca092d57",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "03797257c8baa4820534fe6aec4b1cdfe3a48655f033433c551d4c749e981bd1",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [],
+  "error": "LIVE_ACCEPTANCE_STAGE_FAILED",
+  "stage": "identity-bootstrap",
+  "errorDetail": "electronApplication.evaluate: ReferenceError: require is not defined\n    at eval (eval at evaluate (:290:30), <anonymous>:1:53)\n    at UtilityScript.evaluate (<anonymous>:292:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+  "remote": {
+    "type": "final",
+    "run": "f3287448-f052-4a8d-9e75-4dbeca092d57",
+    "status": "PASS",
+    "temporaryAccountRemoved": 1,
+    "protectedConfigUnchanged": true,
+    "upstreamAttempts": [],
+    "receipts": [],
+    "receiptDirectory": "/tmp/naumi-model-real-f3287448-f052-4a8d-9e75-4dbeca092d57-dZALdo",
+    "globalGrantsChanged": 0
+  },
+  "transportCleanup": {
+    "type": "remote-cleanup",
+    "containersUnchanged": true,
+    "gatewayUnchanged": true,
+    "sourceWeb": "naumi47-web-layer-export-20261120-r1",
+    "publicServiceDeployed": false
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "status": "FAIL",
+  "run": "264d1489-a228-47f5-84c6-75fbacb09044",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "19dcacebd4ccdfd54e3db04301bb12a546b7dae803b0ae8dee984e1e98c6dad8",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [],
+  "error": "QA_TUNNEL_TIMEOUT",
+  "remote": {
+    "type": "final",
+    "run": "264d1489-a228-47f5-84c6-75fbacb09044",
+    "status": "PASS",
+    "temporaryAccountRemoved": 1,
+    "protectedConfigUnchanged": true,
+    "upstreamAttempts": [],
+    "receipts": [],
+    "receiptDirectory": "/tmp/naumi-model-real-264d1489-a228-47f5-84c6-75fbacb09044-zkRpf6",
+    "globalGrantsChanged": 0
+  },
+  "transportCleanup": {
+    "type": "remote-cleanup",
+    "containersUnchanged": true,
+    "gatewayUnchanged": true,
+    "sourceWeb": "naumi47-web-layer-export-20261120-r1",
+    "publicServiceDeployed": false
+  }
+}

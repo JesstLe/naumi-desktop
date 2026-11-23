@@ -1,0 +1,83 @@
+[
+  {
+    "type": "transport",
+    "targetHost": "172.19.0.5"
+  },
+  {
+    "type": "ready",
+    "run": "e9163a82-615e-4a73-83b2-7f836a9e5423",
+    "port": 39095,
+    "account": {
+      "provisioned": true
+    },
+    "routes": [
+      {
+        "id": "r-189b84323659e1eb752c080d8f3ac969",
+        "model": "deepseek-flash",
+        "api": "anthropic-messages",
+        "group": "CC · DeepSeek / Messages"
+      },
+      {
+        "id": "r-479ff9866aa626db103e936f6fba6618",
+        "model": "gpt-6-luna",
+        "api": "anthropic-messages",
+        "group": "CC · 桦 / Messages"
+      }
+    ],
+    "deployment": "isolated-loopback-real-Canvas-auth",
+    "temporaryAccountExpiresInSeconds": 3600
+  },
+  {
+    "type": "status",
+    "upstreamAttempts": [
+      {
+        "requestId": "de1bb513-bf99-41af-8604-7324cf0367ee",
+        "model": "deepseek-flash",
+        "startedAt": "2026-11-23T03:46:14.247Z",
+        "status": 200
+      }
+    ],
+    "receipts": [
+      {
+        "id": "de1bb513-bf99-41af-8604-7324cf0367ee",
+        "route": "r-189b84323659e1eb752c080d8f3ac969",
+        "state": "stream_complete"
+      }
+    ]
+  },
+  {
+    "type": "revoked",
+    "upstreamAttempts": 1
+  },
+  {
+    "type": "final",
+    "run": "e9163a82-615e-4a73-83b2-7f836a9e5423",
+    "status": "PASS",
+    "temporaryAccountRemoved": 1,
+    "protectedConfigUnchanged": true,
+    "upstreamAttempts": [
+      {
+        "requestId": "de1bb513-bf99-41af-8604-7324cf0367ee",
+        "model": "deepseek-flash",
+        "startedAt": "2026-11-23T03:46:14.247Z",
+        "status": 200
+      }
+    ],
+    "receipts": [
+      {
+        "id": "de1bb513-bf99-41af-8604-7324cf0367ee",
+        "route": "r-189b84323659e1eb752c080d8f3ac969",
+        "state": "stream_complete"
+      }
+    ],
+    "receiptDirectory": "/tmp/naumi-model-real-e9163a82-615e-4a73-83b2-7f836a9e5423-idGaxx",
+    "globalGrantsChanged": 0
+  },
+  {
+    "type": "remote-cleanup",
+    "containersUnchanged": true,
+    "gatewayUnchanged": true,
+    "sourceWeb": "naumi47-web-layer-export-20261120-r1",
+    "publicServiceDeployed": false
+  }
+]

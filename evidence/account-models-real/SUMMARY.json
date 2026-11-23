@@ -1,0 +1,69 @@
+{
+  "status": "PRIMARY_CHAIN_PASS_GPT_UNRESOLVED",
+  "baseline": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "acceptedRun": "e9163a82-615e-4a73-83b2-7f836a9e5423",
+  "supplierAttempts": 4,
+  "attempts": [
+    {
+      "requestId": "e7d83331-d156-47ed-acdc-513212a878a7",
+      "model": "deepseek-flash",
+      "startedAt": "2026-11-23T03:35:33.118Z",
+      "status": 200,
+      "run": "bafe0539-1b76-405a-8a5a-159a3311f212"
+    },
+    {
+      "requestId": "e9ae6676-87e0-467f-9489-32899bde739e",
+      "model": "gpt-6-luna",
+      "startedAt": "2026-11-23T03:35:33.927Z",
+      "status": 200,
+      "run": "bafe0539-1b76-405a-8a5a-159a3311f212"
+    },
+    {
+      "requestId": "7a09e249-a23f-48b2-8406-3594e21612e7",
+      "model": "gpt-6-luna",
+      "startedAt": "2026-11-23T03:43:08.420Z",
+      "status": "UNKNOWN",
+      "run": "d18001b0-e9e0-4432-b0bd-177686f60b01"
+    },
+    {
+      "requestId": "de1bb513-bf99-41af-8604-7324cf0367ee",
+      "model": "deepseek-flash",
+      "startedAt": "2026-11-23T03:46:14.247Z",
+      "status": 200,
+      "run": "e9163a82-615e-4a73-83b2-7f836a9e5423"
+    }
+  ],
+  "gptOriginalRequestsRetainedUnknown": true,
+  "sameRequestReplayed": false,
+  "productionDefaultGrantsChanged": 0,
+  "publicServiceDeployed": false,
+  "installedPackage": false,
+  "successfulResponse": "NAUMI_OK_d4f1f2f4ea0e",
+  "successfulUsageReportedByProvider": {
+    "inputTokens": 52,
+    "outputTokens": 25,
+    "totalTokens": 77
+  },
+  "successfulChecks": [
+    "real_canvas_login_native_chromium",
+    "account_bootstrap",
+    "no_upstream_key_or_lease_persisted",
+    "duplicate_request_409_no_upstream_replay",
+    "revoked_credential_new_request_403",
+    "native_logout_blocks_bootstrap"
+  ],
+  "temporaryAccountsRemoved": 6,
+  "admissionOnly": [
+    "0dbaafcb-bf96-4f1b-8bf8-68ac81b9f55d",
+    "1a19f542-5ebf-4b1d-8bf3-87255ca7c9b8",
+    "f1d4171e-4d96-4baf-bcfc-e4924d4c4555"
+  ],
+  "activeSourceSHA256": {
+    "desktop/app/account-models.cjs": "bb71197168ca83d776b96feed815c4609a3325aff9494a34f77aa7edd83a68ad",
+    "services/account-models/server.mjs": "3b0b441ebd8bc49699b8a72eb16eeeddec0cc4dd618a4b6184cda1017aca123e",
+    "services/account-models/stream.mjs": "c4465e41893b45ed6005cbba602a35d07de9e819cc7cc5151a0b11f04ef9a0c7",
+    "plugins/naumi-enterprise/account-models.js": "042ecdc4792fe442d5774aa8efacf521993e644fbd7ca9dcd221f6500eba86aa"
+  },
+  "liveServerBundleSHA256": "fa1a5da673a33beaf51373b9163fdb736330e59fe2864c6a5c3048d2d2383c77",
+  "sourceFieldInRawRunMeansBaselinePlusRecordedBundleAndClientChanges": true
+}

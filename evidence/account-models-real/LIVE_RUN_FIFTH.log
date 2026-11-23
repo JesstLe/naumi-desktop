@@ -1,0 +1,3 @@
+REAL_SUPPLIER_PASS model=deepseek-flash protocol=anthropic-messages elapsedMs=915
+REAL_SUPPLIER_RESULT status=FAIL error=REAL_MODEL_RESPONSE_NOT_ACCEPTED
+REAL_SUPPLIER_RESULT status=FAIL run=bafe0539-1b76-405a-8a5a-159a3311f212 result=E:\Workspace\naumi-account-models-real-20261123\evidence\account-models-real\bafe0539-1b76-405a-8a5a-159a3311f212\RESULT.json

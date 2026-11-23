@@ -455,3 +455,7 @@ plugins/naumi-enterprise/third-party/ds-bot-im/** -text
 # Account models evidence preserves exact output and copy-only rollback.
 /evidence/account-models/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol
 /evidence/account-models/ROLLBACK.sh text eol=lf
+
+# Real supplier evidence is exact; rollback is isolated-copy only.
+/evidence/account-models-real/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol
+/evidence/account-models-real/ROLLBACK.sh text eol=lf

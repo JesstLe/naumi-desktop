@@ -1,0 +1,74 @@
+Naumi real supplier chain acceptance / 2026-11-23
+BRANCH=codex/account-models-real-20261123
+BASELINE=c08735d1f8a6600c3614757ed21334d9d7687c98
+FUNCTIONAL_COMMIT=187053d; integrated source=842d6b1 (preserves ce95947/ff13ec7)
+CHANGED_FIELD=Desktop expiry upper bound: 300s+60s issuer/device skew (gateway hard TTL remains300s); protocol-specific complete SSE frame termination/cancel without waiting for socket EOF; explicit operator-only live host, original credential/password-owner bundle and native Electron/Chromium/adapter acceptance tooling.
+Source scope: manifest.json, 11 paths, 5 original and 6 added; no version/package/installed runtime/global grant mutation.
+
+ARTIFACTS (final main locations):
+E:/Workspace/naumi-desktop/evidence/account-models-real/MODIFIED_FILE.zip
+E:/Workspace/naumi-desktop/evidence/account-models-real/DIFF_FILE.patch
+E:/Workspace/naumi-desktop/evidence/account-models-real/VERIFICATION.txt
+E:/Workspace/naumi-desktop/evidence/account-models-real/ROLLBACK.sh
+Actual receipt:
+E:/Workspace/naumi-desktop/evidence/account-models-real/e9163a82-615e-4a73-83b2-7f836a9e5423/RESULT.json
+
+BASELINE
+input=original c08735d source; isolated module fixtures, no real provider call.
+command=node --test tests/account-models.test.mjs
+cwd=E:/Workspace/naumi-account-models-real-20261123 before modifications
+literal result=tests12 pass12 fail0; exit=0; log=BASELINE.log
+input=original PRODUCT files in D:/NaumiChecks/account-models-real-copy-c08735d, plus new two behavioral regression cases (current test file).
+command=node --test --test-name-pattern="issuer four seconds|all native protocols finish" tests/account-models.test.mjs
+literal result=tests2 pass0 fail2
+literal errors=ACCOUNT_MODEL_RESPONSE_INVALID; 'aborted' !== 'stop'
+exit=1 EXPECTED; log=BASELINE_REPRODUCTION.log
+
+MODIFIED
+command=node --test --test-name-pattern="issuer four seconds|all native protocols finish" tests/account-models.test.mjs
+cwd=E:/Workspace/naumi-account-models-real-20261123; same new behavioral tests against fixed product.
+literal result=tests2 pass2 fail0; exit=0; log=MODIFIED_REPRODUCTION.log
+command=node --test tests/account-models.test.mjs tests/account-model-stream.test.mjs
+literal result=tests15 pass15 fail0; exit=0; log=STREAM_FIX.log
+command=node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs
+literal result=tests1132 pass1132 fail0; exit=0; logs=FULL.log, INTEGRATED_FULL.log
+input=latest integrated ce95947/ff13ec7 code; all original settings disclosure/distribution protections retained.
+
+REAL SUPPLIER ACCEPTED CHAIN
+command=node scripts/prepare-account-models.mjs E:/Workspace/naumi-central-identity-20261118 live
+input=original public credential reader/hashPassword code; zero credential values in bundle; source pin5aac42a2cff79080ba6f9bf20a46825c6ae1d2c9.
+exit=0; accepted live bundle sha256=fa1a5da673a33beaf51373b9163fdb736330e59fe2864c6a5c3048d2d2383c77
+command=node scripts/run-account-models-live.mjs --run-real-suppliers --deepseek-only
+input=actual47 Canvas login/session/logout, actual temporary zero-credit role=user account, original encrypted provider key reader, existing selected DeepSeek supplier, isolated HTTP/SQLite service under original three locks; real native Electron Chromium session, production IdentityRuntime/AccountModelsSession/PiAiAdapter. Private container interface through pinned SSH loopback. Auth path proxy is an explicit private-deployment transport adapter, not a mock account verifier or fake supplier. Public service/installed Desktop not deployed.
+literal output=REAL_SUPPLIER_PASS model=deepseek-flash protocol=anthropic-messages elapsedMs=1100
+literal output=REAL_SUPPLIER_RESULT status=PASS run=e9163a82-615e-4a73-83b2-7f836a9e5423
+exit=0; log=LIVE_RUN_ACCEPTANCE.log
+actual reply=NAUMI_OK_d4f1f2f4ea0e; random expected nonce matched; native finish=stop.
+provider-reported usage=input52 output25 total77 (not a billing settlement).
+requestId=de1bb513-bf99-41af-8604-7324cf0367ee; upstreamHTTP=200; receipt=stream_complete.
+Passed literal assertion labels in RESULT.json:
+real_canvas_login_native_chromium; account_bootstrap; no_upstream_key_or_lease_persisted;
+duplicate_request_409_no_upstream_replay; revoked_credential_new_request_403; native_logout_blocks_bootstrap.
+Accepted run upstream attempts=1 before/after duplicate and revoked probes; temporary account removed=1; protected config unchanged=true; existing containers and Nginx unchanged=true; globalGrantsChanged=0.
+
+ALL REAL ATTEMPTS / UNRESOLVED GPT
+SUMMARY.json counts exactly4 upstream dispatches across9 runs: DeepSeek2, GPT2; four unique UUIDs. No automatic original-request replay.
+GPT request e9ae6676-87e0-467f-9489-32899bde739e: real nonce text returned, but native aborted at90007ms; ledger UNKNOWN.
+After a code fix, a separate new-nonce/new-UUID GPT acceptance request 7a09e249-a23f-48b2-8406-3594e21612e7: connection result UNKNOWN, no accepted reply.
+Both original receipts remain UNKNOWN. No synthetic success/refund or retry with the same operation.
+Run bafe0539-1b76-405a-8a5a-159a3311f212 and d18001b0-e9e0-4432-b0bd-177686f60b01 retain original evidence.
+Before provider dispatch there were Docker namespace tunnel/Electron VM fixture/clock validation failures. Three lock-busy admission runs had NO account or upstream request. Six uniquely named expiring QA accounts created and removed, no employee account modified.
+Raw run.source is the baseline; actual modified files and tested live bundle are linked by SUMMARY.json/manifest, not falsely represented as untouched baseline source. Production registry/billing credential hashes unchanged; original UNKNOWN ledgers retained in private remote receipt directories.
+
+ROLLBACK (COPY ONLY)
+command=D:/DEV/Git/bin/bash.exe E:/Workspace/naumi-account-models-real-20261123/evidence/account-models-real/ROLLBACK.sh D:/NaumiChecks/account-models-real-copy-c08735d
+input=separate marked modified SOURCE COPY, not actual employee profile/PG/model ledger.
+literal output=ROLLBACK restored=5 removed=6 hashes=PASS source=MODIFIED live=UNTOUCHED unknown_receipts=RETAINED exit=0
+exit=0; log=ROLLBACK.log
+command=node --test tests/account-models.test.mjs
+cwd=D:/NaumiChecks/account-models-real-copy-c08735d
+literal result=tests12 pass12 fail0; exit=0; log=ROLLBACK_TESTS.log
+restored behavior/status=copy returned to original1s skew check and socket-EOF wait; live-source fixes remain modified, remote unknown receipts and all business data untouched. No paid rollback/model replay.
+ZIP MODIFIED_FILE=18 entries CRC PASS; LIVE_HOST_BUNDLE=2 entries hash matches accepted run. ROLLBACK.sh executable100755 in archive/Git; reverse patch check passes.
+
+Remaining: GPT supplier connectivity/termination unresolved; no employee fleet enablement, permanent47 route, new installer/public release or existing client restart performed. One real DeepSeek chain accepted is NOT a claim that all36/38 candidate connections or all supplier protocols are live-accepted.

@@ -1,0 +1,1 @@
+[{"lock": "/opt/naumi-staging/releases/deploy.lock", "available": true, "owners": []}, {"lock": "/opt/naumi-reverse-hub/releases/deploy.lock", "available": true, "owners": []}, {"lock": "/opt/reference-workbench/deploy.lock", "available": true, "owners": []}]

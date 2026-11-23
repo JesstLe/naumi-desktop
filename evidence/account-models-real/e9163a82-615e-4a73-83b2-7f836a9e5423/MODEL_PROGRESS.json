@@ -1,0 +1,31 @@
+{
+  "status": "FAIL",
+  "run": "e9163a82-615e-4a73-83b2-7f836a9e5423",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "fa1a5da673a33beaf51373b9163fdb736330e59fe2864c6a5c3048d2d2383c77",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [
+    "real_canvas_login_native_chromium",
+    "account_bootstrap",
+    "no_upstream_key_or_lease_persisted"
+  ],
+  "models": [
+    {
+      "model": "deepseek-flash",
+      "api": "anthropic-messages",
+      "text": "NAUMI_OK_d4f1f2f4ea0e",
+      "finish": "stop",
+      "error": null,
+      "elapsedMs": 1100,
+      "usage": {
+        "inputTokens": 52,
+        "outputTokens": 25,
+        "totalTokens": 77
+      },
+      "expectedMarker": "NAUMI_OK_d4f1f2f4ea0e",
+      "matched": true
+    }
+  ]
+}

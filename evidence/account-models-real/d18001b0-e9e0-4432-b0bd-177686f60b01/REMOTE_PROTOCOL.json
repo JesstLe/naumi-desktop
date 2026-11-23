@@ -1,0 +1,61 @@
+[
+  {
+    "type": "transport",
+    "targetHost": "172.19.0.5"
+  },
+  {
+    "type": "ready",
+    "run": "d18001b0-e9e0-4432-b0bd-177686f60b01",
+    "port": 38021,
+    "account": {
+      "provisioned": true
+    },
+    "routes": [
+      {
+        "id": "r-189b84323659e1eb752c080d8f3ac969",
+        "model": "deepseek-flash",
+        "api": "anthropic-messages",
+        "group": "CC · DeepSeek / Messages"
+      },
+      {
+        "id": "r-479ff9866aa626db103e936f6fba6618",
+        "model": "gpt-6-luna",
+        "api": "anthropic-messages",
+        "group": "CC · 桦 / Messages"
+      }
+    ],
+    "deployment": "isolated-loopback-real-Canvas-auth",
+    "temporaryAccountExpiresInSeconds": 3600
+  },
+  {
+    "type": "final",
+    "run": "d18001b0-e9e0-4432-b0bd-177686f60b01",
+    "status": "PASS",
+    "temporaryAccountRemoved": 1,
+    "protectedConfigUnchanged": true,
+    "upstreamAttempts": [
+      {
+        "requestId": "7a09e249-a23f-48b2-8406-3594e21612e7",
+        "model": "gpt-6-luna",
+        "startedAt": "2026-11-23T03:43:08.420Z",
+        "status": "UNKNOWN"
+      }
+    ],
+    "receipts": [
+      {
+        "id": "7a09e249-a23f-48b2-8406-3594e21612e7",
+        "route": "r-479ff9866aa626db103e936f6fba6618",
+        "state": "unknown"
+      }
+    ],
+    "receiptDirectory": "/tmp/naumi-model-real-d18001b0-e9e0-4432-b0bd-177686f60b01-6yLkWg",
+    "globalGrantsChanged": 0
+  },
+  {
+    "type": "remote-cleanup",
+    "containersUnchanged": true,
+    "gatewayUnchanged": true,
+    "sourceWeb": "naumi47-web-layer-export-20261120-r1",
+    "publicServiceDeployed": false
+  }
+]

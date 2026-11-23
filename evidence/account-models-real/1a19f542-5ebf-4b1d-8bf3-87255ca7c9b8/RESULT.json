@@ -1,0 +1,12 @@
+{
+  "status": "FAIL",
+  "run": "1a19f542-5ebf-4b1d-8bf3-87255ca7c9b8",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "03797257c8baa4820534fe6aec4b1cdfe3a48655f033433c551d4c749e981bd1",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [],
+  "error": "LIVE_ACCEPTANCE_STAGE_FAILED",
+  "cleanup": "UNCONFIRMED"
+}
