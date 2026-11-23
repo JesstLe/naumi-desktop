@@ -83,11 +83,13 @@ function createQuitGate({shutdown,onReady,onError}){
  return {prepare,reset(){if(phase==='stopping')throw Error('QUIT_PREPARATION_ACTIVE');phase='idle';flight=null;quitting=false;},beforeQuit(event){if(phase==='ready')return;event.preventDefault();if(quitting)return;quitting=true;prepare().then(onReady,onError);},settled:()=>flight??Promise.resolve(),get phase(){return phase;}};
 }
 async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs=350,portRetries=2}={}){
+ if(settings.accountModels&&!settings.isolated&&!settings.linkedService)throw Error('ACCOUNT_MODEL_MANAGED_BACKEND_REQUIRED');
  if(settings.linkedService&&!settings.serviceLease){const release=require('./linked-service.cjs').acquire(settings.root,'desktop-linked-update');settings.serviceLease=true;try{return await ensureBackend(settings,{fetcher,startTimeoutMs,pollMs,portRetries});}finally{delete settings.serviceLease;release();}}
  if(settings.isolated||settings.linkedService){
   settings.url=localURL(settings.url);profile.profileState(settings.home,settings.identity.id);const receipt=profile.runtimeReceipt(settings.home,settings.identity.id);
   const candidate={...settings,url:receipt?`http://127.0.0.1:${receipt.port}`:settings.url},remote=await probeIdentity(candidate,{fetcher});
   if(remote){
+   if(!!settings.accountModels!==!!receipt?.accountModels)throw Error('ACCOUNT_MODEL_RESTART_REQUIRED');
    if(remote.bundleId!==settings.runtime.bundleId){
     if(!settings.linkedService)throw Error('BACKEND_UPGRADE_REQUIRES_STOP');
     // Reuse the signed admission latch. Running/unknown work is deferred, never cancelled.
@@ -96,7 +98,7 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
     return ensureBackend(settings,{fetcher,startTimeoutMs,pollMs,portRetries});
    }
    if(settings.linkedService){const p=require('./linked-service.cjs').plan({root:settings.root,home:settings.home,releaseRoot:settings.releaseRoot,version:settings.runtime.version});if(p.changed)throw Error('SERVICE_ACTIVE_CODE_DRIFT');}
-   settings.url=candidate.url;const launchURL=await waitBootstrap(settings,remote.pid,{timeoutMs:startTimeoutMs,pollMs});saveReceipt(settings,{pid:remote.pid,port:Number(new URL(settings.url).port),bundleId:remote.bundleId,phase:'ready',runId:receipt?.runId??randomUUID()});
+   settings.url=candidate.url;const launchURL=await waitBootstrap(settings,remote.pid,{timeoutMs:startTimeoutMs,pollMs});saveReceipt(settings,{...(settings.accountModels?{accountModels:true}:{}),pid:remote.pid,port:Number(new URL(settings.url).port),bundleId:remote.bundleId,phase:'ready',runId:receipt?.runId??randomUUID()});
    return {launchURL,owned:true,reattached:true,instanceVerified:true,stop:options=>stopInstance(settings,remote.pid,remote.bundleId,options)};
   }
   if(receipt&&(receipt.pid===null||alive(receipt.pid)))throw Error(receipt.pid===null?'PROFILE_BACKEND_START_UNKNOWN':'PROFILE_BACKEND_UNREACHABLE');
@@ -106,7 +108,7 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
    settings.url='http://127.0.0.1:'+await freePort();
   }
   if(settings.linkedService)require('./linked-service.cjs').synchronize(settings);else profile.prepareProfile(settings);
-  require('./embedded-models.cjs').apply(settings);
+  if(!settings.accountModels)require('./embedded-models.cjs').apply(settings);
   settings.workspace??=path.join(settings.home,'workspace');
   if(profile.exists(settings.workspace)&&(!fs.lstatSync(settings.workspace).isDirectory()||fs.lstatSync(settings.workspace).isSymbolicLink()))throw Error('PROFILE_WORKSPACE_UNMANAGED');
   if(!settings.linkedService)await require(path.join(settings.root,'plugins/naumi-enterprise/managed-workspace.cjs')).createManagedWorkspace(settings.workspace,{parent:settings.home});
@@ -116,18 +118,20 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
  }
  const entry=path.join(settings.root,'node_modules/@deepseek-ai/dsh/lib/bin.js');if(!fs.existsSync(entry))throw Error('BACKEND_RUNTIME_MISSING');
  fs.mkdirSync(settings.logDir,{recursive:true});
- const trial=require('./internal-trial.cjs').trialLaunch(settings);
+ const trial=settings.accountModels?{args:[],env:{}}:require('./internal-trial.cjs').trialLaunch(settings);
+ if(settings.accountModels){const patch=path.join(settings.home,'account-models-runtime.patch.json');profile.atomic(patch,[{id:'llm-pi-ai',disabled:true}]);trial.args.push('--patch',patch);}
  const target=new URL(settings.url),runId=randomUUID(),env={...process.env,PATH:path.join(settings.root,'bin')+path.delimiter+settings.root+path.delimiter+(process.env.PATH??''),DSH_HOME:settings.home,DSH_TELEMETRY_MODE:'DISABLED'};
  Object.assign(env,trial.env);
  // Only an explicitly staged rollout enables replacement. Ordinary/frozen bundles stay unchanged.
- delete env.NAUMI_MODEL_POLICY;
+ delete env.NAUMI_MODEL_POLICY;delete env.NAUMI_ACCOUNT_MODELS_CONFIG;delete env.NAUMI_ACCOUNT_MODELS_TOKEN;
+ if(settings.accountModels){const {token,...catalog}=settings.accountModels,config=path.join(settings.home,'account-models-catalog.json');profile.atomic(config,catalog);env.NAUMI_ACCOUNT_MODELS_CONFIG=config;env.NAUMI_ACCOUNT_MODELS_TOKEN=token;}
  if(settings.isolated||settings.linkedService){
   const manifestFile=path.join(settings.releaseRoot??settings.root,'runtime-manifest.json');
   const policy=fs.existsSync(manifestFile)?JSON.parse(fs.readFileSync(manifestFile)).modelPolicy:undefined;
-  if(policy!==undefined){if(policy!=='three-options-vision-20261120')throw Error('MODEL_POLICY_RESOURCE_INVALID');env.NAUMI_MODEL_POLICY=policy;}
+  if(policy!==undefined&&!settings.accountModels){if(policy!=='three-options-vision-20261120')throw Error('MODEL_POLICY_RESOURCE_INVALID');env.NAUMI_MODEL_POLICY=policy;}
  }
  delete env.ELECTRON_RUN_AS_NODE;delete env.NAUMI_DESKTOP_INSTANCE_ID;delete env.NAUMI_DESKTOP_BUNDLE_ID;delete env.NAUMI_ENTERPRISE_ORIGIN;
- const base={pid:null,port:Number(target.port),bundleId:settings.runtime?.bundleId,phase:'starting',runId};
+ const base={...(settings.accountModels?{accountModels:true}:{}),pid:null,port:Number(target.port),bundleId:settings.runtime?.bundleId,phase:'starting',runId};
  if(settings.isolated||settings.linkedService){env.NAUMI_DESKTOP_MAINTENANCE='1';env.NAUMI_DESKTOP_INSTANCE_ID=settings.identity.id;env.NAUMI_DESKTOP_BUNDLE_ID=settings.runtime.bundleId;if(settings.enterpriseOrigin)env.NAUMI_ENTERPRISE_ORIGIN=settings.enterpriseOrigin;}
  let out,err;try{out=fs.openSync(path.join(settings.logDir,'server.out.log'),'w');err=fs.openSync(path.join(settings.logDir,'server.err.log'),'w');}catch(e){if(out!==undefined)fs.closeSync(out);throw e;}
  let child;
