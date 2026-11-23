@@ -1,0 +1,163 @@
+{
+  "baseline": "c34e034ce2d5eb31baea3c492e61ad43475af0a5",
+  "featureCommit": "02220cc21f64172de10856319605eb001fad3a5a",
+  "sourceRoot": "E:\\Workspace\\naumi-account-models-20261123",
+  "liveRoot": "E:/Workspace/naumi-desktop",
+  "entries": [
+    {
+      "path": "desktop/app/account-models.cjs",
+      "original": null,
+      "modified": "24586f93acfdba819ded10bbffb143e9b5060514af04808d496e93ebaf95f3f6"
+    },
+    {
+      "path": "desktop/app/backend.cjs",
+      "original": "6bac9b11ee13b2189cdbb27ea21e4bed14ccf8e617cbf36ccbc4cb87ad6bdcdd",
+      "modified": "4229d1b2d018307c169f033a6afd2c7897e9dfca213c9f58ddb6601eb191a9d8"
+    },
+    {
+      "path": "desktop/app/main.cjs",
+      "original": "3db5b5a308be5717a101f0634b64553dd4fe99baa77532cbe1f4e04b4050cfea",
+      "modified": "81d7820c297b0522ca20938854b760a0b46cda97a04657a8ec746b5b2ae17d03"
+    },
+    {
+      "path": "desktop/app/startup.js",
+      "original": "fec3062018d6ed860b4a5a585a266f811028b6851f2dfc6f8d1bb7c897d49561",
+      "modified": "1c540fbe889cdbebb3b727eb0f9471341a0ef52ab06190b9d5d34cdf02037d9b"
+    },
+    {
+      "path": "desktop/app/tools.cjs",
+      "original": "d6e6bf3c5ff6aa12ed2cf922033b8809a7072e1ec80aa3890357a5922fbc1cae",
+      "modified": "c6470e639102026b872915f87151d2eea1804315dbd4d1fbb7b8f1423ed6dbcc"
+    },
+    {
+      "path": "desktop/scripts/prepare-runtime.mjs",
+      "original": "f4ece9f1a4069a4b43e2d3e71d47c9a4f6676f7cc638da325fc96a6c0b49268b",
+      "modified": "34fdc86803053bbce9928f4f9a15f908cf987e23aeedcb4d72ab3a02d6f58724"
+    },
+    {
+      "path": "docs/changes/2026-11-23-account-models.md",
+      "original": null,
+      "modified": "eed25dd457bd0a42cac8bbdfd99253be5071bd191a8fd97f5d680a75de5a15c3"
+    },
+    {
+      "path": "market/auth.mjs",
+      "original": null,
+      "modified": "9fe05765c17c2fff089c8d9c6af5ce846d61067d1178251b28380058470bc719"
+    },
+    {
+      "path": "market/server.mjs",
+      "original": "01d5fcd00e7f27d3ff8f0f42e166c5a4a1432db89d0397a8691cf13c1548da81",
+      "modified": "f75c5f1d43737468c17d3a139d607086e5fcb7eb7ccf2f0fb6285ea97226ea28"
+    },
+    {
+      "path": "plugins/naumi-enterprise/account-models.js",
+      "original": null,
+      "modified": "68b6fbaa62fcab9135277804b5072a5f29c3b09749ee1dbaa21339fd33e25f73"
+    },
+    {
+      "path": "plugins/naumi-enterprise/host.js",
+      "original": "6ce89ffc02084f047c7658c338b3854fd19d366d80c32f5d8261a0920619e8fd",
+      "modified": "adf5c1c3cc616b5e263107d6a7496f20ae08cdab82f323b29f65814b0c0a9b3e"
+    },
+    {
+      "path": "plugins/naumi-enterprise/model-connections.js",
+      "original": "20325694d0d8161d10922694c2a2bae10d3a3eaede2f3b8765549ecae1f8b27a",
+      "modified": "0f8894b1a2f22c9813df4db1efaa1e51318e49f28009fb6dbff5a1696eb67639"
+    },
+    {
+      "path": "plugins/naumi-enterprise/package.json",
+      "original": "f61a097960f723bb200fa24fb7e7b73531dcbbcba01880fce751de5c9d4aed3f",
+      "modified": "73b358057cbefc77c8998e122b2a9f42ee5cfc75db1d9f2260073b9ef3dfa850"
+    },
+    {
+      "path": "scripts/inspect-account-models47.mjs",
+      "original": null,
+      "modified": "ed26891590289eda2ed3bc248ffcc8e5e8de5af1307d83867fc89375877afbce"
+    },
+    {
+      "path": "scripts/prepare-account-models.mjs",
+      "original": null,
+      "modified": "a0ecaca025377affd9f807c2ce9f3347135183b44d2ae8fa36ed8f03e1486adf"
+    },
+    {
+      "path": "scripts/verify-account-model-admin.mjs",
+      "original": null,
+      "modified": "15b76d4492b575bdb4bbac5bab6b264606132c1b9ba53dc12ddfd1c02c94b70f"
+    },
+    {
+      "path": "scripts/verify-account-model-service.mjs",
+      "original": null,
+      "modified": "023966212b8c7a94609f71d275fed7caecb9e9a2bcb6348431400e97cb39cd41"
+    },
+    {
+      "path": "services/account-models/Dockerfile",
+      "original": null,
+      "modified": "2b6babce7f5c504fd0b239d715185f49d670578ab84a042b4d79dcf5755ae108"
+    },
+    {
+      "path": "services/account-models/README.md",
+      "original": null,
+      "modified": "65e7919d1ac30cd2f62c3a37d001b0b1812b72866e7d20a0c93e13d2c98cc52c"
+    },
+    {
+      "path": "services/account-models/admin.html",
+      "original": null,
+      "modified": "2a6814dfe838e44f5466113e24df6627f49b7cb0b7ed1d6102152997beb9551c"
+    },
+    {
+      "path": "services/account-models/admin.js",
+      "original": null,
+      "modified": "d7dc01ec86abd4f090f6813cdad65326363d06fc6154e3f3dfaa0d5b3a279879"
+    },
+    {
+      "path": "services/account-models/auth.mjs",
+      "original": null,
+      "modified": "b6a10d8ae68332920f5a466af19596234187617fc9c02fdaf729a4e4f590f356"
+    },
+    {
+      "path": "services/account-models/inspect.mjs",
+      "original": null,
+      "modified": "f5208729781f3d01836d9ac8584e3897cded04f93da53878352c1cfb610c793e"
+    },
+    {
+      "path": "services/account-models/main.mjs",
+      "original": null,
+      "modified": "7649f5ea10b98094cca570b6eff7dc29794e875eafc369a28cce2499d944e667"
+    },
+    {
+      "path": "services/account-models/nginx-location.conf",
+      "original": null,
+      "modified": "08f3888092d1f69181b0e555774ff64abc3eb23280ae8f731acdbe8fc2a505b7"
+    },
+    {
+      "path": "services/account-models/package.json",
+      "original": null,
+      "modified": "4a23a3479f05cf27101f6f008cf976e660484087256c19b93031faec4da3b648"
+    },
+    {
+      "path": "services/account-models/registry.mjs",
+      "original": null,
+      "modified": "eb72a0e82d41f10f77ebadb05c16b32eeb7f21474b8a56e4e37a37b51cd4bbfa"
+    },
+    {
+      "path": "services/account-models/server.mjs",
+      "original": null,
+      "modified": "db8d809e325df7799cf707a7d91f8989bbf899126b4cc00ec09122786506cba6"
+    },
+    {
+      "path": "services/account-models/store.mjs",
+      "original": null,
+      "modified": "98dd9e77d3052c1aa507f478ac52f1bf994d0c899e9faa2cd1184475a10a36c6"
+    },
+    {
+      "path": "tests/account-models.test.mjs",
+      "original": null,
+      "modified": "3f0a1fb5409f8c9f51462b95a2fca3271366fc7dbdf4819e5b28085765eedc96"
+    },
+    {
+      "path": "tests/desktop-update-ui.test.mjs",
+      "original": "c41415940f4832e26bcf2d16d0b12fce73f655bddb8ef19ceb1ade09b354b639",
+      "modified": "88f19c38d9c606a95c3c38b2f5f80d0f71fa94b3517915975444b15f5749683c"
+    }
+  ]
+}

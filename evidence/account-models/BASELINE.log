@@ -1,0 +1,29 @@
+✔ identity origin enforces exact HTTPS authority or loopback, with no executable URLs or URL credentials (0.8442ms)
+✔ only canonical account identity crosses the adapter, never role, credits, tokens or server secrets (0.5043ms)
+✔ account and authority namespaces are stable, separate and path-safe without reusing legacy home (12.5372ms)
+✔ linked/malformed profile owners and future config versions fail without claiming or replacing user data (3.2249ms)
+✔ a symlink namespace is rejected and never dereferenced for writes (1.9048ms)
+✔ login reuses Canvas native API and confirms the actual Chromium session before exposing a user (11.3937ms)
+✔ wrong password, disabled/expired account and rate limiting preserve server decisions with one attempt only (1.2074ms)
+✔ login success response without a confirmed server session does not authenticate (0.33ms)
+✔ invalid input never reaches the account server (0.1917ms)
+✔ network failure or redirect never leaks remote details, changes a namespace or replays password submission (1.1531ms)
+✔ identity JSON responses are bounded and reject login HTML or malformed sessions (0.7264ms)
+✔ concurrent password submissions are rejected rather than queued (0.2965ms)
+✔ managed authority cannot be replaced by renderer input; cookie partitions are origin-bound (0.6721ms)
+✔ logout clears only the owned account session and retains every local account home even offline (6.0413ms)
+✔ cold start validates the server; an already open local identity survives an outage in this process only (5.3761ms)
+✔ revoked/reset/disabled Canvas sessions cannot restore a logged-in account on cold start (5.8ms)
+✔ changing account requires logout, and no remote password or token is persisted on disk (5.2324ms)
+✔ native wiring keeps legacy dev hosts intact, accounts scope enterprise/browser homes and logout quiesces before stopping (0.2718ms)
+✔ package audit excludes identity state and all per-account profiles from distributable runtime (40.8424ms)
+✔ account entry renders nothing on web/linked shells and appears only for a real native identity capability (4.3165ms)
+✔ login reuses the requested Smoke/Liquid presentation locally and removes only the Design brand sublabel (1.1881ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 186.3444

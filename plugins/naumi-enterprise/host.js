@@ -7,6 +7,7 @@ import {installPluginMarket} from './plugin-market.js';
 import {PRODUCT_VERSION} from './product-version.js';
 import {installModelConnections} from './model-connections.js';
 import {installModelPolicy} from './model-policy.js';
+import {installAccountModels} from './account-models.js';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {businessCookie,projectWorkspace,validateOrigin} from './domain.js';
@@ -21,7 +22,9 @@ export const inject=['webServer','connection'];
 /** Supported plugin routes, index branding and an authenticated read-only business adapter. */
 export function apply(ctx,config) {
   installDesktopIdentity(ctx);
-  installModelPolicy(ctx);
+  const accountManaged=!!process.env.NAUMI_ACCOUNT_MODELS_CONFIG;
+  installAccountModels(ctx);
+  if(!accountManaged)installModelPolicy(ctx);
   installSessionImport(ctx);
   installContextRecovery(ctx);
   installModelConnections(ctx);

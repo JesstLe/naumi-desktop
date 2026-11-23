@@ -1,0 +1,18 @@
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (12.8888ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.3099ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (232.4319ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (237.3201ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (75.4704ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (29.9361ms)
+✔ new unprovisioned server stays unchanged, enrollment prevents rollback, cross-account late response is discarded (1.2314ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (11.3052ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.5703ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (14.0271ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 839.2537

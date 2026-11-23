@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import pg from 'pg';
+import {createCredentialReader} from 'naumi-credentials-owner';
+import {ImportedRegistry} from './registry.mjs';
+import {AccountModelStore} from './store.mjs';
+import {accountAuthentication} from './auth.mjs';
+import {accountModelServer} from './server.mjs';
+const origin=process.env.NAUMI_IDENTITY_ORIGIN;if(!origin||new URL(origin).origin!==origin)throw Error('ACCOUNT_MODEL_ORIGIN_REQUIRED');
+const home=path.resolve(process.env.NAUMI_ACCOUNT_MODEL_DATA??'/data');fs.mkdirSync(home,{recursive:true,mode:0o700});
+const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:4,connectionTimeoutMillis:5000,query_timeout:10000});
+const registry=new ImportedRegistry({pool,credentials:createCredentialReader(pool)}),assets=process.env.NAUMI_ACCOUNT_MODEL_ASSETS??path.dirname(fileURLToPath(import.meta.url));
+registry.adminHTML=()=>fs.promises.readFile(path.join(assets,'admin.html'));registry.adminJS=()=>fs.promises.readFile(path.join(assets,'admin.js'));
+const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin})});
+server.listen(Number(process.env.PORT??3192),process.env.HOST??'127.0.0.1',()=>console.log('NAUMI_ACCOUNT_MODELS_READY protocol=1 port='+server.address().port));
+const stop=()=>{server.closeAllConnections();server.close(async()=>{store.close();await pool.end();process.exit(0);});};process.on('SIGTERM',stop);process.on('SIGINT',stop);

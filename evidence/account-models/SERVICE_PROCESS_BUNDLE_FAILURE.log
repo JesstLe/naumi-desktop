@@ -1,0 +1,47 @@
+file:///E:/Workspace/naumi-account-models-20261123/scripts/verify-account-model-service.mjs:2
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'naumi-model-service-')),child=spawn(process.execPath,['runtime/account-models-service/server.mjs'],{windowsHide:true,env:{...process.env,NAUMI_IDENTITY_ORIGIN:'http://127.0.0.1:1',NAUMI_ACCOUNT_MODEL_DATA:dir,NAUMI_ACCOUNT_MODEL_ASSETS:path.resolve('runtime/account-models-service'),PORT:'0'}}),exited=new Promise(resolve=>child.once('exit',resolve));let output='',error='';child.stderr.on('data',b=>error+=b);try{const url=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('SERVICE_START_TIMEOUT '+error)),10000);exited.then(c=>{clearTimeout(t);reject(Error('SERVICE_EXIT '+c+' '+error));});child.stdout.on('data',b=>{output+=b;const m=output.match(/READY protocol=1 port=(\d+)/);if(m){clearTimeout(t);resolve('http://127.0.0.1:'+m[1]);}});});assert.equal((await fetch(url+'/api/desktop-models/health')).status,200);assert.equal((await fetch(url+'/admin/desktop-models')).status,401);console.log('ACCOUNT_MODEL_BUNDLE process=PASS HTTP=200 admin_without_login=401 credentials=NONE modelCalls=0');}finally{child.kill();await exited;fs.rmSync(dir,{recursive:true,force:true});}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ^
+
+Error: SERVICE_EXIT 1 node:internal/modules/package_json_reader:301
+
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+
+        ^
+
+
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'pg' imported from E:\Workspace\naumi-account-models-20261123\runtime\account-models-service\server.mjs
+
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+
+    at #resolve (node:internal/modules/esm/loader:683:17)
+
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+
+  code: 'ERR_MODULE_NOT_FOUND'
+
+}
+
+
+
+Node.js v24.19.0
+
+
+    at file:///E:/Workspace/naumi-account-models-20261123/scripts/verify-account-model-service.mjs:2:625
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.19.0

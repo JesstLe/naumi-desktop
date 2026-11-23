@@ -105,7 +105,8 @@
     "weixin-api.js",
     "weixin-login.js",
     "cua-admission.js",
-    "model-policy.js"
+    "model-policy.js",
+    "account-models.js"
   ],
   "dsh": {
     "bundle": {

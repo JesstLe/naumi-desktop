@@ -1,0 +1,1 @@
+{"status": "PASS", "mode": "read-only", "routes": 36, "unavailable": 2, "unavailableReasons": ["ACCOUNT_MODEL_CAPACITY_REQUIRED"], "credentialsVerified": 36, "protocols": ["anthropic-messages", "openai-responses"], "modelCalls": 0, "grantsChanged": 0, "existingContainersUnchanged": true}

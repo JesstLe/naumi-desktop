@@ -1,0 +1,31 @@
+file:///E:/Workspace/naumi-account-models-20261123/scripts/verify-account-model-service.mjs:2
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'naumi-model-service-')),child=spawn(process.execPath,['runtime/account-models-service/server.mjs'],{windowsHide:true,env:{...process.env,NAUMI_IDENTITY_ORIGIN:'http://127.0.0.1:1',NAUMI_ACCOUNT_MODEL_DATA:dir,NAUMI_ACCOUNT_MODEL_ASSETS:path.resolve('runtime/account-models-service'),PORT:'0'}}),exited=new Promise(resolve=>child.once('exit',resolve));let output='',error='';child.stderr.on('data',b=>error+=b);try{const url=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('SERVICE_START_TIMEOUT '+error)),10000);exited.then(c=>{clearTimeout(t);reject(Error('SERVICE_EXIT '+c+' '+error));});child.stdout.on('data',b=>{output+=b;const m=output.match(/READY protocol=1 port=(\d+)/);if(m){clearTimeout(t);resolve('http://127.0.0.1:'+m[1]);}});});assert.equal((await fetch(url+'/api/desktop-models/health')).status,200);assert.equal((await fetch(url+'/admin/desktop-models')).status,401);console.log('ACCOUNT_MODEL_BUNDLE process=PASS HTTP=200 admin_without_login=401 credentials=NONE modelCalls=0');}finally{child.kill();await exited;fs.rmSync(dir,{recursive:true,force:true});}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ^
+
+Error: SERVICE_EXIT 1 file:///E:/Workspace/naumi-account-models-20261123/runtime/account-models-service/server.mjs:680
+
+  if (!origin2) throw Error("NAUMI_MARKET_AUTH_ORIGIN_REQUIRED");
+
+                      ^
+
+
+
+Error: NAUMI_MARKET_AUTH_ORIGIN_REQUIRED
+
+    at file:///E:/Workspace/naumi-account-models-20261123/runtime/account-models-service/server.mjs:680:23
+
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+
+    at async node:internal/modules/esm/loader:643:26
+
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+
+
+Node.js v24.19.0
+
+
+    at file:///E:/Workspace/naumi-account-models-20261123/scripts/verify-account-model-service.mjs:2:625
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.19.0

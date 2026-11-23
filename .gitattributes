@@ -451,3 +451,7 @@ plugins/naumi-enterprise/third-party/ds-bot-im/** -text
 # Headless native business evidence remains byte-exact.
 /evidence/native-systems-headless/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol
 /evidence/native-systems-headless/ROLLBACK.sh text eol=lf
+
+# Account models evidence preserves exact output and copy-only rollback.
+/evidence/account-models/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol
+/evidence/account-models/ROLLBACK.sh text eol=lf

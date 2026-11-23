@@ -1,0 +1,767 @@
+diff --git a/desktop/app/account-models.cjs b/desktop/app/account-models.cjs
+new file mode 100644
+index 0000000..d10232b
+--- /dev/null
++++ b/desktop/app/account-models.cjs
+@@ -0,0 +1,32 @@
++ 'use strict';
++const fs=require('node:fs'),path=require('node:path');
++const {atomic}=require('./profile.cjs');
++const {randomBytes}=require('node:crypto');
++class AccountModelsSession{
++ constructor({identity,clock=Date.now}){Object.assign(this,{identity,clock});this.running=0;this.value=null;this.owner=null;this.flight=null;}
++ async bootstrap({force=false}={}){
++ const runtime=this.identity(),active=runtime?.active;if(!active||!runtime.client){this.value=null;throw Error('ACCOUNT_MODEL_LOGIN_REQUIRED');}
++ if(this.owner!==active){this.owner=active;this.value=null;}
++ if(!force&&this.value&&this.value.expiresAt>this.clock()+60000)return this.value;
++ if(this.flight){if(this.flight.owner===active)return this.flight.promise;throw Error('ACCOUNT_MODEL_ACCOUNT_CHANGED');}
++ const marker=path.join(active.root,'account-models-managed.json');let previous=null;
++ if(fs.existsSync(marker)){if(fs.lstatSync(marker).isSymbolicLink()||fs.statSync(marker).size>16384)throw Error('ACCOUNT_MODEL_STATE_INVALID');previous=JSON.parse(fs.readFileSync(marker));if(previous.version!==1||previous.subject!==active.user.email||previous.origin!==active.origin||!Number.isSafeInteger(previous.revision)||!/^[a-f0-9]{64}$/.test(previous.deviceId))throw Error('ACCOUNT_MODEL_STATE_INVALID');}
++ const deviceId=previous?.deviceId??randomBytes(32).toString('hex');
++ const promise=(async()=>{this.running++;try{
++ const response=await runtime.client.session.fetch(active.origin+'/api/desktop-models/v1/bootstrap',{method:'POST',credentials:'include',redirect:'error',cache:'no-store',headers:{Accept:'application/json','Content-Type':'application/json','x-naumi-account-models':'1',Origin:active.origin},body:JSON.stringify({deviceId}),signal:AbortSignal.timeout(10000)});
++ if(this.identity()!==runtime||runtime.active!==active)throw Error('ACCOUNT_MODEL_ACCOUNT_CHANGED');
++ // Unprovisioned servers preserve the existing explicit test edition. After first enrollment,
++ // 404/outage/revocation can NEVER silently reopen embedded or personally configured routes.
++ if(response.status===404&&!fs.existsSync(marker)){await response.body?.cancel();this.value=null;return null;}
++ if(!response.headers.get('content-type')?.includes('application/json'))throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');let n=0,chunks=[];for await(const c of response.body){n+=c.length;if(n>524288)throw Error('ACCOUNT_MODEL_RESPONSE_TOO_LARGE');chunks.push(Buffer.from(c));}let v;try{v=JSON.parse(Buffer.concat(chunks));}catch{throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');}
++ if(!response.ok){this.value=null;throw Error(/^ACCOUNT_MODEL_[A-Z_]+$/.test(v.error)?v.error:'ACCOUNT_MODEL_UNAVAILABLE');}
++ if(v.protocol!==1||v.subject!==active.user.email||v.deviceId!==deviceId||!Number.isSafeInteger(v.revision)||v.revision<1||!Number.isSafeInteger(v.expiresAt)||v.expiresAt<=this.clock()||v.expiresAt>this.clock()+301000||typeof v.token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(v.token)||!Array.isArray(v.routes)||!v.routes.length||v.routes.length>100)throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');
++ for(const row of v.routes){if(!/^[a-zA-Z0-9_-]{1,100}$/.test(row.id)||row.provider!=='naumi-account-'+row.id||row.baseURL!==active.origin+'/api/desktop-models/v1/gateway/'+row.id||!['openai-completions','openai-responses','anthropic-messages'].includes(row.api)||!row.model?.id)throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');}
++ if(new Set(v.routes.map(x=>x.id)).size!==v.routes.length)throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');
++ if(fs.existsSync(marker)){if(fs.lstatSync(marker).isSymbolicLink())throw Error('ACCOUNT_MODEL_STATE_INVALID');const old=JSON.parse(fs.readFileSync(marker));if(old.deviceId!==deviceId||old.subject!==v.subject||old.origin!==active.origin||old.revision>v.revision)throw Error('ACCOUNT_MODEL_REVISION_ROLLBACK');}
++ if(this.identity()!==runtime||runtime.active!==active)throw Error('ACCOUNT_MODEL_ACCOUNT_CHANGED');atomic(marker,{version:1,subject:v.subject,origin:active.origin,deviceId,revision:v.revision});this.value=v;return v;
++ }catch(e){if(this.owner===active)this.value=null;throw Error(/^ACCOUNT_MODEL_[A-Z_]+$/.test(e.message)?e.message:'ACCOUNT_MODEL_UNAVAILABLE');}finally{this.running--;}})();
++ const flight={owner:active,promise};this.flight=flight;try{return await promise;}finally{if(this.flight===flight)this.flight=null;}
++ }
++}
++module.exports={AccountModelsSession};
+diff --git a/desktop/app/backend.cjs b/desktop/app/backend.cjs
+index f3cd894..b0ab2f7 100644
+--- a/desktop/app/backend.cjs
++++ b/desktop/app/backend.cjs
+@@ -83,11 +83,13 @@ function createQuitGate({shutdown,onReady,onError}){
+  return {prepare,reset(){if(phase==='stopping')throw Error('QUIT_PREPARATION_ACTIVE');phase='idle';flight=null;quitting=false;},beforeQuit(event){if(phase==='ready')return;event.preventDefault();if(quitting)return;quitting=true;prepare().then(onReady,onError);},settled:()=>flight??Promise.resolve(),get phase(){return phase;}};
+ }
+ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs=350,portRetries=2}={}){
++ if(settings.accountModels&&!settings.isolated&&!settings.linkedService)throw Error('ACCOUNT_MODEL_MANAGED_BACKEND_REQUIRED');
+  if(settings.linkedService&&!settings.serviceLease){const release=require('./linked-service.cjs').acquire(settings.root,'desktop-linked-update');settings.serviceLease=true;try{return await ensureBackend(settings,{fetcher,startTimeoutMs,pollMs,portRetries});}finally{delete settings.serviceLease;release();}}
+  if(settings.isolated||settings.linkedService){
+   settings.url=localURL(settings.url);profile.profileState(settings.home,settings.identity.id);const receipt=profile.runtimeReceipt(settings.home,settings.identity.id);
+   const candidate={...settings,url:receipt?`http://127.0.0.1:${receipt.port}`:settings.url},remote=await probeIdentity(candidate,{fetcher});
+   if(remote){
++   if(!!settings.accountModels!==!!receipt?.accountModels)throw Error('ACCOUNT_MODEL_RESTART_REQUIRED');
+    if(remote.bundleId!==settings.runtime.bundleId){
+     if(!settings.linkedService)throw Error('BACKEND_UPGRADE_REQUIRES_STOP');
+     // Reuse the signed admission latch. Running/unknown work is deferred, never cancelled.
+@@ -96,7 +98,7 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
+     return ensureBackend(settings,{fetcher,startTimeoutMs,pollMs,portRetries});
+    }
+    if(settings.linkedService){const p=require('./linked-service.cjs').plan({root:settings.root,home:settings.home,releaseRoot:settings.releaseRoot,version:settings.runtime.version});if(p.changed)throw Error('SERVICE_ACTIVE_CODE_DRIFT');}
+-   settings.url=candidate.url;const launchURL=await waitBootstrap(settings,remote.pid,{timeoutMs:startTimeoutMs,pollMs});saveReceipt(settings,{pid:remote.pid,port:Number(new URL(settings.url).port),bundleId:remote.bundleId,phase:'ready',runId:receipt?.runId??randomUUID()});
++   settings.url=candidate.url;const launchURL=await waitBootstrap(settings,remote.pid,{timeoutMs:startTimeoutMs,pollMs});saveReceipt(settings,{...(settings.accountModels?{accountModels:true}:{}),pid:remote.pid,port:Number(new URL(settings.url).port),bundleId:remote.bundleId,phase:'ready',runId:receipt?.runId??randomUUID()});
+    return {launchURL,owned:true,reattached:true,instanceVerified:true,stop:options=>stopInstance(settings,remote.pid,remote.bundleId,options)};
+   }
+   if(receipt&&(receipt.pid===null||alive(receipt.pid)))throw Error(receipt.pid===null?'PROFILE_BACKEND_START_UNKNOWN':'PROFILE_BACKEND_UNREACHABLE');
+@@ -106,7 +108,7 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
+    settings.url='http://127.0.0.1:'+await freePort();
+   }
+   if(settings.linkedService)require('./linked-service.cjs').synchronize(settings);else profile.prepareProfile(settings);
+-  require('./embedded-models.cjs').apply(settings);
++  if(!settings.accountModels)require('./embedded-models.cjs').apply(settings);
+   settings.workspace??=path.join(settings.home,'workspace');
+   if(profile.exists(settings.workspace)&&(!fs.lstatSync(settings.workspace).isDirectory()||fs.lstatSync(settings.workspace).isSymbolicLink()))throw Error('PROFILE_WORKSPACE_UNMANAGED');
+   if(!settings.linkedService)await require(path.join(settings.root,'plugins/naumi-enterprise/managed-workspace.cjs')).createManagedWorkspace(settings.workspace,{parent:settings.home});
+@@ -116,18 +118,20 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
+  }
+  const entry=path.join(settings.root,'node_modules/@deepseek-ai/dsh/lib/bin.js');if(!fs.existsSync(entry))throw Error('BACKEND_RUNTIME_MISSING');
+  fs.mkdirSync(settings.logDir,{recursive:true});
+- const trial=require('./internal-trial.cjs').trialLaunch(settings);
++ const trial=settings.accountModels?{args:[],env:{}}:require('./internal-trial.cjs').trialLaunch(settings);
++ if(settings.accountModels){const patch=path.join(settings.home,'account-models-runtime.patch.json');profile.atomic(patch,[{id:'llm-pi-ai',disabled:true}]);trial.args.push('--patch',patch);}
+  const target=new URL(settings.url),runId=randomUUID(),env={...process.env,PATH:path.join(settings.root,'bin')+path.delimiter+settings.root+path.delimiter+(process.env.PATH??''),DSH_HOME:settings.home,DSH_TELEMETRY_MODE:'DISABLED'};
+  Object.assign(env,trial.env);
+  // Only an explicitly staged rollout enables replacement. Ordinary/frozen bundles stay unchanged.
+- delete env.NAUMI_MODEL_POLICY;
++ delete env.NAUMI_MODEL_POLICY;delete env.NAUMI_ACCOUNT_MODELS_CONFIG;delete env.NAUMI_ACCOUNT_MODELS_TOKEN;
++ if(settings.accountModels){const {token,...catalog}=settings.accountModels,config=path.join(settings.home,'account-models-catalog.json');profile.atomic(config,catalog);env.NAUMI_ACCOUNT_MODELS_CONFIG=config;env.NAUMI_ACCOUNT_MODELS_TOKEN=token;}
+  if(settings.isolated||settings.linkedService){
+   const manifestFile=path.join(settings.releaseRoot??settings.root,'runtime-manifest.json');
+   const policy=fs.existsSync(manifestFile)?JSON.parse(fs.readFileSync(manifestFile)).modelPolicy:undefined;
+-  if(policy!==undefined){if(policy!=='three-options-vision-20261120')throw Error('MODEL_POLICY_RESOURCE_INVALID');env.NAUMI_MODEL_POLICY=policy;}
++  if(policy!==undefined&&!settings.accountModels){if(policy!=='three-options-vision-20261120')throw Error('MODEL_POLICY_RESOURCE_INVALID');env.NAUMI_MODEL_POLICY=policy;}
+  }
+  delete env.ELECTRON_RUN_AS_NODE;delete env.NAUMI_DESKTOP_INSTANCE_ID;delete env.NAUMI_DESKTOP_BUNDLE_ID;delete env.NAUMI_ENTERPRISE_ORIGIN;
+- const base={pid:null,port:Number(target.port),bundleId:settings.runtime?.bundleId,phase:'starting',runId};
++ const base={...(settings.accountModels?{accountModels:true}:{}),pid:null,port:Number(target.port),bundleId:settings.runtime?.bundleId,phase:'starting',runId};
+  if(settings.isolated||settings.linkedService){env.NAUMI_DESKTOP_MAINTENANCE='1';env.NAUMI_DESKTOP_INSTANCE_ID=settings.identity.id;env.NAUMI_DESKTOP_BUNDLE_ID=settings.runtime.bundleId;if(settings.enterpriseOrigin)env.NAUMI_ENTERPRISE_ORIGIN=settings.enterpriseOrigin;}
+  let out,err;try{out=fs.openSync(path.join(settings.logDir,'server.out.log'),'w');err=fs.openSync(path.join(settings.logDir,'server.err.log'),'w');}catch(e){if(out!==undefined)fs.closeSync(out);throw e;}
+  let child;
+diff --git a/desktop/app/main.cjs b/desktop/app/main.cjs
+index 82eabcf..7259ca2 100644
+--- a/desktop/app/main.cjs
++++ b/desktop/app/main.cjs
+@@ -15,6 +15,7 @@ const {admitUpdate}=require('./update-gate.cjs');
+ const {IdentityRuntime}=require('./identity-runtime.cjs');
+ const {MarketSession}=require('./market.cjs');
+ const {CloudSession,CloudBackup}=require('./cloud.cjs');
++const {AccountModelsSession}=require('./account-models.cjs');
+ const {CreationVault}=require('./creation-vault.cjs');
+ const {identityOrigin}=require('./identity.cjs');
+ const {randomUUID}=require('node:crypto');
+@@ -25,6 +26,7 @@ const locked=app.requestSingleInstanceLock();
+ let identityRuntime=null,identityUserData=null;
+ const market=new MarketSession({identity:()=>identityRuntime});
+ const cloud=new CloudSession({identity:()=>identityRuntime});
++const accountModels=new AccountModelsSession({identity:()=>identityRuntime});
+ const creation=new CreationVault({identity:()=>identityRuntime,safeStorage});
+ const DEFAULT_IDENTITY_ORIGIN='https://47.105.59.142';
+ const {enterpriseConnection,allowedEnterpriseNavigation}=require('./enterprise-defaults.cjs');
+@@ -112,7 +114,7 @@ app.whenReady().then(async()=>{
+    const checked=await verifyConnection(origin,(url,options)=>primarySession.fetch(url,options),{signal:connectionFlight.signal});
+    const state=workspaceSummary(identityUserData??app.getPath('userData')),changed=state.configured&&state.origin!==checked.origin;
+    if(changed){
+-    if((enterprise?.running??0)>0||market.running>0||cloud.running>0||cloudBusy>0||(bridge?.runtime.queues.size??0)>0)throw Error('WORKSPACE_OPERATIONS_IN_FLIGHT');
++    if((enterprise?.running??0)>0||market.running>0||accountModels.running>0||cloud.running>0||cloudBusy>0||(bridge?.runtime.queues.size??0)>0)throw Error('WORKSPACE_OPERATIONS_IN_FLIGHT');
+     if(backend?.owned){const r=require('./profile.cjs').runtimeReceipt(settings.home,settings.identity.id);if(!r||r.pid===null||isAlive(r.pid))await assertWorkspaceIdle(settings,(url,options)=>primarySession.fetch(url,options));connectionFlight.signal.throwIfAborted();await stopBackend(backend);backend=null;}
+     else {const r=require('./profile.cjs').runtimeReceipt(settings.home,settings.identity.id);if(r&&(r.pid===null||isAlive(r.pid)))throw Error('WORKSPACE_BACKEND_STOP_REQUIRED');}
+     await bridge?.close();bridge=null;
+@@ -222,13 +224,14 @@ async function boot(){
+   }
+   if(identityRuntime?.active&&settings.isolated)await creation.activate(settings.home);
+   if(settings.linkedService)installerState.registerProfile(path.resolve(process.resourcesPath,'..'),app.getPath('userData'));
++  settings.accountModels=identityRuntime?.active?await accountModels.bootstrap({force:true}):null;
+   const nextBackend=settings.linkedServiceCandidate?await require('./linked-service-migration.cjs').adopt(settings,{ensureBackend,stopBackend,launchFromLog:require('./backend.cjs').launchFromLog}):await ensureBackend(settings);
+   if(settings.linkedService)installerState.registerProfile(path.resolve(process.resourcesPath,'..'),app.getPath('userData'));
+   backend=backend?.owned&&!nextBackend.owned&&backend.child.exitCode===null&&backend.child.signalCode===null?{...nextBackend,owned:true,child:backend.child}:nextBackend;
+   const account=identityRuntime?.active?'identity-'+identityRuntime.active.profileId+'-'+settings.workspaceId:!settings.isolated||settings.workspaceId==='default'?'local':'enterprise-'+settings.workspaceId;
+   if(!guests){guests=new Guests({hostURL:settings.url,account,timeout:process.env.NAUMI_TEST==='1'?Number(process.env.NAUMI_TEST_TIMEOUT??30000):30000});guests.attach(window);}
+   else if(guests.hostURL!==settings.url||guests.account!==account)await guests.reset({hostURL:settings.url,account});
+-  if(!bridge)bridge=await startBridge({home:settings.home,guests,window,enterprise,market,browserConnections:new BrowserConnections({root:path.join(identityRuntime?.active?.root??identityUserData??app.getPath('userData'),'browser-private'),hostURL:settings.url,safeStorage}),maintenance:{blocked:maintenanceBlocked,perform:performMaintenance,quit:ticket=>{if(maintenanceBlocked()&&ticket===maintenanceTicket)app.quit();}}});
++  if(!bridge)bridge=await startBridge({home:settings.home,guests,window,enterprise,market,accountModels,browserConnections:new BrowserConnections({root:path.join(identityRuntime?.active?.root??identityUserData??app.getPath('userData'),'browser-private'),hostURL:settings.url,safeStorage}),maintenance:{blocked:maintenanceBlocked,perform:performMaintenance,quit:ticket=>{if(maintenanceBlocked()&&ticket===maintenanceTicket)app.quit();}}});
+   editingConnection=false;await window.loadURL(backend.launchURL);
+   const serviceVersion=await verifyServiceVersion();
+   require('./profile.cjs').atomic(path.join(app.getPath('userData'),'desktop-runtime.json'),{version:1,pid:process.pid,clientVersion:app.getVersion(),executable:process.execPath,backendMode:settings.isolated||settings.linkedService?'managed':'external',backendURL:settings.url,serviceVersion,serviceBundleId:settings.runtime?.bundleId??null,readyAt:new Date().toISOString()});
+@@ -243,14 +246,14 @@ async function verifyServiceVersion(){
+ }
+ function accountApp(){return {isPackaged:app.isPackaged,getPath:name=>name==='userData'&&identityUserData?identityUserData:app.getPath(name)};}
+ async function assertAccountIdle(){
+- if((enterprise?.running??0)>0||market.running>0||cloud.running>0||cloudBusy>0||(bridge?.runtime.queues.size??0)>0)throw Error('WORKSPACE_OPERATIONS_IN_FLIGHT');
++ if((enterprise?.running??0)>0||market.running>0||accountModels.running>0||cloud.running>0||cloudBusy>0||(bridge?.runtime.queues.size??0)>0)throw Error('WORKSPACE_OPERATIONS_IN_FLIGHT');
+  if(backend&&!backend.owned&&settings?.isolated)throw Error('WORKSPACE_BACKEND_STOP_REQUIRED');
+  if(backend)await assertWorkspaceIdle(settings,(url,options)=>primarySession.fetch(url,options));
+ }
+ function maintenanceBlocked(){if(maintenanceTicket&&Date.now()>=maintenanceUntil){maintenanceTicket=null;}return !!maintenanceTicket;}
+ async function canInstallUpdate(){
+  const ticket=randomUUID().replaceAll('-','')+randomUUID().replaceAll('-','');
+- const gate=await admitUpdate({settings,backend,prepared:quitGate?.phase==='ready',busy:closing||booting||connecting||(bridge?.runtime.queues.size??0)>0||(enterprise?.running??0)>0||market.running>0||cloud.running>0||cloudBusy>0,maintenance:maintenanceBlocked(),request:(...args)=>primarySession.fetch(...args),quiesce:()=>performMaintenance('quiesce',ticket),resume:()=>performMaintenance('resume',ticket)});
++ const gate=await admitUpdate({settings,backend,prepared:quitGate?.phase==='ready',busy:closing||booting||connecting||(bridge?.runtime.queues.size??0)>0||(enterprise?.running??0)>0||market.running>0||accountModels.running>0||cloud.running>0||cloudBusy>0,maintenance:maintenanceBlocked(),request:(...args)=>primarySession.fetch(...args),quiesce:()=>performMaintenance('quiesce',ticket),resume:()=>performMaintenance('resume',ticket)});
+  if(gate.ok){if(gate.mode==='external'){maintenanceTicket=ticket;maintenanceUntil=Date.now()+30000;}const release=gate.release;gate.release=async()=>{if(quitGate?.phase==='ready'||quitGate?.phase==='failed'){quitGate.reset();closing=false;maintenanceTicket=null;backend=null;bridge=null;await boot();}else if(gate.mode==='external')maintenanceTicket=null;else await release?.();};}return gate;
+ }
+ async function showUpdateNotice(snapshot){
+@@ -264,7 +267,7 @@ async function performMaintenance(action,ticket,{accountTransition=false}={}){
+  if(action==='resume'){if(backend&&settings)await maintenanceRequest(settings,'resume',ticket);maintenanceTicket=null;return;}
+  if(booting||(connecting&&!accountTransition)||closing||!(settings?.isolated||settings?.linkedService)||!backend?.owned)throw Error('INSTALL_ACTIVITY_UNKNOWN');
+  maintenanceTicket=ticket;maintenanceUntil=Date.now()+30000;
+- try{if((bridge?.runtime.queues.size??0)>0||(enterprise?.running??0)>0||market.running>0||cloud.running>0||cloudBusy>0)throw Error('INSTALL_OPERATIONS_IN_FLIGHT');await maintenanceRequest(settings,'quiesce',ticket);}
++ try{if((bridge?.runtime.queues.size??0)>0||(enterprise?.running??0)>0||market.running>0||accountModels.running>0||cloud.running>0||cloudBusy>0)throw Error('INSTALL_OPERATIONS_IN_FLIGHT');await maintenanceRequest(settings,'quiesce',ticket);}
+  catch(error){maintenanceTicket=null;throw error;}
+ }
+ function isAlive(pid){try{process.kill(pid,0);return true;}catch(error){return error.code!=='ESRCH';}}
+diff --git a/desktop/app/startup.js b/desktop/app/startup.js
+index c76d68e..10b1d3c 100644
+--- a/desktop/app/startup.js
++++ b/desktop/app/startup.js
+@@ -1,5 +1,5 @@
+ const error=new URLSearchParams(location.search).get('error');
+-if(error){document.querySelector('#spinner').hidden=true;document.querySelector('#error').textContent=({INSTALL_RUNNING_TASKS:'本地服务正在工作，任务结束后重试即可同步更新。',LINKED_SERVICE_REQUIRES_STOP:'旧本地服务仍在运行，请结束旧服务后重试同步。',SERVICE_VERSION_MISMATCH:'客户端与本地服务尚未同步，请重试完成更新。',SERVICE_ACTIVE_CODE_DRIFT:'本地服务代码发生变化，请结束当前工作后重新启动。',ENTERPRISE_EXISTING_DEVICE_REQUIRES_MIGRATION:'原企业设备仍有关联，请先完成企业迁移。',ENTERPRISE_BACKEND_STATE_UNKNOWN:'原企业服务状态待确认，请正常退出后重试。'})[error]??error;document.querySelector('#retry').hidden=false;}
++if(error){document.querySelector('#spinner').hidden=true;document.querySelector('#error').textContent=({ACCOUNT_MODEL_NOT_AUTHORIZED:'当前账号尚未获得模型授权。',ACCOUNT_MODEL_UNAVAILABLE:'模型配置服务暂不可用，请稍后重试。',ACCOUNT_MODEL_RESTART_REQUIRED:'请先结束本地任务并正常退出 Naumi，再重新打开以启用账号模型。',ACCOUNT_MODEL_REVISION_ROLLBACK:'模型配置版本不一致，请联系管理员。',ACCOUNT_MODEL_REGISTRY_CHANGED:'模型配置已更新，请重新连接。',INSTALL_RUNNING_TASKS:'本地服务正在工作，任务结束后重试即可同步更新。',LINKED_SERVICE_REQUIRES_STOP:'旧本地服务仍在运行，请结束旧服务后重试同步。',SERVICE_VERSION_MISMATCH:'客户端与本地服务尚未同步，请重试完成更新。',SERVICE_ACTIVE_CODE_DRIFT:'本地服务代码发生变化，请结束当前工作后重新启动。',ENTERPRISE_EXISTING_DEVICE_REQUIRES_MIGRATION:'原企业设备仍有关联，请先完成企业迁移。',ENTERPRISE_BACKEND_STATE_UNKNOWN:'原企业服务状态待确认，请正常退出后重试。'})[error]??error;document.querySelector('#retry').hidden=false;}
+ if(error)window.naumiDesktop.connectionState().then(state=>{document.querySelector('#settings').hidden=!state.available;}).catch(()=>{});
+ document.querySelector('#settings').addEventListener('click',()=>window.naumiDesktop.connectionSettings());
+ document.querySelector('#retry').addEventListener('click',()=>{document.querySelector('#retry').hidden=true;document.querySelector('#error').textContent='';document.querySelector('#spinner').hidden=false;window.naumiDesktop.retry();});
+diff --git a/desktop/app/tools.cjs b/desktop/app/tools.cjs
+index b20b278..2fcaae6 100644
+--- a/desktop/app/tools.cjs
++++ b/desktop/app/tools.cjs
+@@ -54,7 +54,7 @@ class BrowserTools {
+   return info(entry);
+  }
+ }
+-async function startBridge({home,guests,window,enterprise,market,maintenance,browserConnections}){
++async function startBridge({home,guests,window,enterprise,market,accountModels,maintenance,browserConnections}){
+  const token=randomBytes(32).toString('hex'),native=new BrowserTools(guests,window),runtime=browserConnections?await browserConnections.start(native):native;
+  const file=path.join(home,'naumi-desktop-bridge.json');
+  const server=http.createServer(async(req,res)=>{
+@@ -74,6 +74,10 @@ async function startBridge({home,guests,window,enterprise,market,maintenance,bro
+    try{let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>29*1024*1024)throw Error('BUSINESS_BODY_TOO_LARGE');chunks.push(chunk);}send(200,{ok:true,data:await enterprise.business.perform(JSON.parse(Buffer.concat(chunks)),{signal:controller.signal})});}
+    catch(error){send(409,{ok:false,error:/^BUSINESS_[A-Z_]+$/.test(error.message)?error.message:'BUSINESS_RESULT_UNKNOWN'});}finally{res.off('close',abort);}return;
+   }
++  if(req.method==='POST'&&req.url==='/models/bootstrap'){
++   if(!accountModels){send(503,{ok:false,error:'ACCOUNT_MODEL_LOGIN_REQUIRED'});return;}
++   try{send(200,{ok:true,data:await accountModels.bootstrap({force:true})});}catch(error){send(503,{ok:false,error:/^ACCOUNT_MODEL_[A-Z_]+$/.test(error.message)?error.message:'ACCOUNT_MODEL_UNAVAILABLE'});}return;
++  }
+   if(req.method==='POST'&&req.url==='/market/request'){
+    if(!market){send(503,{error:'MARKET_LOGIN_REQUIRED'});return;}
+    const controller=new AbortController(),abort=()=>{if(!res.writableEnded)controller.abort();};res.on('close',abort);
+diff --git a/desktop/scripts/prepare-runtime.mjs b/desktop/scripts/prepare-runtime.mjs
+index d507093..4936c3b 100644
+--- a/desktop/scripts/prepare-runtime.mjs
++++ b/desktop/scripts/prepare-runtime.mjs
+@@ -31,7 +31,7 @@ export function runtimeInventory(target){
+   walk(target);return files;
+ }
+ export function scanRuntimeInventory(files){
+-  const forbidden=/(?:^|\/)(?:\.env(?:\..*)?|\.credentials[^/]*|cookies(?:\.sqlite)?|login data|local state|web data|employee[^/]*\.sqlite(?:-wal|-shm)?|sessions|logs|\.git|\.dsh|browser-profiles|enterprise-workspaces|naumi-desktop-bridge\.json|backend-link\.json|naumi-identity\.json|identity-owner\.json|identity-profiles|desktop-(?:instance|profile|profile-journal|backend|enterprise|workspaces|maintenance)\.json|creation-private|business-private|[^/]*\.vault|runtime-[^/]*\.token|device-private-key[^/]*|.*\.(?:pem|pfx|key))$/i;
++  const forbidden=/(?:^|\/)(?:\.env(?:\..*)?|\.credentials[^/]*|cookies(?:\.sqlite)?|login data|local state|web data|employee[^/]*\.sqlite(?:-wal|-shm)?|sessions|logs|\.git|\.dsh|browser-profiles|enterprise-workspaces|naumi-desktop-bridge\.json|backend-link\.json|naumi-identity\.json|identity-owner\.json|identity-profiles|desktop-(?:instance|profile|profile-journal|backend|enterprise|workspaces|maintenance)\.json|account-models-(?:managed|catalog|runtime\.patch)\.json|creation-private|business-private|[^/]*\.vault|runtime-[^/]*\.token|device-private-key[^/]*|.*\.(?:pem|pfx|key))$/i;
+   // SDK source directories named sessions are code, not a copied employee session store.
+   for(const file of files)if(forbidden.test(file.path)||/^(?:sessions|logs|browser-profiles)\//i.test(file.path)||/(?:^|\/)(?:\.git|\.dsh|browser-profiles|identity-profiles|business-private|creation-private)\//i.test(file.path))throw Error('RUNTIME_PRIVATE_FILE '+file.path);
+   return {files:files.length,forbiddenPaths:0};
+diff --git a/docs/changes/2026-11-23-account-models.md b/docs/changes/2026-11-23-account-models.md
+new file mode 100644
+index 0000000..99430c9
+--- /dev/null
++++ b/docs/changes/2026-11-23-account-models.md
+@@ -0,0 +1,17 @@
++# 账号模型自动配置
++
++模块与职责：基线c34e034ce2d5eb31baea3c492e61ad43475af0a5，codex/account-models-20261123。复用Canvas账号、既有服务端凭据库与模型来源；实现默认/账号授权、原协议网关、Desktop登录自动接入。功能模块3（授权/代理、桌面接入、后台管理），完成后fetch origin/main仍为c34e034，无其他主线增量。
++
++公共接口、依赖与状态：服务端SQLite拥有grant/default policy/CAS/revision/短租约hash/request receipt/audit；原Canvas模块仍拥有身份、管理员、加密Key及供应商来源。market/auth从原server抽出纯模块，仅增加可选typed subject返回，避免打包时触发原市场进程入口；旧默认接口和行为保持。Desktop复用原Chromium身份分区及本地受保护bridge，只内存持有5分钟账号/独立设备凭证，60秒刷新；原生PiAiAdapter和选择器处理协议与交互。
++
++实现与迁移状态：默认模型模板一次设置，账号登录自动继承；指定账号覆盖/禁用优先。只读原加密凭据，三种原协议固定路由/固定endpoint代理，无上游Key下发。已进入受管模式后不回落内嵌或BYO；原配置/凭据保留但启动覆盖层禁用本地pi-ai路由。已运行旧非受管backend要求正常退出再启，不自动杀任务。新服务初始默认策略关闭，生产授权未自动开启。部署说明见services/account-models/README.md。
++
++验证命令、结果与证据层级：
++- node --test tests/*.test.mjs desktop/tests/*.test.cjs：1123/1123，exit0，本地全仓回归。
++- 新模块12项覆盖默认继承/逐账号覆盖、CAS/幂等、账号/设备隔离、撤销/过期/时钟、原生三协议真实loopback、原生Cordis LLM登记/派发、bridge、进程重启UNKNOWN与0重复调用。
++- node scripts/verify-account-model-admin.mjs：8项实际Chrome操作，真实SQLite默认授权/账号禁用，pageerrors0；认证边界为明确fixture，非生产管理员登录。图片已打开检查。
++- node scripts/prepare-account-models.mjs + verify-account-model-service：独立无node_modules bundle启动、HTTP200、未登录admin401，0模型调用。复用原credential reader，CONTRACT_PIN固定原源码5aac42a2和bundle hash。
++- 47只读实际检查：38来源条目中36条参数完整、2条容量缺项；36次原凭据解密核验，Anthropic/Responses原协议保持；0模型调用/0授权修改/原容器StartedAt保持。不将凭据可读与付费供应商可用混淆。缺input仅继承原来源modality=text；不按名称开启image。初次两次失败CAPABILITY_REQUIRED/CAPACITY_REQUIRED均保留；随后隔离缺容量条目并在管理页显示待补全数量，不让缺项阻断其他36条。
++- 全仓首轮2失败：独立树缺CUA离线资产、旧update-gate VM fixture未提供新增accountModels在途服务；复制并校验原pin资产，补fixture和在途断言后全仓通过。Anthropic SSE夹具缺event字段与Cordis fixture返回非法effect的早期失败保留，不作为已通过。打包依赖闭包/市场入口副作用失败亦保留，最终真正无node_modules独立进程通过。
++
++未完成项与下一步：47新服务HTTP入口只读仍404；本轮未执行生产写入、未设任何真实账号/默认授权、未轮换密钥、未重启既有服务、未发布新Desktop安装包。完整上线还需固定main服务部署、管理员选择默认模型、两条容量补全或保持不授权、包含本提交的新包与真实账号验收。旧0.4.10安装包不含本功能，不能声称登录即已在线启用。企业M4预算/计费和组织模块不改，本模块stream_complete不是结算证明。
+diff --git a/market/auth.mjs b/market/auth.mjs
+new file mode 100644
+index 0000000..727a4ec
+--- /dev/null
++++ b/market/auth.mjs
+@@ -0,0 +1,15 @@
++import {digest,fail} from '../plugins/naumi-enterprise/market-contract.js';
++export function canvasAuthentication({origin,tenant='naumi',moderators=[],fetcher=fetch,includeSubject=false}){
++ const issuer=new URL(origin);if(!(issuer.protocol==='https:'||issuer.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(issuer.hostname))||issuer.username||issuer.password||issuer.pathname!=='/'||issuer.search||issuer.hash)fail('MARKET_AUTH_ORIGIN_INVALID');
++ const privileged=new Set(moderators.map(v=>v.trim().toLowerCase()).filter(Boolean));
++ return async req=>{
++  const cookie=req.headers.cookie;if(!cookie||cookie.length>16384)fail('MARKET_AUTH_REQUIRED',401);
++  let r;try{r=await fetcher(issuer.origin+'/api/auth/session',{headers:{cookie},redirect:'error',signal:AbortSignal.timeout(8000)});}catch{fail('MARKET_IDENTITY_UNAVAILABLE',503);}
++  if(!r.ok)fail([401,403].includes(r.status)?'MARKET_AUTH_REQUIRED':'MARKET_IDENTITY_UNAVAILABLE',[401,403].includes(r.status)?401:503);
++  if(!r.headers.get('content-type')?.toLowerCase().includes('application/json'))fail('MARKET_IDENTITY_INVALID',503);
++  const chunks=[];let size=0;try{for await(const chunk of r.body){size+=chunk.length;if(size>65536)fail('MARKET_IDENTITY_INVALID',503);chunks.push(Buffer.from(chunk));}}catch(e){if(e.status)throw e;fail('MARKET_IDENTITY_UNAVAILABLE',503);}
++  let value;try{value=JSON.parse(Buffer.concat(chunks));}catch{fail('MARKET_IDENTITY_INVALID',503);}
++  const user=value?.user;if(!user||typeof user.email!=='string'||user.email.length>254||/[\s\x00-\x1f]/.test(user.email)||!user.email.includes('@'))fail('MARKET_AUTH_REQUIRED',401);
++  const subject=user.email.toLowerCase();return{id:digest([issuer.origin,tenant,subject]),tenant,name:typeof user.name==='string'&&user.name.trim()?user.name.slice(0,160):subject.split('@')[0],moderator:privileged.has(subject),...(includeSubject?{subject:{type:'naumi-email-v1',value:subject}}:{})};
++ };
++}
+diff --git a/market/server.mjs b/market/server.mjs
+index 41ecbf8..b33f54b 100644
+--- a/market/server.mjs
++++ b/market/server.mjs
+@@ -1,19 +1,7 @@
+ import http from 'node:http';import path from 'node:path';import {pathToFileURL} from 'node:url';import {MarketStore} from './store.mjs';import {digest,fail,MAX_PACKAGE_BYTES} from '../plugins/naumi-enterprise/market-contract.js';
+ const PREFIX='/api/plugin-market/v1';
+-export function canvasAuthentication({origin,tenant='naumi',moderators=[],fetcher=fetch}){
+- const issuer=new URL(origin);if(!(issuer.protocol==='https:'||issuer.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(issuer.hostname))||issuer.username||issuer.password||issuer.pathname!=='/'||issuer.search||issuer.hash)fail('MARKET_AUTH_ORIGIN_INVALID');
+- const privileged=new Set(moderators.map(v=>v.trim().toLowerCase()).filter(Boolean));
+- return async req=>{
+-  const cookie=req.headers.cookie;if(!cookie||cookie.length>16384)fail('MARKET_AUTH_REQUIRED',401);
+-  let r;try{r=await fetcher(issuer.origin+'/api/auth/session',{headers:{cookie},redirect:'error',signal:AbortSignal.timeout(8000)});}catch{fail('MARKET_IDENTITY_UNAVAILABLE',503);}
+-  if(!r.ok)fail([401,403].includes(r.status)?'MARKET_AUTH_REQUIRED':'MARKET_IDENTITY_UNAVAILABLE',[401,403].includes(r.status)?401:503);
+-  if(!r.headers.get('content-type')?.toLowerCase().includes('application/json'))fail('MARKET_IDENTITY_INVALID',503);
+-  const chunks=[];let size=0;try{for await(const chunk of r.body){size+=chunk.length;if(size>65536)fail('MARKET_IDENTITY_INVALID',503);chunks.push(Buffer.from(chunk));}}catch(e){if(e.status)throw e;fail('MARKET_IDENTITY_UNAVAILABLE',503);}
+-  let value;try{value=JSON.parse(Buffer.concat(chunks));}catch{fail('MARKET_IDENTITY_INVALID',503);}
+-  const user=value?.user;if(!user||typeof user.email!=='string'||user.email.length>254||/[\s\x00-\x1f]/.test(user.email)||!user.email.includes('@'))fail('MARKET_AUTH_REQUIRED',401);
+-  const subject=user.email.toLowerCase();return{id:digest([issuer.origin,tenant,subject]),tenant,name:typeof user.name==='string'&&user.name.trim()?user.name.slice(0,160):subject.split('@')[0],moderator:privileged.has(subject)};
+- };
+-}
++import {canvasAuthentication} from './auth.mjs';
++export {canvasAuthentication} from './auth.mjs';
+ export function marketServer({store,authenticate,publicOrigin}){return http.createServer(async(req,res)=>{res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Type','application/json; charset=utf-8');const send=(status,value)=>res.writeHead(status).end(JSON.stringify(value));try{
+  const url=new URL(req.url,'http://localhost');if(url.pathname==='/health'||url.pathname==='/api/plugin-market/health'){send(200,{product:'Naumi Market',protocol:1});return;}if(!url.pathname.startsWith(PREFIX+'/')){send(404,{error:'NOT_FOUND'});return;}
+  if(!['GET','POST'].includes(req.method)){res.setHeader('Allow','GET, POST');send(405,{error:'MARKET_METHOD'});return;}
+diff --git a/plugins/naumi-enterprise/account-models.js b/plugins/naumi-enterprise/account-models.js
+new file mode 100644
+index 0000000..caf9afc
+--- /dev/null
++++ b/plugins/naumi-enterprise/account-models.js
+@@ -0,0 +1,38 @@
++import fs from 'node:fs';
++import path from 'node:path';
++import {randomUUID} from 'node:crypto';
++import {LlmError,resolveRetryPolicy,resolveImageAttachmentAccess} from '@deepseek-ai/dsh-llm';
++import {PiAiAdapter} from '@deepseek-ai/dsh-llm-pi-ai';
++import {createProvider,envApiKeyAuth,InMemoryCredentialStore,defaultProviderAuthContext} from '@earendil-works/pi-ai';
++import {openAICompletionsApi} from '@earendil-works/pi-ai/api/openai-completions.lazy';
++import {openAIResponsesApi} from '@earendil-works/pi-ai/api/openai-responses.lazy';
++import {anthropicMessagesApi} from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
++const NO_RETRY=resolveRetryPolicy({mode:'normal',maxRetries:0},'naumi-account-models');
++const fail=code=>{throw new LlmError(code,code);};
++export function accountProfiles(value){
++ return new Map(value.routes.map(r=>{const m={...r.model,provider:r.provider,baseUrl:r.baseURL,api:r.api,reasoning:r.model.reasoning??false,cost:r.model.cost??{input:0,output:0,cacheRead:0,cacheWrite:0}},api=({'openai-completions':openAICompletionsApi,'openai-responses':openAIResponsesApi,'anthropic-messages':anthropicMessagesApi})[r.api];
++ if(!api)fail('ACCOUNT_MODEL_PROTOCOL_INVALID');
++ const piProvider=createProvider({id:r.provider,name:r.group,baseUrl:r.baseURL,models:[m],auth:{apiKey:envApiKeyAuth('Naumi account credential',[])},api:api()});
++ return[r.provider,{provider:r.provider,displayName:r.group,api:r.api,baseURL:r.baseURL,streamIdleTimeoutMs:300000,maxRequestImageBytes:8*1024*1024,maxRequestImages:15,imageOffloadCountQuantum:5,requestImagePixelBudget:4194304,requestImageMaxBytes:1048576,retryPolicy:NO_RETRY,piProvider,modelErrors:new Map(),configuredMaxTokens:new Map([[m.id,m.maxTokens]])}];}));
++}
++export class AccountModels{
++ constructor({initial,home,request=fetch,clock=Date.now,onChange=()=>{}}){Object.assign(this,{value:initial,home,request,clock,onChange});this.flight=null;this.enabled=true;this.lastRefresh=clock();}
++ allowed(v){return !!v&&this.value.routes.some(r=>r.provider===v.provider&&r.model.id===v.model);}
++ select(agent){const v=agent.model.current();if(!this.allowed(v)){const r=this.value.routes.find(r=>r.model.id===v?.model)??this.value.routes[0];if(r)agent.model.select({provider:r.provider,model:r.model.id});}}
++ async refresh(){if(this.value.expiresAt>this.clock()+5000&&this.clock()-this.lastRefresh<60000)return this.value;if(this.flight)return this.flight;const f=(async()=>{const file=path.join(this.home,'naumi-desktop-bridge.json');if(!fs.existsSync(file)){if(this.value.expiresAt>this.clock())return this.value;fail('ACCOUNT_MODEL_CREDENTIAL_EXPIRED');}
++ if(fs.lstatSync(file).isSymbolicLink()||fs.statSync(file).size>65536)fail('ACCOUNT_MODEL_BRIDGE_INVALID');const d=JSON.parse(fs.readFileSync(file));if(d.version!==1||!Number.isInteger(d.port)||d.port<1||d.port>65535||!/^[a-f0-9]{64}$/.test(d.token))fail('ACCOUNT_MODEL_BRIDGE_INVALID');
++ const res=await this.request(`http://127.0.0.1:${d.port}/models/bootstrap`,{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+d.token},signal:AbortSignal.timeout(12000)});let text=await res.text();if(text.length>524288)fail('ACCOUNT_MODEL_RESPONSE_INVALID');let v;try{v=JSON.parse(text);}catch{fail('ACCOUNT_MODEL_RESPONSE_INVALID');}if(!res.ok||!v.ok)fail(/^ACCOUNT_MODEL_[A-Z_]+$/.test(v.error)?v.error:'ACCOUNT_MODEL_UNAVAILABLE');v=v.data;
++ if(!v||v.subject!==this.value.subject||v.deviceId!==this.value.deviceId||v.revision<this.value.revision||v.expiresAt<=this.clock())fail('ACCOUNT_MODEL_RESPONSE_INVALID');const changed=JSON.stringify(this.value.routes)!==JSON.stringify(v.routes);this.value=v;this.lastRefresh=this.clock();if(changed)this.onChange();return v;
++ })();this.flight=f;try{return await f;}finally{if(this.flight===f)this.flight=null;}}
++}
++export function createAccountAdapter(ctx,client){return new PiAiAdapter({profiles:()=>accountProfiles(client.value),resolveApiKey:async()=>{await client.refresh();return client.value.token;},auth:{credentials:new InMemoryCredentialStore(),authContext:defaultProviderAuthContext()},prepareHeaders:(_req,headers)=>{headers.set('X-Naumi-Device',client.value.deviceId);headers.set('X-Naumi-Request-Id',randomUUID());return headers;},resolveAttachments:()=>ctx.get('attachments'),resolveImageAccess:(attachments,ref)=>resolveImageAttachmentAccess(attachments,p=>ctx.get('fs')?.processPathFromHostPath(p),ref)});}
++export function installAccountModels(ctx,{config=process.env.NAUMI_ACCOUNT_MODELS_CONFIG,home=process.env.DSH_HOME}={}){
++ if(!config)return;if(fs.lstatSync(config).isSymbolicLink()||fs.statSync(config).size>524288)fail('ACCOUNT_MODEL_CONFIG_INVALID');const initial={...JSON.parse(fs.readFileSync(config)),token:process.env.NAUMI_ACCOUNT_MODELS_TOKEN};delete process.env.NAUMI_ACCOUNT_MODELS_CONFIG;delete process.env.NAUMI_ACCOUNT_MODELS_TOKEN;
++ return ctx.inject(['llm','agents','agentDefaultModel'],scope=>{
++ const client=new AccountModels({initial,home}),adapter=createAccountAdapter(scope,client);scope.provide('naumiAccountModels',client);let registration;
++ const register=()=>{const ids=client.value.routes.map(r=>r.provider);if(registration)registration.replace(ids);else registration=scope.llm.registerAdapter(ids,adapter);};client.onChange=register;register();scope.effect(()=>()=>{client.onChange=()=>{};registration?.();});
++ scope.on('agent/created',({agent})=>client.select(agent));scope.on('ready',async()=>{const current=scope.agentDefaultModel.currentSelection();if(!client.allowed(current)){const r=client.value.routes.find(r=>r.model.id===current?.model)??client.value.routes[0];await scope.agentDefaultModel.saveSelection({provider:r.provider,model:r.model.id});}for(const a of scope.agents.list())client.select(a);});
++ scope.on('llm/stream',async function*(options,next){await client.refresh();if(!client.allowed(options))fail('ACCOUNT_MODEL_ROUTE_DENIED');yield* next();});
++ const timer=setInterval(()=>client.refresh().catch(()=>{}),60000);timer.unref?.();scope.effect(()=>()=>clearInterval(timer));
++ });
++}
+diff --git a/plugins/naumi-enterprise/host.js b/plugins/naumi-enterprise/host.js
+index ea0086e..06f50ba 100644
+--- a/plugins/naumi-enterprise/host.js
++++ b/plugins/naumi-enterprise/host.js
+@@ -7,6 +7,7 @@ import {installPluginMarket} from './plugin-market.js';
+ import {PRODUCT_VERSION} from './product-version.js';
+ import {installModelConnections} from './model-connections.js';
+ import {installModelPolicy} from './model-policy.js';
++import {installAccountModels} from './account-models.js';
+ import {readFile} from 'node:fs/promises';
+ import {fileURLToPath} from 'node:url';
+ import {businessCookie,projectWorkspace,validateOrigin} from './domain.js';
+@@ -21,7 +22,9 @@ export const inject=['webServer','connection'];
+ /** Supported plugin routes, index branding and an authenticated read-only business adapter. */
+ export function apply(ctx,config) {
+   installDesktopIdentity(ctx);
+-  installModelPolicy(ctx);
++  const accountManaged=!!process.env.NAUMI_ACCOUNT_MODELS_CONFIG;
++  installAccountModels(ctx);
++  if(!accountManaged)installModelPolicy(ctx);
+   installSessionImport(ctx);
+   installContextRecovery(ctx);
+   installModelConnections(ctx);
+diff --git a/plugins/naumi-enterprise/model-connections.js b/plugins/naumi-enterprise/model-connections.js
+index 8cb7c88..36a304c 100644
+--- a/plugins/naumi-enterprise/model-connections.js
++++ b/plugins/naumi-enterprise/model-connections.js
+@@ -57,12 +57,13 @@ export class ModelConnections{
+   finally{this.discoveries--;}
+  }
+  namespace(){const ns=this.ctx.settings.describe({redactSecrets:true}).find(n=>n.ns==='llm-pi-ai');if(!ns)throw error('MODEL_SETTINGS_UNAVAILABLE',503);return ns;}
+- async read(){const ns=this.namespace(),groups=[];for(const[id,p]of Object.entries(ns.value.providers??{})){
++ async read(){const managed=this.ctx.get?.('naumiAccountModels');if(managed)return {revision:managed.value.revision,writable:false,managedPolicy:{ready:true,revision:managed.value.revision},groups:managed.value.routes.map(r=>({id:r.provider,displayName:r.group,api:r.api,baseURL:r.baseURL,models:[r.model],configured:true,editable:false})),specs:officialModelSpecs};const ns=this.namespace(),groups=[];for(const[id,p]of Object.entries(ns.value.providers??{})){
+   if(this.ctx.get?.('naumiModelPolicy')&&!p.models?.length)continue;
+   const info=p.apiKeyEnv?await this.ctx.credentials.describe(p.apiKeyEnv):{configured:false,writable:true};
+   groups.push({id,displayName:p.displayName??id,api:p.api??'openai-completions',reasoning:p.reasoning??null,baseURL:p.baseURL??'',models:(p.models??[]).map(m=>({id:m.id,...m.name?{name:m.name}:{}})),configured:info.configured,editable:protocols.includes(p.api)&&Array.isArray(p.models)&&p.models.length>0});
+  }for(const group of groups){const provider=ns.value.providers[group.id];group.models=group.models.map(m=>{const raw=provider.models.find(row=>row.id===m.id);return {...modelSpecView({...m,...raw.contextWindow===undefined?{}:{contextWindow:raw.contextWindow},...raw.maxTokens===undefined?{}:{maxTokens:raw.maxTokens}},provider),input:raw.input?.length?[...raw.input]:null,...reasoningView(raw,provider.api)};});}return {revision:ns.revision,writable:this.ctx.settings.writable&&!this.ctx.get?.('naumiModelPolicy'),managedPolicy:this.ctx.get?.('naumiModelPolicy')?.state??null,groups,specs:officialModelSpecs};}
+  async repairDefault(removed){
++  if(this.ctx.get?.('naumiAccountModels'))return;
+   const current=this.ctx.agentDefaultModel.currentSelection();
+   const p=this.namespace().value.providers??{},own=p[current.provider];
+   const missingModel=own?.models?.length&&!own.models.some(m=>m.id===current.model);
+@@ -70,7 +71,7 @@ export class ModelConnections{
+   const first=missingModel?[current.provider,own]:Object.entries(p).find(([,v])=>v.models?.length);
+   await this.ctx.agentDefaultModel.saveSelection(first?{provider:first[0],model:first[1].models[0].id}:unconfigured);
+  }
+- execute(input){const policy=this.ctx.get?.('naumiModelPolicy');if(policy){if(input?.action==='retry-policy'&&Object.keys(input).every(k=>k==='action'||k==='expectedRevision'))return policy.apply().catch(()=>null).then(()=>this.read());return Promise.reject(error('MODEL_POLICY_MANAGED',403));}const run=this.queue.then(()=>this.write(input));this.queue=run.catch(()=>{});return run;}
++ execute(input){if(this.ctx.get?.('naumiAccountModels'))return Promise.reject(error('MODEL_POLICY_MANAGED',403));const policy=this.ctx.get?.('naumiModelPolicy');if(policy){if(input?.action==='retry-policy'&&Object.keys(input).every(k=>k==='action'||k==='expectedRevision'))return policy.apply().catch(()=>null).then(()=>this.read());return Promise.reject(error('MODEL_POLICY_MANAGED',403));}const run=this.queue.then(()=>this.write(input));this.queue=run.catch(()=>{});return run;}
+  async write(input){
+   const parsed=z.union([save,remove,refresh]).safeParse(input);if(!parsed.success)throw error('MODEL_INVALID_REQUEST');const p=parsed.data;
+   const ns=this.namespace();if(!this.ctx.settings.writable)throw error('MODEL_SETTINGS_READ_ONLY',403);if(ns.revision!==p.expectedRevision)throw error('MODEL_SETTINGS_CONFLICT',409);
+diff --git a/plugins/naumi-enterprise/package.json b/plugins/naumi-enterprise/package.json
+index fa11810..bd99de4 100644
+--- a/plugins/naumi-enterprise/package.json
++++ b/plugins/naumi-enterprise/package.json
+@@ -105,7 +105,8 @@
+     "weixin-api.js",
+     "weixin-login.js",
+     "cua-admission.js",
+-    "model-policy.js"
++    "model-policy.js",
++    "account-models.js"
+   ],
+   "dsh": {
+     "bundle": {
+diff --git a/scripts/inspect-account-models47.mjs b/scripts/inspect-account-models47.mjs
+new file mode 100644
+index 0000000..e09146e
+--- /dev/null
++++ b/scripts/inspect-account-models47.mjs
+@@ -0,0 +1,16 @@
++import fs from'node:fs';import path from'node:path';import{spawnSync}from'node:child_process';import {randomUUID,createHash} from'node:crypto';
++const connection='E:/Workspace/naumi/output/server-connections/47.105.59.142/connection.json',c=JSON.parse(fs.readFileSync(connection));if(c.host!=='47.105.59.142'||c.username!=='root')throw Error('PIN_REQUIRED');const key=path.join(process.env.LOCALAPPDATA,'Naumi/operator-47-import/operator.pem'),common=['-i',key,'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+path.join(path.dirname(connection),'known_hosts')],exe=n=>path.join(process.env.SystemRoot,'System32/OpenSSH/'+n+'.exe'),remote='/tmp/naumi-account-model-inspect-'+randomUUID()+'.mjs',file='runtime/account-models-service/inspect.mjs',hash=createHash('sha256').update(fs.readFileSync(file)).digest('hex');
++let r=spawnSync(exe('scp'),[...common,file,'root@'+c.host+':'+remote],{windowsHide:true,encoding:'utf8',timeout:30000});if(r.status)throw Error('UPLOAD_FAILED');r=spawnSync(exe('ssh'),['-T',...common,'root@'+c.host,'python3 -B -'],{windowsHide:true,encoding:'utf8',timeout:30000,input:`import subprocess,json,pathlib,hashlib
++assert hashlib.sha256(pathlib.Path('${remote}').read_bytes()).hexdigest()=='${hash}'
++rows=subprocess.check_output(['docker','ps','--format','{{.Names}}']).decode().splitlines();webs=[n for n in rows if n.startswith('naumi47-web-')];assert len(webs)==1
++web=webs[0];target='/app/'+pathlib.Path('${remote}').name
++before={n:json.loads(subprocess.check_output(['docker','inspect',n]))[0]['State']['StartedAt'] for n in rows}
++subprocess.run(['docker','cp','${remote}',web+':'+target],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
++try:
++ r=subprocess.run(['docker','exec','-e','NODE_OPTIONS=',web,'node',target],capture_output=True,text=True,timeout=20)
++ try:v=json.loads(r.stdout)
++ except Exception:v={'status':'FAIL','error':'INSPECT_ENTRY_FAILED','exit':r.returncode}
++ v['existingContainersUnchanged']=all(json.loads(subprocess.check_output(['docker','inspect',n]))[0]['State']['StartedAt']==start for n,start in before.items());print(json.dumps(v))
++finally:
++ subprocess.run(['docker','exec','-u','0',web,'rm','-f',target],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);pathlib.Path('${remote}').unlink()
++`});fs.writeFileSync('evidence/account-models/REMOTE_REGISTRY_READONLY.log',r.stdout+r.stderr);console.log('REGISTRY_READONLY '+r.stdout.trim());if(r.status||JSON.parse(r.stdout).status!=='PASS')process.exitCode=1;
+diff --git a/scripts/prepare-account-models.mjs b/scripts/prepare-account-models.mjs
+new file mode 100644
+index 0000000..edd5e42
+--- /dev/null
++++ b/scripts/prepare-account-models.mjs
+@@ -0,0 +1,6 @@
++import fs from 'node:fs';import path from 'node:path';import {createRequire,isBuiltin} from 'node:module';import {createHash} from 'node:crypto';import {execFileSync} from 'node:child_process';
++const source=path.resolve(process.argv[2]??'E:/Workspace/naumi-central-identity-20261118'),require=createRequire(path.join(source,'package.json')),esbuild=require('esbuild'),out=path.resolve('runtime/account-models-service');fs.mkdirSync(out,{recursive:true});
++const entry=path.join(source,'src/lib/model-config/credential-reader.ts');if(!fs.existsSync(entry))throw Error('ORIGINAL_CREDENTIAL_READER_REQUIRED');
++const result=await esbuild.build({entryPoints:[process.argv[3]==='inspect'?'services/account-models/inspect.mjs':'services/account-models/main.mjs'],bundle:true,write:false,platform:'node',format:'esm',banner:{js:"import { createRequire as __createRequire } from 'node:module';const require=__createRequire(import.meta.url);"},packages:'external',tsconfig:path.join(source,'tsconfig.json'),plugins:[{name:'original-credential-owner',setup(b){b.onResolve({filter:/^naumi-credentials-owner$/},()=>({path:entry}));b.onResolve({filter:/^server-only$/},()=>({path:'server-only',namespace:'empty'}));b.onLoad({filter:/.*/,namespace:'empty'},()=>({contents:'',loader:'js'}));b.onResolve({filter:/^(?:pg|pg-connection-string|pg-pool|pg-protocol|pg-types|pg-int8|postgres-array|postgres-bytea|postgres-date|postgres-interval|xtend|pgpass|split2|https-proxy-agent|agent-base|debug|ms|supports-color|has-flag)(?:\/.*)?$/},args=>{let resolved;try{resolved=createRequire(args.importer||path.join(source,'package.json')).resolve(args.path);}catch{resolved=require.resolve(args.path);}return {path:resolved,external:false};});}}]});
++const bytes=result.outputFiles[0].contents;fs.writeFileSync(path.join(out,process.argv[3]==='inspect'?'inspect.mjs':'server.mjs'),bytes);for(const f of ['admin.html','admin.js','package.json','nginx-location.conf','Dockerfile'])fs.copyFileSync('services/account-models/'+f,path.join(out,f));
++const pin={sourceSHA:execFileSync('git',['rev-parse','HEAD'],{cwd:source,encoding:'utf8'}).trim(),readerSHA256:createHash('sha256').update(fs.readFileSync(entry)).digest('hex'),bundleSHA256:createHash('sha256').update(bytes).digest('hex'),credentialsIncluded:false};fs.writeFileSync(path.join(out,process.argv[3]==='inspect'?'INSPECT_PIN.json':'CONTRACT_PIN.json'),JSON.stringify(pin,null,2)+'\n');console.log('ACCOUNT_MODEL_SERVICE_BUNDLE credentialsIncluded=false source='+pin.sourceSHA+' bytes='+bytes.length);
+diff --git a/scripts/verify-account-model-admin.mjs b/scripts/verify-account-model-admin.mjs
+new file mode 100644
+index 0000000..d03c090
+--- /dev/null
++++ b/scripts/verify-account-model-admin.mjs
+@@ -0,0 +1,2 @@
++import fs from'node:fs';import os from'node:os';import path from'node:path';import http from'node:http';import assert from'node:assert/strict';import{createRequire}from'node:module';import{AccountModelStore}from'../services/account-models/store.mjs';import{accountModelServer}from'../services/account-models/server.mjs';
++const require=createRequire(new URL('../desktop/package.json',import.meta.url)),{chromium}=require('playwright'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'naumi-model-admin-')),store=new AccountModelStore(path.join(dir,'state.sqlite')),reserve=http.createServer();await new Promise(r=>reserve.listen(0,'127.0.0.1',r));const port=reserve.address().port;await new Promise(r=>reserve.close(r));const origin='http://127.0.0.1:'+port,registry={list:async()=>[{id:'ui-route',group:'Naumi 模型',api:'openai-responses',baseURL:'https://upstream.invalid/v1',model:{id:'wire-model',name:'标准模型',contextWindow:8192,maxTokens:128,input:['text']}}],userExists:async subject=>subject==='employee@example.test',adminHTML:()=>fs.promises.readFile('services/account-models/admin.html'),adminJS:()=>fs.promises.readFile('services/account-models/admin.js')},server=accountModelServer({store,registry,origin,authenticate:async req=>{if(req.headers.cookie!=='admin=fixture')throw Object.assign(Error('ACCOUNT_MODEL_ADMIN_REQUIRED'),{status:403});return{subject:'fixture-admin'};}});await new Promise(r=>server.listen(port,'127.0.0.1',r));let browser;try{browser=await chromium.launch({channel:'chrome',headless:true});const context=await browser.newContext({viewport:{width:1360,height:920}});await context.addCookies([{name:'admin',value:'fixture',url:origin}]);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(origin+'/admin/desktop-models');await page.getByRole('button',{name:'读取授权'}).click();await page.getByText('标准模型',{exact:true}).waitFor();await page.getByText('标准模型',{exact:true}).click();await page.getByText('允许使用',{exact:true}).click();await page.getByRole('button',{name:'保存授权'}).click();await page.getByText('已保存',{exact:true}).waitFor();assert.equal(store.grant('employee@example.test').inherited,true);assert.deepEqual(store.grant('employee@example.test').routes,['ui-route']);await page.getByRole('combobox',{name:'授权范围'}).selectOption('account');await page.getByRole('textbox',{name:'账号邮箱'}).fill('employee@example.test');await page.getByRole('button',{name:'读取授权'}).click();await page.getByText('标准模型',{exact:true}).waitFor();await page.getByText('允许使用',{exact:true}).click();await page.getByRole('button',{name:'保存授权'}).click();await page.getByText('已保存',{exact:true}).waitFor();assert.equal(store.grant('employee@example.test').enabled,false);assert.equal(store.defaults().enabled,true);assert.equal(errors.length,0);fs.mkdirSync('evidence/account-models',{recursive:true});await page.screenshot({path:'evidence/account-models/admin.png',fullPage:true});console.log('ACCOUNT_MODEL_ADMIN checks=8 default_policy=PASS account_override=PASS page_errors=0 modelCalls=0 fixture_auth=1 exit=0');}finally{await browser?.close();server.closeAllConnections();await new Promise(r=>server.close(r));store.close();fs.rmSync(dir,{recursive:true,force:true});}
+diff --git a/scripts/verify-account-model-service.mjs b/scripts/verify-account-model-service.mjs
+new file mode 100644
+index 0000000..0874c84
+--- /dev/null
++++ b/scripts/verify-account-model-service.mjs
+@@ -0,0 +1,2 @@
++import{spawn}from'node:child_process';import fs from'node:fs';import os from'node:os';import path from'node:path';import assert from'node:assert/strict';
++const dir=fs.mkdtempSync(path.join(os.tmpdir(),'naumi-model-service-')),child=spawn(process.execPath,['runtime/account-models-service/server.mjs'],{windowsHide:true,env:{...process.env,NAUMI_IDENTITY_ORIGIN:'http://127.0.0.1:1',NAUMI_ACCOUNT_MODEL_DATA:dir,NAUMI_ACCOUNT_MODEL_ASSETS:path.resolve('runtime/account-models-service'),PORT:'0'}}),exited=new Promise(resolve=>child.once('exit',resolve));let output='',error='';child.stderr.on('data',b=>error+=b);try{const url=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('SERVICE_START_TIMEOUT '+error)),10000);exited.then(c=>{clearTimeout(t);reject(Error('SERVICE_EXIT '+c+' '+error));});child.stdout.on('data',b=>{output+=b;const m=output.match(/READY protocol=1 port=(\d+)/);if(m){clearTimeout(t);resolve('http://127.0.0.1:'+m[1]);}});});assert.equal((await fetch(url+'/api/desktop-models/health')).status,200);assert.equal((await fetch(url+'/admin/desktop-models')).status,401);console.log('ACCOUNT_MODEL_BUNDLE process=PASS HTTP=200 admin_without_login=401 credentials=NONE modelCalls=0');}finally{child.kill();await exited;fs.rmSync(dir,{recursive:true,force:true});}
+diff --git a/services/account-models/Dockerfile b/services/account-models/Dockerfile
+new file mode 100644
+index 0000000..e48b005
+--- /dev/null
++++ b/services/account-models/Dockerfile
+@@ -0,0 +1,7 @@
++ARG BASE_IMAGE
++FROM ${BASE_IMAGE}
++WORKDIR /app/account-models
++COPY . /app/account-models
++USER node
++ENV HOST=0.0.0.0 PORT=3192 NAUMI_ACCOUNT_MODEL_DATA=/data NAUMI_ACCOUNT_MODEL_ASSETS=/app/account-models
++CMD ["node","server.mjs"]
+diff --git a/services/account-models/README.md b/services/account-models/README.md
+new file mode 100644
+index 0000000..5516995
+--- /dev/null
++++ b/services/account-models/README.md
+@@ -0,0 +1,27 @@
++# Naumi 账号模型配置
++
++## 产品行为
++后台入口 `/admin/desktop-models`：默认模型配置一次保存，已登录的Naumi账号自动继承；指定账号可覆盖或禁用。默认策略初始关闭，不因为安装服务就授权所有用户。模型保留来源分组、真实协议和wire ID。
++
++账号继续由Canvas原 `/api/auth/session` 验证；后台操作复用原 `/api/admin/login` 的localAuthed/nativeAdmin/passwordRequired判定，不创建第二套账号或管理员。管理员保存使用CAS revision和operationId幂等，默认与指定账号分别拥有版本；策略全局递增版本用于凭据防回退。
++
++## 密钥、数据与执行归属
++复用已导入47的 `app_supplier_source_snapshots`、`app_supplier_model_metadata`，以及原 `createCredentialReader`。API Key仍只在原加密凭据库；本模块不实现另一套加密，不改原密钥、积分或模型活动注册表。服务只读原PG，另用SQLite拥有授权、租约hash、审计和请求回执。生产连接应使用只读PG角色/默认只读事务，复用原SETTINGS_SECRET，通过容器受保护环境提供，不进入发布物。
++
++服务端签发5分钟opaque凭证，绑定账号、每安装账号目录独立生成的设备ID、策略版本与目录指纹。SQLite只存token hash；Desktop仅内存保存token，公开目录与非敏感enrollment写入受保护账号目录。60秒刷新目录；每次新模型请求在网关核对当前授权。默认关闭、指定账号禁用、策略/来源变更即时拒绝旧凭证的新请求；Canvas停用账号在下一次续签拒绝，现存token最多5分钟。已有流不中途伪装撤销完成，最长受300秒请求时限约束。
++
++按原生openai-completions/openai-responses/anthropic-messages转发，不转换协议或猜模型能力。只开放固定route+固定endpoint，客户端不能提供上游URL/Key。上游错误正文不回传。原生PiAiAdapter负责消息/工具/图片/思考序列化；自定义adapter登记只做目录和凭据薄适配。受管启动用原公开patch机制禁用本地pi-ai插件，不删除原配置/凭据；本次进程只登记账号模型。其他执行链、模型选择器位置与模型项呈现契约保持。
++
++请求UUID先持久化后调用；任何重复UUID拒绝，不自动重放。断连/强杀未完成保留UNKNOWN；`stream_complete`只表示协议流完成，不表示财务结算。本切片不增加计费、企业预算或高可用承诺；原M4企业通道保持原状。
++
++## 构建与部署输入
++`node scripts/prepare-account-models.mjs <原Canvas契约源码目录>`：复用原只读凭据模块，固定source SHA/reader SHA/bundle SHA；`runtime/account-models-service`中为无凭据bundle、admin资产、Dockerfile与nginx增量。`node scripts/verify-account-model-service.mjs`启动实际独立bundle，检查HTTP/未登录拒绝。
++
++服务环境：`NAUMI_IDENTITY_ORIGIN=https://47.105.59.142`、`DATABASE_URL`、原`SETTINGS_SECRET`、`NAUMI_ACCOUNT_MODEL_DATA=/data`、`HOST/PORT=127.0.0.1/3192`。容器部署使用独立持久目录与受保护env，不能把数据库URL/密钥写进Dockerfile或日志。Dockerfile的BASE_IMAGE必须固定可用Node24镜像；服务包已bundle pg，无需员工npm install。HTTPS站点增量包含本目录nginx-location.conf；发布固定main前检查既有三锁、nginx基线hash、旧容器StartedAt，失败只恢复自己的入口，保留SQLite。
++
++本轮没有执行上述生产写入或发新安装包。47现有入口只读核对为404；只读注册表验收36条参数完整候选/2条容量缺项，36次凭据解密核验，0模型调用/0授权变更/原容器不变。不是36条供应商付费调用可用性已确认。缺容量条目由原后台资料模块补全后再授权，本模块不猜预算；来源声明为text但无input时只继承text，不擅自开启image。
++
++## 客户端迁移与回退
++新Desktop在原身份成功后、启动后台前bootstrap；服务尚未安装且从未加入受管的旧测试版本仅在404时保持原有行为。加入受管后禁止404/断网/撤销回落内嵌或个人密钥。已运行旧非受管backend拒绝静默复用，提示正常结束任务/退出再启动，不自动杀工作。旧0.4.10分发物尚不包含本功能；功能源码合并不能代替新包安装验收。
++
++源码回滚仅在标记副本执行证据ROLLBACK.sh；不能以源码回滚恢复旧的员工授权或覆盖当前SQLite/PG。服务回退须保留已接受授权/审计/UNKNOWN，取消入口只影响云模型，新本地文件仍保留。当前不删除或轮换已分发测试包中的旧Key；正式切换后应在原供应商后台明确轮换。
+diff --git a/services/account-models/admin.html b/services/account-models/admin.html
+new file mode 100644
+index 0000000..4011710
+--- /dev/null
++++ b/services/account-models/admin.html
+@@ -0,0 +1 @@
++<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Naumi · Desktop 模型</title><style>*{box-sizing:border-box}body{margin:0;color:#20252e;background:#f7f8fa;font:14px system-ui,sans-serif}header{height:72px;padding:0 7vw;background:white;border-bottom:1px solid #eceef2;display:flex;align-items:center;justify-content:space-between}header strong{font-size:26px;font-style:italic}header a{color:#697180;text-decoration:none}main{max-width:1080px;margin:42px auto;padding:0 24px}h1{font-size:26px;letter-spacing:-1px;margin:0 0 24px}section{background:#fff;border:1px solid #e6e8ed;border-radius:18px;padding:24px;margin-bottom:20px}.account{display:flex;gap:12px;align-items:center}select{border:1px solid #dce0e6;border-radius:10px;padding:12px;background:white;font:inherit}input[type=email]{border:1px solid #dce0e6;border-radius:10px;padding:12px 14px;font:inherit;flex:1;min-width:100px}button{background:#222b40;color:white;border:0;border-radius:10px;padding:12px 22px;font:inherit;cursor:pointer}button:disabled{opacity:.4;cursor:default}#routes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.group{padding:18px;border:1px solid #e5e8ee;border-radius:12px}.group h2{margin:0 0 14px;font-size:14px;color:#586276}.model{display:flex;align-items:center;gap:10px;min-height:40px;cursor:pointer}.model input{accent-color:#455bd6;width:16px;height:16px}.bottom{display:flex;justify-content:space-between;align-items:center;gap:16px}.enabled{display:flex;align-items:center;gap:8px}#status{min-height:24px;color:#5d6470;margin:16px 0}#status[data-error=true]{color:#b33d4c}@media(max-width:700px){#routes{grid-template-columns:1fr}.account{flex-wrap:wrap}main{margin:24px auto}}</style><header><strong>naumi</strong><a href="/admin">管理后台</a></header><main><h1>Desktop 模型</h1><section><form id="account" class="account"><select id="scope" aria-label="授权范围"><option value="defaults">默认模型配置</option><option value="account">指定账号</option></select><input id="email" type="email" hidden placeholder="账号邮箱" aria-label="账号邮箱"><button id="load">读取授权</button></form><div id="status" role="status" aria-live="polite"></div><div id="routes"></div></section><section class="bottom"><label class="enabled"><input id="enabled" type="checkbox" disabled>允许使用</label><button id="save" disabled>保存授权</button></section></main><script src="/api/desktop-models/admin.js" defer></script></html>
+\ No newline at end of file
+diff --git a/services/account-models/admin.js b/services/account-models/admin.js
+new file mode 100644
+index 0000000..39f6114
+--- /dev/null
++++ b/services/account-models/admin.js
+@@ -0,0 +1,9 @@
++(()=>{'use strict';const $=id=>document.getElementById(id),root='/api/desktop-models/v1';let grant=null,routes=[],pending=null,busy=false;let target='/admin/defaults';
++const labels={ACCOUNT_MODEL_ACCOUNT_NOT_FOUND:'账号不存在',ACCOUNT_MODEL_ADMIN_REQUIRED:'请先登录管理后台',ACCOUNT_MODEL_REVISION_CONFLICT:'授权已被更新，请重新读取',ACCOUNT_MODEL_OPERATION_CONFLICT:'保存记录发生冲突，请重新读取',ACCOUNT_MODEL_IDENTITY_UNAVAILABLE:'账号服务暂不可用'};
++function status(text,error=false){$('status').textContent=text;$('status').dataset.error=String(error);}function controls(){$('scope').disabled=busy;$('email').disabled=busy;for(const id of ['load','save','enabled'])$(id).disabled=busy||(id!=='load'&&!grant);for(const c of $('routes').querySelectorAll('input'))c.disabled=busy;}
++async function request(path,input){const r=await fetch(root+path,{method:input?'POST':'GET',credentials:'same-origin',cache:'no-store',headers:input?{'Content-Type':'application/json','x-naumi-account-models':'1'}:{},...(input?{body:JSON.stringify(input)}:{})});const v=await r.json();if(!r.ok)throw Error(labels[v.error]??'操作未完成，请稍后重试');return v;}
++$('account').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;grant=null;pending=null;controls();$('routes').replaceChildren();status('');try{const [catalog,g]=await Promise.all([request('/admin/catalog'),request($('scope').value==='defaults'?'/admin/defaults':'/admin/grant?subject='+encodeURIComponent($('email').value.trim()))]);routes=catalog.routes;grant=g;target=$('scope').value==='defaults'?'/admin/defaults':'/admin/grant';$('enabled').checked=g.enabled;const groups=new Map();for(const r of routes){if(!groups.has(r.group)){const box=document.createElement('div');box.className='group';const heading=document.createElement('h2');heading.textContent=r.group;box.append(heading);groups.set(r.group,box);$('routes').append(box);}const label=document.createElement('label');label.className='model';const check=document.createElement('input');check.type='checkbox';check.value=r.id;check.checked=g.routes.includes(r.id);const text=document.createElement('span');text.textContent=r.model.name;label.append(check,text);groups.get(r.group).append(label);}status(catalog.unavailable?.length?catalog.unavailable.length+' 个模型参数待补全':routes.length?'':'尚无已配置的模型');}catch(e){status(e.message,true);}finally{busy=false;controls();}});
++$('scope').addEventListener('change',()=>{grant=null;pending=null;$('email').hidden=$('scope').value!=='account';$('email').required=!$('email').hidden;controls();$('routes').replaceChildren();status('');});
++$('email').addEventListener('input',()=>{if(!busy){grant=null;pending=null;controls();$('routes').replaceChildren();}});
++$('save').addEventListener('click',async()=>{if(!grant||busy)return;const next={subject:grant.subject,expectedRevision:grant.revision,enabled:$('enabled').checked,routes:[...$('routes').querySelectorAll('input:checked')].map(c=>c.value)};if(!pending||JSON.stringify(pending.input)!==JSON.stringify(next))pending={input:next,operationId:crypto.randomUUID()};busy=true;controls();try{grant=await request(target,{...pending.input,operationId:pending.operationId});pending=null;status('已保存');}catch(e){status(e.message,true);}finally{busy=false;controls();}});
++})();
+\ No newline at end of file
+diff --git a/services/account-models/auth.mjs b/services/account-models/auth.mjs
+new file mode 100644
+index 0000000..5b3f485
+--- /dev/null
++++ b/services/account-models/auth.mjs
+@@ -0,0 +1,9 @@
++import {canvasAuthentication} from '../../market/auth.mjs';
++import {email,fault} from './registry.mjs';
++export function accountAuthentication({origin,fetcher=fetch}){
++
++ return async(req,{admin=false}={})=>{
++ const cookie=req.headers.cookie;if(!cookie||cookie.length>16384)throw fault('ACCOUNT_MODEL_LOGIN_REQUIRED',401);
++ if(admin){let r;try{r=await fetcher(origin+'/api/admin/login',{headers:{cookie},redirect:'error',signal:AbortSignal.timeout(8000)});}catch{throw fault('ACCOUNT_MODEL_IDENTITY_UNAVAILABLE',503);}if(!r.ok||!r.headers.get('content-type')?.includes('application/json'))throw fault('ACCOUNT_MODEL_ADMIN_REQUIRED',403);let size=0,chunks=[];for await(const c of r.body){size+=c.length;if(size>65536)throw fault('ACCOUNT_MODEL_IDENTITY_INVALID',503);chunks.push(Buffer.from(c));}const text=Buffer.concat(chunks).toString('utf8');let v;try{v=JSON.parse(text);}catch{throw fault('ACCOUNT_MODEL_IDENTITY_INVALID',503);}if(v.localAuthed!==true&&!(v.passwordRequired===false&&v.nativeAdmin===true))throw fault('ACCOUNT_MODEL_ADMIN_REQUIRED',403);return {subject:'canvas-admin'};}
++ const actor=await canvasAuthentication({origin,fetcher,includeSubject:true})(req);return {subject:email(actor.subject.value)};
++ };}
+diff --git a/services/account-models/inspect.mjs b/services/account-models/inspect.mjs
+new file mode 100644
+index 0000000..3641552
+--- /dev/null
++++ b/services/account-models/inspect.mjs
+@@ -0,0 +1,2 @@
++import pg from 'pg';import {createCredentialReader} from 'naumi-credentials-owner';import {ImportedRegistry} from './registry.mjs';
++const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:1,connectionTimeoutMillis:5000,query_timeout:10000});let tx;try{tx=await pool.connect();await tx.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');const registry=new ImportedRegistry({pool:tx,credentials:createCredentialReader(tx)}),routes=await registry.list();let verified=0;for(const r of routes){const key=await registry.secret(r);if(typeof key!=='string'||!key.length)throw Error('ACCOUNT_MODEL_CREDENTIAL_UNAVAILABLE');verified++;}await tx.query('ROLLBACK');console.log(JSON.stringify({status:'PASS',mode:'read-only',routes:routes.length,unavailable:registry.unavailable?.length??0,unavailableReasons:[...new Set((registry.unavailable??[]).map(r=>r.error))],credentialsVerified:verified,protocols:[...new Set(routes.map(r=>r.api))],modelCalls:0,grantsChanged:0}));}catch(e){if(tx)await tx.query('ROLLBACK').catch(()=>{});console.log(JSON.stringify({status:'FAIL',error:/^[A-Z_]+$/.test(e.message)?e.message:'ACCOUNT_MODEL_INSPECTION_FAILED',modelCalls:0,grantsChanged:0}));process.exitCode=1;}finally{tx?.release();await pool.end();}
+diff --git a/services/account-models/main.mjs b/services/account-models/main.mjs
+new file mode 100644
+index 0000000..fcc9ce7
+--- /dev/null
++++ b/services/account-models/main.mjs
+@@ -0,0 +1,17 @@
++import fs from 'node:fs';
++import path from 'node:path';
++import {fileURLToPath} from 'node:url';
++import pg from 'pg';
++import {createCredentialReader} from 'naumi-credentials-owner';
++import {ImportedRegistry} from './registry.mjs';
++import {AccountModelStore} from './store.mjs';
++import {accountAuthentication} from './auth.mjs';
++import {accountModelServer} from './server.mjs';
++const origin=process.env.NAUMI_IDENTITY_ORIGIN;if(!origin||new URL(origin).origin!==origin)throw Error('ACCOUNT_MODEL_ORIGIN_REQUIRED');
++const home=path.resolve(process.env.NAUMI_ACCOUNT_MODEL_DATA??'/data');fs.mkdirSync(home,{recursive:true,mode:0o700});
++const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:4,connectionTimeoutMillis:5000,query_timeout:10000});
++const registry=new ImportedRegistry({pool,credentials:createCredentialReader(pool)}),assets=process.env.NAUMI_ACCOUNT_MODEL_ASSETS??path.dirname(fileURLToPath(import.meta.url));
++registry.adminHTML=()=>fs.promises.readFile(path.join(assets,'admin.html'));registry.adminJS=()=>fs.promises.readFile(path.join(assets,'admin.js'));
++const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin})});
++server.listen(Number(process.env.PORT??3192),process.env.HOST??'127.0.0.1',()=>console.log('NAUMI_ACCOUNT_MODELS_READY protocol=1 port='+server.address().port));
++const stop=()=>{server.closeAllConnections();server.close(async()=>{store.close();await pool.end();process.exit(0);});};process.on('SIGTERM',stop);process.on('SIGINT',stop);
+diff --git a/services/account-models/nginx-location.conf b/services/account-models/nginx-location.conf
+new file mode 100644
+index 0000000..785e45d
+--- /dev/null
++++ b/services/account-models/nginx-location.conf
+@@ -0,0 +1,15 @@
++# Add to the SAME HTTPS vhost as Canvas; existing accounts and admin cookies stay same-origin.
++location ^~ /api/desktop-models/ {
++    proxy_pass http://127.0.0.1:3192;
++    proxy_http_version 1.1;
++    proxy_set_header Host $host;
++    proxy_set_header Cookie $http_cookie;
++    proxy_buffering off;
++    proxy_read_timeout 310s;
++    client_max_body_size 4m;
++}
++location = /admin/desktop-models {
++    proxy_pass http://127.0.0.1:3192;
++    proxy_set_header Cookie $http_cookie;
++    proxy_set_header Host $host;
++}
+diff --git a/services/account-models/package.json b/services/account-models/package.json
+new file mode 100644
+index 0000000..3f67a26
+--- /dev/null
++++ b/services/account-models/package.json
+@@ -0,0 +1 @@
++{"name":"naumi-account-models-service","private":true,"type":"module","dependencies":{"pg":"8.16.3"}}
+diff --git a/services/account-models/registry.mjs b/services/account-models/registry.mjs
+new file mode 100644
+index 0000000..36b86d2
+--- /dev/null
++++ b/services/account-models/registry.mjs
+@@ -0,0 +1,26 @@
++import {createHash} from 'node:crypto';
++export const digest=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
++export const fault=(code,status=400)=>Object.assign(Error(code),{status});
++export const email=v=>{if(typeof v!=='string'||v.length>254||!/^([^@\s]+)@([^@\s]+)$/.test(v)||/[\s\x00-\x1f]/.test(v))throw fault('ACCOUNT_MODEL_SUBJECT_INVALID');return v.toLowerCase();};
++export function checkedRoutes(rows,{allowLoopback=false}={}){
++ if(!Array.isArray(rows)||rows.length>600)throw fault('ACCOUNT_MODEL_REGISTRY_INVALID',503);
++ const routes=rows.map(v=>{const u=new URL(v.baseURL);if(!/^[a-zA-Z0-9_-]{1,100}$/.test(v.id)||!['openai-completions','openai-responses','anthropic-messages'].includes(v.api)||u.username||u.password||u.search||u.hash||!(u.protocol==='https:'||allowLoopback&&u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)))throw fault('ACCOUNT_MODEL_REGISTRY_INVALID',503);
++ const m=v.model;if(!m||typeof m.id!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/.test(m.id)||typeof m.name!=='string'||!m.name||m.name.length>160)throw fault('ACCOUNT_MODEL_REGISTRY_INVALID',503);
++ for(const k of ['contextWindow','maxTokens'])if(!Number.isSafeInteger(m[k])||m[k]<1||m[k]>2000000)throw fault('ACCOUNT_MODEL_CAPACITY_REQUIRED',503);
++ if(!Array.isArray(m.input)||!m.input.length||m.input.some(x=>!['text','image'].includes(x)))throw fault('ACCOUNT_MODEL_CAPABILITY_REQUIRED',503);
++ // Only explicitly declared SDK model capabilities leave the source registry.
++ const model=Object.fromEntries(['id','name','contextWindow','maxTokens','input','reasoning','reasoningEfforts','reasoningPreset','reasoningDefault','compat','cost'].filter(k=>m[k]!==undefined).map(k=>[k,structuredClone(m[k])]));
++ return {id:v.id,group:String(v.group??'Naumi').slice(0,100),api:v.api,baseURL:u.href.replace(/\/$/,''),credentialRef:v.credentialRef,providerId:v.providerId,model};});
++ if(new Set(routes.map(r=>r.id)).size!==routes.length)throw fault('ACCOUNT_MODEL_ROUTE_COLLISION',503);return routes;
++}
++/** Original Canvas credentials remain the only secret owner; never copy/decrypt into catalogs. */
++export class ImportedRegistry{
++ constructor({pool,credentials}){Object.assign(this,{pool,credentials});}
++ async list(){const {rows}=await this.pool.query(`SELECT s.provider_id,s.source_data,m.model_id,m.metadata FROM app_supplier_source_snapshots s JOIN app_supplier_model_metadata m ON m.provider_id=s.provider_id WHERE s.kind='desktop-model-import-v1' ORDER BY s.provider_id,m.model_id`);
++ const routes=[],unavailable=[];for(const r of rows){const x=r.metadata?.parameterMetadata?.desktopSource,c=x?.configuration;if(!c)throw fault('ACCOUNT_MODEL_SOURCE_INVALID',503);const row={id:'r-'+digest([r.provider_id,r.model_id]).slice(0,32),group:c.displayName,api:c.api,baseURL:c.baseURL,providerId:r.provider_id,credentialRef:r.source_data.credentialRef,model:{...x.model,id:r.model_id,name:x.model.name??r.model_id,input:x.model.input??(r.metadata.modality==='text'?['text']:undefined)}};
++ try{routes.push(...checkedRoutes([row]));}catch(e){if(!['ACCOUNT_MODEL_CAPACITY_REQUIRED','ACCOUNT_MODEL_CAPABILITY_REQUIRED'].includes(e.message))throw e;unavailable.push({id:row.id,group:row.group,model:{id:row.model.id,name:row.model.name},error:e.message});}}
++ this.unavailable=unavailable;return checkedRoutes(routes);}
++ async secret(route){return this.credentials.read(route.credentialRef,route.providerId);}
++ async userExists(subject){return !!(await this.pool.query('SELECT 1 FROM app_users WHERE lower(email)=$1',[email(subject)])).rows.length;}
++}
++export function publicRoute(r,origin){return {id:r.id,group:r.group,provider:'naumi-account-'+r.id,api:r.api,baseURL:origin+'/api/desktop-models/v1/gateway/'+r.id,model:r.model};}
+diff --git a/services/account-models/server.mjs b/services/account-models/server.mjs
+new file mode 100644
+index 0000000..0eaf393
+--- /dev/null
++++ b/services/account-models/server.mjs
+@@ -0,0 +1,36 @@
++import http from 'node:http';
++import {once} from 'node:events';
++import {fault,publicRoute} from './registry.mjs';
++const ROOT='/api/desktop-models/v1';
++async function body(req,max=4*1024*1024){let n=0,chunks=[];for await(const c of req){n+=c.length;if(n>max)throw fault('ACCOUNT_MODEL_BODY_TOO_LARGE',413);chunks.push(c);}try{return JSON.parse(Buffer.concat(chunks));}catch{throw fault('ACCOUNT_MODEL_JSON_INVALID');}}
++export function accountModelServer({store,registry,authenticate,origin,request=fetch}){
++ const controllers=new Set();const server=http.createServer(async(req,res)=>{
++ const send=(status,v)=>{if(!res.headersSent&&!res.destroyed)res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}).end(JSON.stringify(v));};let requestId,started=false,controller;
++ try{const url=new URL(req.url,'http://localhost');if(req.method==='GET'&&url.pathname==='/api/desktop-models/health')return send(200,{product:'Naumi Account Models',protocol:1});
++ if(req.method==='GET'&&url.pathname==='/admin/desktop-models'){await authenticate(req,{admin:true});res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"}).end(await registry.adminHTML());return;}
++ if(req.method==='GET'&&url.pathname==='/api/desktop-models/admin.js'){await authenticate(req,{admin:true});res.writeHead(200,{'Content-Type':'text/javascript','Cache-Control':'no-store'}).end(await registry.adminJS());return;}
++ if(!url.pathname.startsWith(ROOT+'/'))return send(404,{error:'NOT_FOUND'});
++ const gateway=url.pathname.match(/^\/api\/desktop-models\/v1\/gateway\/([a-zA-Z0-9_-]+)(\/.*)$/);
++ if(gateway){if(req.method!=='POST'||req.headers.origin)throw fault('ACCOUNT_MODEL_GATEWAY_FORBIDDEN',403);const routes=await registry.list(),actor=store.authenticate(req.headers.authorization?.replace(/^Bearer /,'')??req.headers['x-api-key'],req.headers['x-naumi-device'],routes),route=routes.find(r=>r.id===gateway[1]);if(!route||!actor.routes.includes(route.id))throw fault('ACCOUNT_MODEL_ROUTE_DENIED',403);
++ const suffix=route.api==='anthropic-messages'?'/v1/messages':route.api==='openai-responses'?'/responses':'/chat/completions';if(gateway[2]!==suffix)throw fault('ACCOUNT_MODEL_ENDPOINT_DENIED',403);
++ const value=await body(req);if(!value||value.model!==route.model.id||value.store===true||typeof value.stream!=='boolean'||(value.max_tokens??value.max_output_tokens??value.max_completion_tokens??route.model.maxTokens)>route.model.maxTokens)throw fault('ACCOUNT_MODEL_REQUEST_INVALID');
++ requestId=req.headers['x-naumi-request-id'];store.begin(actor,requestId,route.id);started=true;controller=new AbortController();controllers.add(controller);const gone=()=>{if(!res.writableEnded)controller.abort();};res.on('close',gone);
++ try{const key=await registry.secret(route);if(typeof key!=='string'||!key||/[\x00-\x1f\x7f]/.test(key))throw fault('ACCOUNT_MODEL_UPSTREAM_CREDENTIAL_INVALID',503);
++ const base=route.baseURL,suffixUp=route.api==='anthropic-messages'&&base.endsWith('/v1')?'/messages':suffix;const upstream=await request(base+suffixUp,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',...(route.api==='anthropic-messages'?{'x-api-key':key,'anthropic-version':'2023-06-01'}:{Authorization:'Bearer '+key})},body:JSON.stringify(route.api==='anthropic-messages'?Object.fromEntries(Object.entries(value).filter(([k])=>k!=='store')):{...value,store:false}),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(300000)])});
++ if(!upstream.ok){await upstream.body?.cancel();store.finish(requestId,[400,401,403,404,422,429].includes(upstream.status)?'rejected':'unknown');throw fault('ACCOUNT_MODEL_UPSTREAM_REJECTED',upstream.status===429?429:502);}
++ const type=upstream.headers.get('content-type')??'';if(!(value.stream?type.includes('text/event-stream'):type.includes('application/json')))throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);
++ if(!value.stream){const raw=await upstream.text();if(raw.length>32*1024*1024)throw fault('ACCOUNT_MODEL_RESPONSE_TOO_LARGE',502);let parsed;try{parsed=JSON.parse(raw);}catch{throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);}if(parsed.error)throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);store.finish(requestId,'stream_complete');send(200,parsed);return;}
++ res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store','X-Accel-Buffering':'no'});let bytes=0,pending='',complete=false;const decoder=new TextDecoder();for await(const chunk of upstream.body){bytes+=chunk.length;if(bytes>32*1024*1024)throw fault('ACCOUNT_MODEL_RESPONSE_TOO_LARGE',502);pending+=decoder.decode(chunk,{stream:true});if(pending.length>2*1024*1024)throw fault('ACCOUNT_MODEL_RESPONSE_TOO_LARGE',502);const lines=pending.split('\n');pending=lines.pop();for(const line of lines){if(!line.startsWith('data:'))continue;const text=line.slice(5).trim();if(text==='[DONE]'){complete=true;continue;}let event;try{event=JSON.parse(text);}catch{throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);}if(event.error||['error','response.failed','response.incomplete'].includes(event.type))throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);if(['message_stop','response.completed'].includes(event.type))complete=true;}if(!res.write(chunk))await once(res,'drain',{signal:controller.signal});}if(!complete)throw fault('ACCOUNT_MODEL_UPSTREAM_INCOMPLETE',502);store.finish(requestId,'stream_complete');res.end();
++ }finally{res.off('close',gone);controllers.delete(controller);}return;}
++ const admin=url.pathname.startsWith(ROOT+'/admin/');const actor=await authenticate(req,{admin});
++ if(req.method==='POST'&&(req.headers['x-naumi-account-models']!=='1'||req.headers.origin!==origin))throw fault('ACCOUNT_MODEL_SAME_ORIGIN_REQUIRED',403);
++ if(req.method==='GET'&&url.pathname===ROOT+'/admin/catalog'){const routes=await registry.list();return send(200,{routes:routes.map(r=>publicRoute(r,origin)),unavailable:registry.unavailable??[]});}
++ if(req.method==='GET'&&url.pathname===ROOT+'/admin/defaults')return send(200,store.defaults());
++ if(req.method==='POST'&&url.pathname===ROOT+'/admin/defaults')return send(200,store.save(actor.subject,await body(req,32768),(await registry.list()).map(r=>r.id),{defaults:true}));
++ if(req.method==='GET'&&url.pathname===ROOT+'/admin/grant'){const subject=url.searchParams.get('subject');if(!await registry.userExists(subject))throw fault('ACCOUNT_MODEL_ACCOUNT_NOT_FOUND',404);return send(200,store.grant(subject));}
++ if(req.method==='POST'&&url.pathname===ROOT+'/admin/grant'){const input=await body(req,32768);if(!await registry.userExists(input.subject))throw fault('ACCOUNT_MODEL_ACCOUNT_NOT_FOUND',404);return send(200,store.save(actor.subject,input,(await registry.list()).map(r=>r.id)));}
++ if(req.method==='POST'&&url.pathname===ROOT+'/bootstrap'){const input=await body(req,1024);if(!input||Object.keys(input).some(k=>k!=='deviceId'))throw fault('ACCOUNT_MODEL_BOOTSTRAP_INVALID');const v=store.authorize(actor.subject,input.deviceId,await registry.list());return send(200,{protocol:1,subject:actor.subject,deviceId:input.deviceId,revision:v.revision,expiresAt:v.expiresAt,token:v.token,routes:v.selected.map(r=>publicRoute(r,origin))});}
++ send(404,{error:'NOT_FOUND'});
++ }catch(e){if(started)store.finish(requestId,'unknown');controller?.abort();if(res.headersSent){res.destroy();return;}send(e.status??503,{error:/^(?:ACCOUNT_MODEL|MARKET)_[A-Z_]+$/.test(e.message)?e.message:'ACCOUNT_MODEL_UNAVAILABLE'});}
++ });server.requestTimeout=30000;server.headersTimeout=10000;server.on('close',()=>{for(const c of controllers)c.abort();});return server;
++}
+diff --git a/services/account-models/store.mjs b/services/account-models/store.mjs
+new file mode 100644
+index 0000000..d393167
+--- /dev/null
++++ b/services/account-models/store.mjs
+@@ -0,0 +1,28 @@
++import {DatabaseSync} from 'node:sqlite';
++import {randomBytes,createHash} from 'node:crypto';
++import {email,digest,fault} from './registry.mjs';
++const sha=x=>createHash('sha256').update(x).digest('hex');
++export class AccountModelStore{
++ constructor(file,{clock=Date.now}={}){this.clock=clock;this.db=new DatabaseSync(file);this.db.exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;PRAGMA busy_timeout=5000;
++ CREATE TABLE IF NOT EXISTS grants(subject TEXT PRIMARY KEY,revision INTEGER NOT NULL,policy_revision INTEGER NOT NULL,enabled INTEGER NOT NULL,routes TEXT NOT NULL,updated_at INTEGER NOT NULL);
++ CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL);
++ CREATE TABLE IF NOT EXISTS leases(token_hash TEXT PRIMARY KEY,subject TEXT NOT NULL,device TEXT NOT NULL,revision INTEGER NOT NULL,catalog_hash TEXT NOT NULL,expires INTEGER NOT NULL);
++ CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY,subject TEXT NOT NULL,route TEXT NOT NULL,state TEXT NOT NULL,at INTEGER NOT NULL);
++ CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,subject TEXT NOT NULL,revision INTEGER NOT NULL,at INTEGER NOT NULL);
++ CREATE TABLE IF NOT EXISTS monotonic(singleton INTEGER PRIMARY KEY CHECK(singleton=1),now INTEGER NOT NULL);
++ UPDATE requests SET state='unknown' WHERE state='running';`);}
++ now(){const n=this.clock(),last=this.db.prepare('SELECT now FROM monotonic WHERE singleton=1').get()?.now??0;if(!Number.isSafeInteger(n)||n<last-1000)throw fault('ACCOUNT_MODEL_CLOCK_ROLLBACK',503);const next=Math.max(n,last);this.db.prepare('INSERT INTO monotonic VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET now=excluded.now').run(next);return next;}
++ row(subject){const g=this.db.prepare('SELECT * FROM grants WHERE subject=?').get(subject);return g?{subject:g.subject,revision:g.revision,policyRevision:g.policy_revision,enabled:!!g.enabled,routes:JSON.parse(g.routes),updatedAt:g.updated_at}:null;}
++ defaults(){return this.row('__naumi_defaults__')??{subject:null,revision:0,policyRevision:0,enabled:false,routes:[],updatedAt:null};}
++ grant(subject){subject=email(subject);const own=this.row(subject);if(own)return {...own,inherited:false};return {...this.defaults(),subject,revision:0,inherited:true};}
++ save(actor,input,available,{defaults=false}={}){
++ if(!input||Object.keys(input).some(k=>!['subject','expectedRevision','enabled','routes','operationId'].includes(k))||typeof input.enabled!=='boolean'||!Number.isSafeInteger(input.expectedRevision)||input.expectedRevision<0||!/^[a-f0-9-]{36}$/.test(input.operationId??'')||!Array.isArray(input.routes)||input.routes.length>100||input.enabled&&!input.routes.length||new Set(input.routes).size!==input.routes.length||input.routes.some(id=>!available.includes(id)))throw fault('ACCOUNT_MODEL_GRANT_INVALID');
++ const subject=defaults?'__naumi_defaults__':email(input.subject),fp=digest({...input,subject});this.db.exec('BEGIN IMMEDIATE');try{const old=this.db.prepare('SELECT * FROM operations WHERE id=?').get(input.operationId);if(old){if(old.fingerprint!==fp)throw fault('ACCOUNT_MODEL_OPERATION_CONFLICT',409);this.db.exec('COMMIT');return JSON.parse(old.result);}const before=defaults?this.defaults():this.grant(subject);if(before.revision!==input.expectedRevision)throw fault('ACCOUNT_MODEL_REVISION_CONFLICT',409);
++ const n=this.now(),revision=before.revision+1,policyRevision=this.db.prepare('SELECT coalesce(max(policy_revision),0)+1 AS n FROM grants').get().n;this.db.prepare('INSERT INTO grants VALUES(?,?,?,?,?,?) ON CONFLICT(subject) DO UPDATE SET revision=excluded.revision,policy_revision=excluded.policy_revision,enabled=excluded.enabled,routes=excluded.routes,updated_at=excluded.updated_at').run(subject,revision,policyRevision,Number(input.enabled),JSON.stringify(input.routes),n);this.db.prepare('INSERT INTO audit(actor,subject,revision,at) VALUES(?,?,?,?)').run(actor,subject,revision,n);const result=defaults?this.defaults():this.grant(subject);this.db.prepare('INSERT INTO operations VALUES(?,?,?)').run(input.operationId,fp,JSON.stringify(result));this.db.exec('COMMIT');return result;}catch(e){this.db.exec('ROLLBACK');throw e;}}
++ authorize(subject,device,routes){const grant=this.grant(subject);if(!grant.enabled)throw fault('ACCOUNT_MODEL_NOT_AUTHORIZED',403);const selected=routes.filter(r=>grant.routes.includes(r.id));if(selected.length!==grant.routes.length||!selected.length)throw fault('ACCOUNT_MODEL_REGISTRY_CHANGED',409);
++ if(typeof device!=='string'||!/^[a-f0-9]{64}$/.test(device))throw fault('ACCOUNT_MODEL_DEVICE_INVALID');const now=this.now();this.db.prepare('DELETE FROM leases WHERE expires<?').run(now);if(this.db.prepare('SELECT count(*) AS n FROM leases WHERE subject=? AND device=?').get(email(subject),device).n>=8||this.db.prepare('SELECT count(*) AS n FROM leases WHERE subject=?').get(email(subject)).n>=64)throw fault('ACCOUNT_MODEL_LEASE_LIMIT',429);const token=randomBytes(32).toString('base64url'),expiresAt=now+300000,catalogHash=digest(selected);this.db.prepare('DELETE FROM leases WHERE expires<?').run(now);this.db.prepare('INSERT INTO leases VALUES(?,?,?,?,?,?)').run(sha(token),email(subject),device,grant.policyRevision,catalogHash,expiresAt);return{token,revision:grant.policyRevision,expiresAt,selected};}
++ authenticate(token,device,routes){if(typeof token!=='string'||token.length>100)throw fault('ACCOUNT_MODEL_AUTH_REQUIRED',401);const lease=this.db.prepare('SELECT * FROM leases WHERE token_hash=?').get(sha(token));if(!lease||lease.device!==device||lease.expires<=this.now())throw fault('ACCOUNT_MODEL_CREDENTIAL_EXPIRED',401);const g=this.grant(lease.subject);if(!g.enabled||g.policyRevision!==lease.revision||digest(routes.filter(r=>g.routes.includes(r.id)))!==lease.catalog_hash)throw fault('ACCOUNT_MODEL_AUTH_REVOKED',403);return {...g,device:lease.device};}
++ begin(actor,id,route){if(!/^[a-f0-9-]{36}$/.test(id??''))throw fault('ACCOUNT_MODEL_REQUEST_ID_REQUIRED');if(!actor.routes.includes(route))throw fault('ACCOUNT_MODEL_ROUTE_DENIED',403);if(this.db.prepare("SELECT count(*) AS n FROM requests WHERE subject=? AND state='running'").get(actor.subject).n>=4)throw fault('ACCOUNT_MODEL_BUSY',429);try{this.db.prepare('INSERT INTO requests VALUES(?,?,?,?,?)').run(id,actor.subject,route,'running',this.now());}catch(e){if(this.db.prepare('SELECT 1 FROM requests WHERE id=?').get(id))throw fault('ACCOUNT_MODEL_REQUEST_ALREADY_ACCEPTED',409);throw e;}}
++ finish(id,state){this.db.prepare("UPDATE requests SET state=? WHERE id=? AND state='running'").run(state,id);}
++ close(){this.db.close();}
++}
+diff --git a/tests/account-models.test.mjs b/tests/account-models.test.mjs
+new file mode 100644
+index 0000000..2008309
+--- /dev/null
++++ b/tests/account-models.test.mjs
+@@ -0,0 +1,45 @@
++import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import http from 'node:http';import {randomUUID} from 'node:crypto';import {createRequire} from 'node:module';
++import {AccountModelStore} from '../services/account-models/store.mjs';import {checkedRoutes,ImportedRegistry} from '../services/account-models/registry.mjs';import {accountModelServer} from '../services/account-models/server.mjs';import {accountAuthentication} from '../services/account-models/auth.mjs';import {AccountModels,createAccountAdapter,installAccountModels} from '../plugins/naumi-enterprise/account-models.js';import {createUserMessage} from '@deepseek-ai/dsh-llm';
++const require=createRequire(import.meta.url),{AccountModelsSession}=require('../desktop/app/account-models.cjs'),{startBridge}=require('../desktop/app/tools.cjs');
++const a='alice@example.test',b='bob@example.test',device='a'.repeat(64),root='/api/desktop-models/v1';
++const model={id:'wire-model',name:'测试模型',contextWindow:8192,maxTokens:128,input:['text'],reasoning:false};
++const temp=()=>fs.mkdtempSync(path.join(os.tmpdir(),'naumi-account-models-'));
++const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve('http://127.0.0.1:'+server.address().port)));
++const close=server=>new Promise(resolve=>{server.closeAllConnections();server.close(resolve);});
++const grant=(subject,routes,revision=0,enabled=true)=>({subject,expectedRevision:revision,enabled,routes,operationId:randomUUID()});
++async function fixture(){const dir=temp(),store=new AccountModelStore(path.join(dir,'store.sqlite'));let calls=0,seen=[],mode='success';const upstream=http.createServer(async(req,res)=>{calls++;let text='';for await(const c of req)text+=c;const v=JSON.parse(text);seen.push({url:req.url,headers:req.headers,body:v});if(mode==='reject'){res.writeHead(401,{'Content-Type':'application/json'}).end('{"error":"UPSTREAM_PRIVATE_KEY"}');return;}if(mode==='disconnect'){req.socket.destroy();return;}
++res.writeHead(200,{'Content-Type':'text/event-stream'});const emit=x=>res.write((x.type?'event: '+x.type+'\n':'')+'data: '+JSON.stringify(x)+'\n\n');
++if(req.url.endsWith('/messages')){emit({type:'message_start',message:{id:'msg-1',type:'message',role:'assistant',model:v.model,content:[],stop_reason:null,usage:{input_tokens:3,output_tokens:0}}});emit({type:'content_block_start',index:0,content_block:{type:'text',text:''}});emit({type:'content_block_delta',index:0,delta:{type:'text_delta',text:'模型响应'}});emit({type:'content_block_stop',index:0});emit({type:'message_delta',delta:{stop_reason:'end_turn'},usage:{output_tokens:2}});emit({type:'message_stop'});}
++else if(req.url.endsWith('/responses')){const response={id:'resp-1',object:'response',created_at:1,status:'completed',model:v.model,output:[{id:'item-1',type:'message',status:'completed',role:'assistant',content:[{type:'output_text',text:'模型响应',annotations:[]}]}],usage:{input_tokens:3,output_tokens:2,total_tokens:5}};emit({type:'response.created',response:{...response,status:'in_progress',output:[]}});emit({type:'response.output_item.added',output_index:0,item:{...response.output[0],status:'in_progress',content:[]}});emit({type:'response.content_part.added',item_id:'item-1',output_index:0,content_index:0,part:{type:'output_text',text:'',annotations:[]}});emit({type:'response.output_text.delta',item_id:'item-1',output_index:0,content_index:0,delta:'模型响应'});emit({type:'response.output_item.done',output_index:0,item:response.output[0]});emit({type:'response.completed',response});}
++else{emit({id:'chat-1',object:'chat.completion.chunk',created:1,model:v.model,choices:[{index:0,delta:{role:'assistant',content:'模型响应'},finish_reason:null}]});emit({id:'chat-1',object:'chat.completion.chunk',created:1,model:v.model,choices:[{index:0,delta:{},finish_reason:'stop'}],usage:{prompt_tokens:3,completion_tokens:2,total_tokens:5}});res.write('data: [DONE]\n\n');}res.end();});const up=await listen(upstream);
++let routes=checkedRoutes(['openai-completions','openai-responses','anthropic-messages'].map((api,i)=>({id:'route'+i,group:'分组'+i,api,baseURL:up+'/v1',credentialRef:'ref'+i,providerId:'source'+i,model})),{allowLoopback:true});
++const authHTTP=http.createServer((req,res)=>{res.setHeader('Content-Type','application/json');if(req.url==='/api/admin/login'){res.end(JSON.stringify({passwordRequired:true,localAuthed:req.headers.cookie==='admin=valid',nativeAdmin:false}));return;}res.end(JSON.stringify({user:req.headers.cookie==='user=alice'?{email:a,name:'Alice'}:req.headers.cookie==='user=bob'?{email:b,name:'Bob'}:null}));});const authOrigin=await listen(authHTTP);
++const registry={list:async()=>routes,secret:async()=> 'fixture-server-secret',userExists:async subject=>[a,b].includes(subject),adminHTML:async()=>fs.readFileSync('services/account-models/admin.html'),adminJS:async()=>fs.readFileSync('services/account-models/admin.js')};const server=accountModelServer({store,registry,authenticate:accountAuthentication({origin:authOrigin}),origin:'http://127.0.0.1'});const origin=await listen(server);
++// Public origin is fixed before requests, including same-origin write admission.
++await close(server);const server2=accountModelServer({store,registry,authenticate:accountAuthentication({origin:authOrigin}),origin});await new Promise(r=>server2.listen(Number(new URL(origin).port),'127.0.0.1',r));
++return {dir,store,origin,registry,get routes(){return routes;},set routes(v){routes=v;},get calls(){return calls;},seen,set mode(v){mode=v;},async req(endpoint,{cookie='user=alice',input,headers={}}={}){return fetch(origin+endpoint,{method:input?'POST':'GET',headers:{cookie,...input?{'Content-Type':'application/json',Origin:origin,'x-naumi-account-models':'1'}:{},...headers},...input?{body:JSON.stringify(input)}:{}});},async bootstrap(cookie='user=alice'){const response=await this.req(root+'/bootstrap',{cookie,input:{deviceId:device}});return {response,value:await response.json()};},async close(){await Promise.all([close(server2),close(upstream),close(authHTTP)]);store.close();fs.rmSync(dir,{recursive:true,force:true});}};}
++
++test('durable grant CAS, idempotency and stale writers preserve authoritative revision',()=>{const dir=temp(),file=path.join(dir,'state.sqlite');let s=new AccountModelStore(file);try{const input=grant(a,['x']);assert.equal(s.save('admin',input,['x']).revision,1);assert.equal(s.save('admin',input,['x']).revision,1);assert.throws(()=>s.save('admin',{...input,enabled:false},['x']),/OPERATION_CONFLICT/);assert.throws(()=>s.save('admin',grant(a,['x']),['x']),/REVISION_CONFLICT/);assert.throws(()=>s.save('admin',grant(b,['other']),['x']),/GRANT_INVALID/);s.close();s=new AccountModelStore(file);assert.equal(s.grant(a).revision,1);assert.equal(s.grant(b).enabled,false);}finally{s.close();fs.rmSync(dir,{recursive:true,force:true});}});
++
++test('short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback',()=>{let now=1000000;const s=new AccountModelStore(':memory:',{clock:()=>now}),routes=[{id:'x',model}];try{s.save('admin',grant(a,['x']),['x']);const v=s.authorize(a,device,routes);assert.equal(v.expiresAt-now,300000);assert.equal(s.authenticate(v.token,device,routes).subject,a);assert.throws(()=>s.authenticate(v.token,'b'.repeat(64),routes),/EXPIRED/);assert.throws(()=>s.authenticate(v.token,device,[{...routes[0],model:{...model,name:'new'}}]),/REVOKED/);s.save('admin',grant(a,[],1,false),['x']);assert.throws(()=>s.authenticate(v.token,device,routes),/REVOKED/);s.save('admin',grant(a,['x'],2),['x']);const next=s.authorize(a,device,routes);now+=300001;assert.throws(()=>s.authenticate(next.token,device,routes),/EXPIRED/);now=1;assert.throws(()=>s.authorize(a,device,routes),/CLOCK_ROLLBACK/);}finally{s.close();}});
++
++test('server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin',async()=>{const f=await fixture();try{assert.equal((await f.bootstrap()).response.status,403);assert.equal((await f.req(root+'/admin/catalog')).status,403);assert.equal((await f.req(root+'/admin/catalog',{cookie:'admin=valid'})).status,200);assert.equal((await f.req(root+'/admin/grant',{cookie:'admin=valid',input:grant('missing@example.test',['route0'])})).status,404);assert.equal((await f.req(root+'/admin/grant',{cookie:'admin=valid',input:grant(a,['route0']),headers:{Origin:'https://foreign.test'}})).status,403);assert.equal((await f.req(root+'/admin/grant',{cookie:'admin=valid',input:grant(a,['route0'])})).status,200);assert.equal((await f.bootstrap('user=bob')).response.status,403);assert.equal((await f.req(root+'/bootstrap',{input:{deviceId:device,subject:a}})).status,400);const {value}=await f.bootstrap();assert.equal(value.routes.length,1);assert.equal(value.subject,a);assert(!JSON.stringify(value).includes('fixture-server-secret'));assert(!JSON.stringify(value).includes('credentialRef'));assert.equal(f.calls,0);assert.equal((await f.req('/admin/desktop-models',{cookie:'admin=valid'})).status,200);}finally{await f.close();}});
++
++test('native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client',async()=>{const f=await fixture();try{f.store.save('admin',grant(a,['route0','route1','route2']),f.routes.map(r=>r.id));const {value}=await f.bootstrap(),client=new AccountModels({initial:value,home:path.join(f.dir,'no-bridge')}),adapter=createAccountAdapter({get:()=>undefined},client);for(const route of value.routes){const listed=await adapter.listModels(route.provider);assert.equal(listed[0].id,model.id);const chunks=[];for await(const c of adapter.stream({provider:route.provider,model:model.id,sessionId:randomUUID(),messages:[createUserMessage({source:{kind:'user'},content:[{type:'text',text:'测试'}]})]}))chunks.push(c);assert(chunks.some(c=>c.type==='text-delta'&&c.text.includes('模型响应')),JSON.stringify(chunks));}
++assert.equal(f.calls,3);assert.deepEqual(f.seen.map(s=>s.url),['/v1/chat/completions','/v1/responses','/v1/messages']);assert.equal(f.seen[0].headers.authorization,'Bearer fixture-server-secret');assert.equal(f.seen[2].headers['x-api-key'],'fixture-server-secret');assert(!('store'in f.seen[2].body));assert(f.seen.every(s=>s.body.model===model.id));assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM requests WHERE state='stream_complete'").get().n,3);assert(!fs.existsSync(path.join(f.dir,'.credentials.yaml')));}finally{await f.close();}});
++
++test('gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors',async()=>{const f=await fixture();try{f.store.save('admin',grant(a,['route0']),['route0']);const {value}=await f.bootstrap(),id=randomUUID(),url=value.routes[0].baseURL+'/chat/completions',headers={authorization:'Bearer '+value.token,'x-naumi-device':device,'x-naumi-request-id':id,'Content-Type':'application/json'},body=JSON.stringify({model:model.id,stream:true,messages:[]});assert.equal((await fetch(url,{method:'POST',headers:{...headers,'x-naumi-device':'x'},body})).status,401);f.mode='disconnect';assert.equal((await fetch(url,{method:'POST',headers,body})).status,503);assert.equal(f.store.db.prepare('SELECT state FROM requests WHERE id=?').get(id).state,'unknown');assert.equal((await fetch(url,{method:'POST',headers,body})).status,409);assert.equal(f.calls,1);f.mode='reject';const res=await fetch(url,{method:'POST',headers:{...headers,'x-naumi-request-id':randomUUID()},body});assert.equal(res.status,502);assert(!(await res.text()).includes('UPSTREAM_PRIVATE_KEY'));f.store.save('admin',grant(a,[],1,false),['route0']);assert.equal((await fetch(url,{method:'POST',headers:{...headers,'x-naumi-request-id':randomUUID()},body})).status,403);assert.equal(f.calls,2);}finally{await f.close();}});
++
++test('desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed',async()=>{const f=await fixture();try{f.store.save('admin',grant(a,['route0']),['route0']);const accountDir=path.join(f.dir,'account');fs.mkdirSync(accountDir);const active={origin:f.origin,profileId:device,root:accountDir,user:{email:a}},runtime={active,client:{session:{fetch:(url,opt)=>fetch(url,{...opt,headers:{...opt.headers,cookie:'user=alice'}})}}},client=new AccountModelsSession({identity:()=>runtime});const v=await client.bootstrap();assert.equal(v.subject,a);const disk=fs.readFileSync(path.join(accountDir,'account-models-managed.json'),'utf8');assert(!disk.includes(v.token));assert(!disk.includes('fixture-server-secret'));f.store.save('admin',grant(a,[],1,false),['route0']);await assert.rejects(client.bootstrap({force:true}),/NOT_AUTHORIZED/);assert.equal(client.value,null);runtime.client.session.fetch=async()=>Response.json({error:'NOT_FOUND'},{status:404});await assert.rejects(client.bootstrap({force:true}),/UNAVAILABLE/);assert.equal(fs.readdirSync(accountDir).length,1);}finally{await f.close();}});
++
++test('new unprovisioned server stays unchanged, enrollment prevents rollback, cross-account late response is discarded',async()=>{const dir=temp();try{let resolve,mode='missing';const active={origin:'https://identity.test',profileId:device,root:dir,user:{email:a}},runtime={active,client:{session:{fetch:async()=>{if(mode==='missing')return Response.json({}, {status:404});return new Promise(r=>{resolve=r;});}}}},client=new AccountModelsSession({identity:()=>runtime});assert.equal(await client.bootstrap(),null);assert.deepEqual(fs.readdirSync(dir),[]);mode='late';const flight=client.bootstrap();while(!resolve)await new Promise(r=>setImmediate(r));runtime.active={...active,user:{email:b}};resolve(Response.json({protocol:1,subject:a}));await assert.rejects(flight,/ACCOUNT_CHANGED/);assert.deepEqual(fs.readdirSync(dir),[]);}finally{fs.rmSync(dir,{recursive:true,force:true});}});
++
++test('bridge renews only authenticated local account, never exposes credential through browser origins',async()=>{const dir=temp(),fake={bootstrap:async()=>({token:'fixture-short-token'})},guests={selected:()=>null,entries:()=>[]};const bridge=await startBridge({home:dir,guests,window:{},accountModels:fake});try{const d=JSON.parse(fs.readFileSync(path.join(dir,'naumi-desktop-bridge.json'))),url=`http://127.0.0.1:${d.port}/models/bootstrap`;assert.equal((await fetch(url,{method:'POST'})).status,403);assert.equal((await fetch(url,{method:'POST',headers:{authorization:'Bearer '+d.token,origin:'https://bad.test'}})).status,403);const r=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+d.token}});assert.equal((await r.json()).data.token,'fixture-short-token');assert(!fs.readFileSync(path.join(dir,'naumi-desktop-bridge.json'),'utf8').includes('fixture-short-token'));}finally{await bridge.close();fs.rmSync(dir,{recursive:true,force:true});}});
++
++test('registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets',async()=>{let reads=0;const registry=new ImportedRegistry({pool:{query:async sql=>({rows:sql.startsWith('SELECT 1')?[{}]:[{provider_id:'source',model_id:model.id,source_data:{credentialRef:'server-ref'},metadata:{parameterMetadata:{desktopSource:{configuration:{displayName:'group',api:'openai-responses',baseURL:'https://supplier.test/v1'},model}}}}]})},credentials:{read:async(ref,provider)=>{assert.equal(ref,'server-ref');assert.equal(provider,'source');reads++;return 'key';}}});const rows=await registry.list();assert.equal(reads,0);assert.equal(rows[0].api,'openai-responses');assert.equal(await registry.secret(rows[0]),'key');assert.equal(reads,1);assert.throws(()=>checkedRoutes([{...rows[0],model:{...model,maxTokens:undefined}}]),/CAPACITY_REQUIRED/);assert.throws(()=>checkedRoutes([{...rows[0],baseURL:'http://foreign.test'}]),/REGISTRY_INVALID/);});
++
++test('process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry',()=>{const dir=temp(),file=path.join(dir,'s.sqlite');let s=new AccountModelStore(file);try{s.save('admin',grant(a,['r']),['r']);s.begin(s.grant(a),randomUUID(),'r');const id=s.db.prepare('SELECT id FROM requests').get().id;s.close();s=new AccountModelStore(file);assert.equal(s.db.prepare('SELECT state FROM requests WHERE id=?').get(id).state,'unknown');assert.throws(()=>s.begin(s.grant(a),id,'r'),/ALREADY_ACCEPTED/);}finally{s.close();fs.rmSync(dir,{recursive:true,force:true});}});
++
++ test('real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key',async()=>{const f=await fixture();let ctx,base,plugin,llm;try{const {Context}=await import('@deepseek-ai/cordis'),{default:Llm}=await import('@deepseek-ai/dsh-llm');ctx=new Context();llm=ctx.plugin(Llm);await llm;f.store.save('admin',grant(a,['route0']),['route0']);const {value}=await f.bootstrap();let selection={provider:'old',model:model.id};const agent={model:{current:()=>selection,select:v=>{selection=v;}}};base=ctx.plugin({apply(s){s.provide('agents',{list:()=>[agent]});s.provide('agentDefaultModel',{currentSelection:()=>selection,saveSelection:async v=>{selection=v;}});}});await base;const config=path.join(f.dir,'catalog.json');fs.writeFileSync(config,JSON.stringify({...value,token:undefined}));process.env.NAUMI_ACCOUNT_MODELS_TOKEN=value.token;let account;plugin=ctx.plugin({apply(s){account=installAccountModels(s,{config,home:f.dir});}});await plugin;await account;await ctx.parallel('ready');assert.equal(selection.provider,value.routes[0].provider);assert.deepEqual(ctx.llm.listProviders().map(p=>p.id),[value.routes[0].provider]);const chunks=[];for await(const c of ctx.llm.stream({...selection,messages:[createUserMessage({source:{kind:'user'},content:[{type:'text',text:'原生管线'}]})]}))chunks.push(c);assert(chunks.some(c=>c.type==='text-delta'));const count=f.calls;await assert.rejects(async()=>{for await(const c of ctx.llm.stream({provider:'old',model:model.id,messages:[]})){}},/ACCOUNT_MODEL_ROUTE_DENIED|not registered/);assert.equal(f.calls,count);assert.equal(process.env.NAUMI_ACCOUNT_MODELS_TOKEN,undefined);assert(!fs.readFileSync(config,'utf8').includes(value.token));}finally{delete process.env.NAUMI_ACCOUNT_MODELS_TOKEN;await plugin?.dispose();await base?.dispose();await llm?.dispose();await f.close();}});
++
++ test('default model policy automatically provisions both authenticated accounts, while account override and revocation win',async()=>{const f=await fixture();try{const defaults={subject:null,expectedRevision:0,enabled:true,routes:['route0'],operationId:randomUUID()};assert.equal((await f.req(root+'/admin/defaults',{cookie:'admin=valid',input:defaults})).status,200);assert.equal((await f.bootstrap()).value.routes.length,1);assert.equal((await f.bootstrap('user=bob')).value.subject,b);assert.equal(f.store.grant(b).inherited,true);f.store.save('admin',grant(b,[],0,false),['route0']);assert.equal((await f.bootstrap('user=bob')).response.status,403);assert.equal((await f.bootstrap()).response.status,200);const v=(await f.bootstrap()).value;await f.req(root+'/admin/defaults',{cookie:'admin=valid',input:{...defaults,expectedRevision:1,enabled:false,routes:[],operationId:randomUUID()}});assert.throws(()=>f.store.authenticate(v.token,device,f.routes),/REVOKED/);assert.equal((await f.bootstrap()).response.status,403);}finally{await f.close();}});
+diff --git a/tests/desktop-update-ui.test.mjs b/tests/desktop-update-ui.test.mjs
+index 120875a..beee282 100644
+--- a/tests/desktop-update-ui.test.mjs
++++ b/tests/desktop-update-ui.test.mjs
+@@ -52,10 +52,11 @@ test('actual native gate atomically quiesces owned backend and fails closed on b
+  const main=fs.readFileSync('desktop/app/main.cjs','utf8');
+  const gate=main.slice(main.indexOf('async function canInstallUpdate()'),main.indexOf('async function showUpdateNotice'));
+  const maintenance=main.slice(main.indexOf('async function performMaintenance('),main.indexOf('function isAlive('));
+- const calls=[],ctx={closing:false,booting:false,connecting:false,cloud:{running:0},cloudBusy:0,bridge:{runtime:{queues:new Map()}},enterprise:{running:0},market:{running:0},settings:{isolated:true},backend:{owned:true},maintenanceTicket:null,maintenanceUntil:0,maintenanceBlocked:()=>false,randomUUID:()=> 'fixture',maintenanceRequest:async(...args)=>{calls.push(args);}};
++ const calls=[],ctx={closing:false,booting:false,connecting:false,cloud:{running:0},cloudBusy:0,bridge:{runtime:{queues:new Map()}},enterprise:{running:0},market:{running:0},accountModels:{running:0},settings:{isolated:true},backend:{owned:true},maintenanceTicket:null,maintenanceUntil:0,maintenanceBlocked:()=>false,randomUUID:()=> 'fixture',maintenanceRequest:async(...args)=>{calls.push(args);}};
+  ctx.admitUpdate=createRequire(import.meta.url)('../desktop/app/update-gate.cjs').admitUpdate;ctx.quitGate={phase:'idle'};vm.createContext(ctx);vm.runInContext(gate+maintenance,ctx);
+  ctx.enterprise.running=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.enterprise.running=0;
+  ctx.market.running=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.market.running=0;
++ ctx.accountModels.running=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.accountModels.running=0;
+  ctx.cloudBusy=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.cloudBusy=0;
+  ctx.backend.owned=false;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.backend.owned=true;
+  const accepted=await ctx.canInstallUpdate();assert.equal(accepted.ok,true);assert.equal(calls[0][1],'quiesce');await accepted.release();assert.equal(calls[1][1],'resume');assert.equal(ctx.maintenanceTicket,null);

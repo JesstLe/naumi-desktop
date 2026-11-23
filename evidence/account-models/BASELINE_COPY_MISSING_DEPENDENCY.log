@@ -1,0 +1,86 @@
+✔ identity origin enforces exact HTTPS authority or loopback, with no executable URLs or URL credentials (1.164ms)
+✔ only canonical account identity crosses the adapter, never role, credits, tokens or server secrets (0.7178ms)
+✔ account and authority namespaces are stable, separate and path-safe without reusing legacy home (15.5164ms)
+✔ linked/malformed profile owners and future config versions fail without claiming or replacing user data (4.2264ms)
+✔ a symlink namespace is rejected and never dereferenced for writes (2.1571ms)
+✔ login reuses Canvas native API and confirms the actual Chromium session before exposing a user (11.7949ms)
+✔ wrong password, disabled/expired account and rate limiting preserve server decisions with one attempt only (1.212ms)
+✔ login success response without a confirmed server session does not authenticate (0.3159ms)
+✔ invalid input never reaches the account server (0.2041ms)
+✔ network failure or redirect never leaks remote details, changes a namespace or replays password submission (1.4973ms)
+✔ identity JSON responses are bounded and reject login HTML or malformed sessions (0.8713ms)
+✔ concurrent password submissions are rejected rather than queued (0.3631ms)
+✔ managed authority cannot be replaced by renderer input; cookie partitions are origin-bound (0.8955ms)
+✔ logout clears only the owned account session and retains every local account home even offline (6.2284ms)
+✔ cold start validates the server; an already open local identity survives an outage in this process only (7.41ms)
+✔ revoked/reset/disabled Canvas sessions cannot restore a logged-in account on cold start (7.1008ms)
+✔ changing account requires logout, and no remote password or token is persisted on disk (6.4332ms)
+✔ native wiring keeps legacy dev hosts intact, accounts scope enterprise/browser homes and logout quiesces before stopping (0.4072ms)
+✖ package audit excludes identity state and all per-account profiles from distributable runtime (4.3776ms)
+✔ account entry renders nothing on web/linked shells and appears only for a real native identity capability (4.9967ms)
+✔ login reuses the requested Smoke/Liquid presentation locally and removes only the Design brand sublabel (2.5412ms)
+✔ custom group persists URL/protocol/models and only a credential reference, never a returned key (3.9994ms)
+✔ blank-key edits preserve original reference and nested model/protocol metadata (0.5515ms)
+✔ key rotation uses a new immutable reference and does not alter another route sharing the old key (0.4099ms)
+✔ stale revision is rejected before any credential write, preserving all groups (0.4974ms)
+✔ settings failure or late CAS conflict cleans the staged key and retains prior working key/configuration (0.7418ms)
+✔ concurrent same-revision saves serialize with one winner, and a retry succeeds (0.3742ms)
+✔ removal repairs the default but preserves shared credentials; last removal leaves explicit unconfigured state (0.6658ms)
+✔ nonofficial defaults and unrelated group settings remain unchanged (0.1779ms)
+✔ editing away the current default model selects the remaining model in that group (0.2342ms)
+✔ URL validation rejects embedded credentials, query secrets, fragments and request endpoints but supports custom HTTP hosts (0.2267ms)
+✔ invalid protocol, empty/duplicate models, newline keys, missing keys and unknown fields never write config (0.9184ms)
+✔ all three custom wire protocols are accepted, and read-only deployments reject mutations (0.3637ms)
+✔ new models settings replaces the native models slot without another navigation or model selector (0.1152ms)
+✔ Naumi composition disables official authentication, official model adapters, onboarding and cloud credential consumers (0.406ms)
+✔ owner HTTP protects secrets against guests, foreign origins, missing headers and malformed/oversized bodies (137.1027ms)
+✔ reasoning official/default save is durable, safely projected and preserves raw budgets, credentials and default model (0.5411ms)
+✔ invalid reasoning and incompatible mixed-group default never stage keys or mutate settings (0.7106ms)
+✔ concurrent reasoning saves retain CAS and write failure retains original capabilities and defaults (0.2856ms)
+✔ sparse custom effort maps persist through actual request validation (0.2296ms)
+✔ exact IDs, three display choices and explicit vision preserve endpoints, keys, budgets and compat (1.3321ms)
+✔ similar Flash names do not qualify and missing sources never produce placeholders (0.3315ms)
+✔ both exact models on one endpoint stay on one credential reference (0.1836ms)
+✔ invalid endpoints/protocols/ref reject before migration (0.2248ms)
+✔ one settings CAS persists only selected providers; backup precedes write, defaults and Session selections remap (1.1308ms)
+✔ repeated startup is idempotent and does not rewrite backup, credentials or default (0.5246ms)
+✔ Terra is an independent native selection sharing Sol credentials and preserves a saved Terra choice (0.4334ms)
+✔ reserved Terra route collisions refuse rather than overwrite another endpoint or key (0.206ms)
+✔ missing keys, read-only settings, backup failures and failed CAS never remove old providers (0.7778ms)
+✔ default-selection failure is reported after durable policy; repeat repairs it (0.5667ms)
+✔ post-write validation failure restores the original config through a second guarded CAS (0.3469ms)
+✔ post-migration owner settings drift denies dispatch rather than admitting a changed endpoint (0.3489ms)
+✔ existing model configuration API becomes read-only only when policy service is mounted (1.4812ms)
+✔ backup is durable/idempotent and modified backup refuses before overwrite (5.5927ms)
+✔ ordinary development hosts are unaffected when distributed mode is disabled (0.1258ms)
+✔ distributed host hooks gate real dispatch, remap restored agents, and never dispatch an old model (3.2585ms)
+✔ native pi-ai sees three visual options backed by two real model IDs with aliases, retaining actual wire IDs; network calls=0 (13.5246ms)
+✔ real native Anthropic serialization sends gpt-6-luna for both Sol and Terra, never either display alias (113.7621ms)
+✔ optional Claude route preserves real Sonnet ID, custom display name and existing three choices (0.2801ms)
+ℹ tests 59
+ℹ suites 0
+ℹ pass 58
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 480.4236
+
+✖ failing tests:
+
+test at desktop\tests\identity.test.cjs:69:1
+✖ package audit excludes identity state and all per-account profiles from distributable runtime (4.3776ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\NaumiChecks\account-models-copy-c34e034\scripts\native-model-picker-extension.mjs' imported from D:\NaumiChecks\account-models-copy-c34e034\desktop\scripts\prepare-runtime.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+      at moduleResolve (node:internal/modules/esm/resolve:865:10)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33)
+      at ModuleJob.link (node:internal/modules/esm/module_job:253:17) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///D:/NaumiChecks/account-models-copy-c34e034/scripts/native-model-picker-extension.mjs'
+  }

@@ -1,0 +1,5 @@
+const error=new URLSearchParams(location.search).get('error');
+if(error){document.querySelector('#spinner').hidden=true;document.querySelector('#error').textContent=({INSTALL_RUNNING_TASKS:'本地服务正在工作，任务结束后重试即可同步更新。',LINKED_SERVICE_REQUIRES_STOP:'旧本地服务仍在运行，请结束旧服务后重试同步。',SERVICE_VERSION_MISMATCH:'客户端与本地服务尚未同步，请重试完成更新。',SERVICE_ACTIVE_CODE_DRIFT:'本地服务代码发生变化，请结束当前工作后重新启动。',ENTERPRISE_EXISTING_DEVICE_REQUIRES_MIGRATION:'原企业设备仍有关联，请先完成企业迁移。',ENTERPRISE_BACKEND_STATE_UNKNOWN:'原企业服务状态待确认，请正常退出后重试。'})[error]??error;document.querySelector('#retry').hidden=false;}
+if(error)window.naumiDesktop.connectionState().then(state=>{document.querySelector('#settings').hidden=!state.available;}).catch(()=>{});
+document.querySelector('#settings').addEventListener('click',()=>window.naumiDesktop.connectionSettings());
+document.querySelector('#retry').addEventListener('click',()=>{document.querySelector('#retry').hidden=true;document.querySelector('#error').textContent='';document.querySelector('#spinner').hidden=false;window.naumiDesktop.retry();});
