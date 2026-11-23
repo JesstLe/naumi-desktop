@@ -13,3 +13,5 @@
 集中验收：node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs，1136/1136 PASS exit0。真实固定CLI在完全没有dws的旧root中经新PATH执行--version/auth status readonly/业务schema，版本1.0.68、未登录、schema JSON、资源vendor目录及exe hash不变；实际新resolver健康探测installed/healthy=true、authorized=false、networkVerified=false。两次早期schema参数/叶路径失败保留CLI_SCHEMA_FAILURES.txt，修正测试命令后通过，不将其记作真实业务调用。
 
 基线实际cmd找不到dws；修改后真实命令成功；独立源文件副本回滚后再次找不到dws，原始hash恢复，实际MODIFIED_FILE保持修改，三项回放命令均exit0。证据D:/NaumiReleases/0.4.12。发布门禁已扩展：四种真实打包EXE配置均从实际asar抽取环境helper执行固定CLI，并通过原生skills/list确认naumi-dingtalk；与本次安装器hash绑定，缺CLI/Skill回执阻止发布。
+
+首个候选实际包（固定d87f3f2）门禁发现真实问题：CLI执行通过，但原生skills/list缺naumi-dingtalk，未发布，BUILD_FIRST.log/NATIVE_FIRST_FAILURE.json/FIRST_PACKAGE.json保留。原嵌套scope.plugin包装未产生可见技能贡献；改为复用filesystemSkills.apply公共安装函数，仍由原注入scope管理注册/销毁，不复制SDK技能实现。真实Harness新增测试确认与其他filesystem provider共存、完整skill body可读、卸载仅移除本模块，1/1通过。该修订需要完整重建，不把修正后的源码冒称已进入首包。
