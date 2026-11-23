@@ -11,3 +11,5 @@
 未完成项与下一步：正在集中全仓验证与主线整合，随后固定main构建/真实设置页验收/发布。此修复保证普通受管设置及其专用DTO不披露连接细节，不宣称本地内嵌测试包或所有者底层配置中没有路由信息。保留现有路由、凭据、会话、Bot、浏览器/微信/CUA。无须真实供应商推理，不安装或重启当前用户客户端。
 
 主线同步：整合 origin/main 20fd28b（账号模型接入），保留账号登录生命周期与原有生产未部署状态；解决模型设置read冲突，两种受管来源均走同一个白名单，不回传账号网关路由。新增账号受管响应/禁止发现及编辑测试。全仓首次1116/1116，exit0；整合后重新集中验证。
+
+整合验收：node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs，1129/1129 PASS exit0，日志 D:/NaumiReleases/0.4.11/FULL_INTEGRATED.log。原缺陷BASELINE supplier_fields=exposed；MODIFIED supplier_fields=absent；独立副本ROLLBACK supplier_fields=exposed，三命令exit0，原hash保持、修改工件仍保留；原路由JSON不变。四件套位于同一证据根。
