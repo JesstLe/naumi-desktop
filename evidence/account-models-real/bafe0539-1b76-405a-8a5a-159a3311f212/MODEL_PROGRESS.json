@@ -1,0 +1,46 @@
+{
+  "status": "FAIL",
+  "run": "bafe0539-1b76-405a-8a5a-159a3311f212",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "03797257c8baa4820534fe6aec4b1cdfe3a48655f033433c551d4c749e981bd1",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [
+    "real_canvas_login_native_chromium",
+    "account_bootstrap",
+    "no_upstream_key_or_lease_persisted"
+  ],
+  "models": [
+    {
+      "model": "deepseek-flash",
+      "api": "anthropic-messages",
+      "text": "NAUMI_OK_23bac2862ad2",
+      "finish": "stop",
+      "error": null,
+      "elapsedMs": 915,
+      "usage": {
+        "inputTokens": 48,
+        "outputTokens": 22,
+        "totalTokens": 70
+      },
+      "expectedMarker": "NAUMI_OK_23bac2862ad2",
+      "matched": true
+    },
+    {
+      "model": "gpt-6-luna",
+      "api": "anthropic-messages",
+      "text": "NAUMI_OK_c6fcb75055ce",
+      "finish": "aborted",
+      "error": "ABORTED",
+      "elapsedMs": 90007,
+      "usage": {
+        "inputTokens": 24,
+        "outputTokens": 15,
+        "totalTokens": 39
+      },
+      "expectedMarker": "NAUMI_OK_c6fcb75055ce",
+      "matched": true
+    }
+  ]
+}

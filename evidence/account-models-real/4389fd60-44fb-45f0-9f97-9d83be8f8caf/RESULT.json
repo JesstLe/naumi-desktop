@@ -1,0 +1,31 @@
+{
+  "status": "FAIL",
+  "run": "4389fd60-44fb-45f0-9f97-9d83be8f8caf",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "03797257c8baa4820534fe6aec4b1cdfe3a48655f033433c551d4c749e981bd1",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [],
+  "error": "LIVE_ACCEPTANCE_STAGE_FAILED",
+  "stage": "identity-bootstrap",
+  "errorDetail": "electronApplication.evaluate: Error: ACCOUNT_MODEL_RESPONSE_INVALID\n    at E:\\Workspace\\naumi-account-models-real-20261123\\desktop\\app\\account-models.cjs:28:57\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async AccountModelsSession.bootstrap (E:\\Workspace\\naumi-account-models-real-20261123\\desktop\\app\\account-models.cjs:29:68)\n    at async eval (eval at evaluate (:290:30), <anonymous>:2:302)\n    at async <anonymous>:316:30",
+  "remote": {
+    "type": "final",
+    "run": "4389fd60-44fb-45f0-9f97-9d83be8f8caf",
+    "status": "PASS",
+    "temporaryAccountRemoved": 1,
+    "protectedConfigUnchanged": true,
+    "upstreamAttempts": [],
+    "receipts": [],
+    "receiptDirectory": "/tmp/naumi-model-real-4389fd60-44fb-45f0-9f97-9d83be8f8caf-81zH9q",
+    "globalGrantsChanged": 0
+  },
+  "transportCleanup": {
+    "type": "remote-cleanup",
+    "containersUnchanged": true,
+    "gatewayUnchanged": true,
+    "sourceWeb": "naumi47-web-layer-export-20261120-r1",
+    "publicServiceDeployed": false
+  }
+}

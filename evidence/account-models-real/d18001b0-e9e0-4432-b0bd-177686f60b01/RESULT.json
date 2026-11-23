@@ -1,0 +1,65 @@
+{
+  "status": "FAIL",
+  "run": "d18001b0-e9e0-4432-b0bd-177686f60b01",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "fa1a5da673a33beaf51373b9163fdb736330e59fe2864c6a5c3048d2d2383c77",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [
+    "real_canvas_login_native_chromium",
+    "account_bootstrap",
+    "no_upstream_key_or_lease_persisted"
+  ],
+  "models": [
+    {
+      "model": "gpt-6-luna",
+      "api": "anthropic-messages",
+      "text": "",
+      "finish": "error",
+      "error": "SERVER",
+      "elapsedMs": 10665,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "expectedMarker": "NAUMI_OK_d62830935e14",
+      "matched": false
+    }
+  ],
+  "error": "REAL_MODEL_RESPONSE_NOT_ACCEPTED",
+  "stage": "inference:gpt-6-luna",
+  "errorDetail": "REAL_MODEL_RESPONSE_NOT_ACCEPTED",
+  "remote": {
+    "type": "final",
+    "run": "d18001b0-e9e0-4432-b0bd-177686f60b01",
+    "status": "PASS",
+    "temporaryAccountRemoved": 1,
+    "protectedConfigUnchanged": true,
+    "upstreamAttempts": [
+      {
+        "requestId": "7a09e249-a23f-48b2-8406-3594e21612e7",
+        "model": "gpt-6-luna",
+        "startedAt": "2026-11-23T03:43:08.420Z",
+        "status": "UNKNOWN"
+      }
+    ],
+    "receipts": [
+      {
+        "id": "7a09e249-a23f-48b2-8406-3594e21612e7",
+        "route": "r-479ff9866aa626db103e936f6fba6618",
+        "state": "unknown"
+      }
+    ],
+    "receiptDirectory": "/tmp/naumi-model-real-d18001b0-e9e0-4432-b0bd-177686f60b01-6yLkWg",
+    "globalGrantsChanged": 0
+  },
+  "transportCleanup": {
+    "type": "remote-cleanup",
+    "containersUnchanged": true,
+    "gatewayUnchanged": true,
+    "sourceWeb": "naumi47-web-layer-export-20261120-r1",
+    "publicServiceDeployed": false
+  }
+}

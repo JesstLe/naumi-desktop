@@ -1,0 +1,14 @@
+{
+  "status": "FAIL",
+  "run": "f1d4171e-4d96-4baf-bcfc-e4924d4c4555",
+  "source": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "bundleHash": "fa1a5da673a33beaf51373b9163fdb736330e59fe2864c6a5c3048d2d2383c77",
+  "realSuppliers": true,
+  "installedPackage": false,
+  "deployment": "private loopback via pinned SSH",
+  "checks": [],
+  "error": "DEPLOYMENT_LOCK_BUSY",
+  "stage": "remote-start",
+  "errorDetail": "DEPLOYMENT_LOCK_BUSY",
+  "cleanup": "UNCONFIRMED"
+}

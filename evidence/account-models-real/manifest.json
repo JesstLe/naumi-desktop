@@ -1,0 +1,64 @@
+{
+  "baseline": "c08735d1f8a6600c3614757ed21334d9d7687c98",
+  "functionalCommit": "187053d",
+  "integratedCommit": "842d6b1cdfc4b8b1a066938970e153f9f903b595",
+  "sourceRoot": "E:\\Workspace\\naumi-account-models-real-20261123",
+  "liveRoot": "E:/Workspace/naumi-desktop",
+  "entries": [
+    {
+      "path": "desktop/app/account-models.cjs",
+      "original": "fc951cb2e97e1d9716edbeeb84bf7622e56be760e685c25f6307e05d98dc65f3",
+      "modified": "bb71197168ca83d776b96feed815c4609a3325aff9494a34f77aa7edd83a68ad"
+    },
+    {
+      "path": "docs/changes/2026-11-23-account-models-real.md",
+      "original": null,
+      "modified": "b291cd40b0227d6dcd2dd92c7b8cf7cfe09c587b82eeff9cbcb417bb0a75579a"
+    },
+    {
+      "path": "scripts/account-models-live-host.mjs",
+      "original": null,
+      "modified": "f70e7997a50615a7f822d1f8f7a9e7a903c7a8a9916b6a9b9731ad4a025e184e"
+    },
+    {
+      "path": "scripts/account-models-live-remote.py",
+      "original": null,
+      "modified": "3c24fa7d7a820faed17e622cbd5ceef0de9ab0eda43b6430d3d6bfda03115e8a"
+    },
+    {
+      "path": "scripts/prepare-account-models.mjs",
+      "original": "0681dbbde8aca0728350e27537c327544aa7b24e94384cc54aee3538778219ff",
+      "modified": "b8b70a3a646c8f414cc19a0ca5e265ffecd0815ce9b096524ee887230a9af004"
+    },
+    {
+      "path": "scripts/run-account-models-live.mjs",
+      "original": null,
+      "modified": "46acc51d60735be9ecace79b771125df5c5dc379f7a358622861eeb142f4cb4b"
+    },
+    {
+      "path": "services/account-models/server.mjs",
+      "original": "58f146b33ea43f40bce6822c753417714039d0717f03ffa541d767bc5a0c8def",
+      "modified": "3b0b441ebd8bc49699b8a72eb16eeeddec0cc4dd618a4b6184cda1017aca123e"
+    },
+    {
+      "path": "services/account-models/stream.mjs",
+      "original": null,
+      "modified": "c4465e41893b45ed6005cbba602a35d07de9e819cc7cc5151a0b11f04ef9a0c7"
+    },
+    {
+      "path": "tests/account-model-stream.test.mjs",
+      "original": null,
+      "modified": "346e3cfdd5bf3afdca82027076fa4f82fbe394c687d0546e8856844160789efe"
+    },
+    {
+      "path": "tests/account-models.test.mjs",
+      "original": "899ac7a0beec3cd57503822307d7418044cb13224ab33286296c7765c6655836",
+      "modified": "603279debd7a24c546283b98e8411a5649ef4598199e43d0efa1fa981a38ec0d"
+    },
+    {
+      "path": "services/account-models/README.md",
+      "original": "58624a8052152ca9eb859150f252d35b7df08245b7315a096736bc65791f92d9",
+      "modified": "80220c75f7519245cd65da8f0187b3a04e367b69d1fe7f671f0244cbc813e932"
+    }
+  ]
+}

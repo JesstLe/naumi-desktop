@@ -1,0 +1,39 @@
+✖ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (4.631ms)
+✖ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (3207.7489ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3556.9485
+
+✖ failing tests:
+
+test at tests\account-models.test.mjs:47:2
+✖ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (4.631ms)
+  Error: ACCOUNT_MODEL_RESPONSE_INVALID
+      at D:\NaumiChecks\account-models-real-copy-c08735d\desktop\app\account-models.cjs:28:57
+      at async AccountModelsSession.bootstrap (D:\NaumiChecks\account-models-real-copy-c08735d\desktop\app\account-models.cjs:29:68)
+      at async TestContext.<anonymous> (file:///D:/NaumiChecks/account-models-real-copy-c08735d/tests/account-models.test.mjs:47:709)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests\account-models.test.mjs:49:2
+✖ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (3207.7489ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'aborted' !== 'stop'
+  
+      at TestContext.<anonymous> (file:///D:/NaumiChecks/account-models-real-copy-c08735d/tests/account-models.test.mjs:49:653)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'aborted',
+    expected: 'stop',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

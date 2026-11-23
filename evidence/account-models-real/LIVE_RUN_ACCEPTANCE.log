@@ -1,0 +1,2 @@
+REAL_SUPPLIER_PASS model=deepseek-flash protocol=anthropic-messages elapsedMs=1100
+REAL_SUPPLIER_RESULT status=PASS run=e9163a82-615e-4a73-83b2-7f836a9e5423 result=E:\Workspace\naumi-account-models-real-20261123\evidence\account-models-real\e9163a82-615e-4a73-83b2-7f836a9e5423\RESULT.json

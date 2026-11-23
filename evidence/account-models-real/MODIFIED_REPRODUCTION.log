@@ -1,0 +1,10 @@
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (8.0628ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (453.1344ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 851.4454

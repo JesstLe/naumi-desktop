@@ -1,0 +1,20 @@
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (15.3539ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.6664ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (294.2884ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (361.884ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (71.5893ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (47.206ms)
+✔ new unprovisioned server stays unchanged, enrollment prevents rollback, cross-account late response is discarded (2.8581ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (24.4243ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.5118ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (26.0105ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (36.3187ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (217.0933ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1439.6202

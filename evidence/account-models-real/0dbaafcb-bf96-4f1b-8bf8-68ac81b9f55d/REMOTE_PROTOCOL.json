@@ -1,0 +1,8 @@
+[
+  {
+    "type": "not-started",
+    "error": "DEPLOYMENT_LOCK_BUSY",
+    "lock": "/opt/naumi-staging/releases/deploy.lock",
+    "modelCalls": 0
+  }
+]

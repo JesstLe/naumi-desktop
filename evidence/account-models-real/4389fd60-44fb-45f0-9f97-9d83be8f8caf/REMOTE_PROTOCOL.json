@@ -1,0 +1,48 @@
+[
+  {
+    "type": "transport",
+    "targetHost": "172.19.0.5"
+  },
+  {
+    "type": "ready",
+    "run": "4389fd60-44fb-45f0-9f97-9d83be8f8caf",
+    "port": 43425,
+    "account": {
+      "provisioned": true
+    },
+    "routes": [
+      {
+        "id": "r-189b84323659e1eb752c080d8f3ac969",
+        "model": "deepseek-flash",
+        "api": "anthropic-messages",
+        "group": "CC · DeepSeek / Messages"
+      },
+      {
+        "id": "r-479ff9866aa626db103e936f6fba6618",
+        "model": "gpt-6-luna",
+        "api": "anthropic-messages",
+        "group": "CC · 桦 / Messages"
+      }
+    ],
+    "deployment": "isolated-loopback-real-Canvas-auth",
+    "temporaryAccountExpiresInSeconds": 3600
+  },
+  {
+    "type": "final",
+    "run": "4389fd60-44fb-45f0-9f97-9d83be8f8caf",
+    "status": "PASS",
+    "temporaryAccountRemoved": 1,
+    "protectedConfigUnchanged": true,
+    "upstreamAttempts": [],
+    "receipts": [],
+    "receiptDirectory": "/tmp/naumi-model-real-4389fd60-44fb-45f0-9f97-9d83be8f8caf-81zH9q",
+    "globalGrantsChanged": 0
+  },
+  {
+    "type": "remote-cleanup",
+    "containersUnchanged": true,
+    "gatewayUnchanged": true,
+    "sourceWeb": "naumi47-web-layer-export-20261120-r1",
+    "publicServiceDeployed": false
+  }
+]
