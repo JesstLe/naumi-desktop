@@ -54,7 +54,7 @@ class BrowserTools {
   return info(entry);
  }
 }
-async function startBridge({home,guests,window,enterprise,market,maintenance,browserConnections}){
+async function startBridge({home,guests,window,enterprise,market,accountModels,maintenance,browserConnections}){
  const token=randomBytes(32).toString('hex'),native=new BrowserTools(guests,window),runtime=browserConnections?await browserConnections.start(native):native;
  const file=path.join(home,'naumi-desktop-bridge.json');
  const server=http.createServer(async(req,res)=>{
@@ -73,6 +73,10 @@ async function startBridge({home,guests,window,enterprise,market,maintenance,bro
    const controller=new AbortController(),abort=()=>{if(!res.writableEnded)controller.abort();};res.on('close',abort);
    try{let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>29*1024*1024)throw Error('BUSINESS_BODY_TOO_LARGE');chunks.push(chunk);}send(200,{ok:true,data:await enterprise.business.perform(JSON.parse(Buffer.concat(chunks)),{signal:controller.signal})});}
    catch(error){send(409,{ok:false,error:/^BUSINESS_[A-Z_]+$/.test(error.message)?error.message:'BUSINESS_RESULT_UNKNOWN'});}finally{res.off('close',abort);}return;
+  }
+  if(req.method==='POST'&&req.url==='/models/bootstrap'){
+   if(!accountModels){send(503,{ok:false,error:'ACCOUNT_MODEL_LOGIN_REQUIRED'});return;}
+   try{send(200,{ok:true,data:await accountModels.bootstrap({force:true})});}catch(error){send(503,{ok:false,error:/^ACCOUNT_MODEL_[A-Z_]+$/.test(error.message)?error.message:'ACCOUNT_MODEL_UNAVAILABLE'});}return;
   }
   if(req.method==='POST'&&req.url==='/market/request'){
    if(!market){send(503,{error:'MARKET_LOGIN_REQUIRED'});return;}

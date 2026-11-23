@@ -52,10 +52,11 @@ test('actual native gate atomically quiesces owned backend and fails closed on b
  const main=fs.readFileSync('desktop/app/main.cjs','utf8');
  const gate=main.slice(main.indexOf('async function canInstallUpdate()'),main.indexOf('async function showUpdateNotice'));
  const maintenance=main.slice(main.indexOf('async function performMaintenance('),main.indexOf('function isAlive('));
- const calls=[],ctx={closing:false,booting:false,connecting:false,cloud:{running:0},cloudBusy:0,bridge:{runtime:{queues:new Map()}},enterprise:{running:0},market:{running:0},settings:{isolated:true},backend:{owned:true},maintenanceTicket:null,maintenanceUntil:0,maintenanceBlocked:()=>false,randomUUID:()=> 'fixture',maintenanceRequest:async(...args)=>{calls.push(args);}};
+ const calls=[],ctx={closing:false,booting:false,connecting:false,cloud:{running:0},cloudBusy:0,bridge:{runtime:{queues:new Map()}},enterprise:{running:0},market:{running:0},accountModels:{running:0},settings:{isolated:true},backend:{owned:true},maintenanceTicket:null,maintenanceUntil:0,maintenanceBlocked:()=>false,randomUUID:()=> 'fixture',maintenanceRequest:async(...args)=>{calls.push(args);}};
  ctx.admitUpdate=createRequire(import.meta.url)('../desktop/app/update-gate.cjs').admitUpdate;ctx.quitGate={phase:'idle'};vm.createContext(ctx);vm.runInContext(gate+maintenance,ctx);
  ctx.enterprise.running=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.enterprise.running=0;
  ctx.market.running=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.market.running=0;
+ ctx.accountModels.running=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.accountModels.running=0;
  ctx.cloudBusy=1;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.cloudBusy=0;
  ctx.backend.owned=false;assert.equal((await ctx.canInstallUpdate()).ok,false);assert.equal(calls.length,0);ctx.backend.owned=true;
  const accepted=await ctx.canInstallUpdate();assert.equal(accepted.ok,true);assert.equal(calls[0][1],'quiesce');await accepted.release();assert.equal(calls[1][1],'resume');assert.equal(ctx.maintenanceTicket,null);
