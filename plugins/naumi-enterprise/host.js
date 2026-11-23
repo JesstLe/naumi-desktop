@@ -54,6 +54,7 @@ export function apply(ctx,config) {
   assets.set('creation-settings.js','text/javascript; charset=utf-8');
   assets.set('blender-settings.js','text/javascript; charset=utf-8');
   assets.set('blender-settings.css','text/css; charset=utf-8');
+  assets.set('model-settings-view.js','text/javascript; charset=utf-8');
   assets.set('model-connections.js','text/javascript; charset=utf-8');
   assets.set('im-settings.js','text/javascript; charset=utf-8');
   assets.set('im-settings.css','text/css; charset=utf-8');
