@@ -15,3 +15,11 @@
 整合验收：node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs，1129/1129 PASS exit0，日志 D:/NaumiReleases/0.4.11/FULL_INTEGRATED.log。原缺陷BASELINE supplier_fields=exposed；MODIFIED supplier_fields=absent；独立副本ROLLBACK supplier_fields=exposed，三命令exit0，原hash保持、修改工件仍保留；原路由JSON不变。四件套位于同一证据根。
 
 完整包固定c08735d构建完成，首次新设置门禁在DTO键顺序断言处失败（实际keys已排序、期望数组未排序），未发布。保留BUILD.log/INITIAL_GATE_FAILURE.json，修正仅验收脚本的排序期望，同时保留旧包baseline模式无新helper文件的兼容。产品/安装器字节不变，用同一实际安装包重跑完整门禁；包构建SHA继续固定c08735d，验收脚本修订另记。
+
+交付完成：固定main c08735d1f8a6600c3614757ed21334d9d7687c98生成0.4.11完整安装器，504631625 bytes，SHA256 a08b203558a52e24a352f6e4592e26d8905f47d750cc5da4c7bc294daf4f66e9。静态包9项、45673文件hash全部通过。最终真实EXE四配置/十二场景/四设置页及专用响应白名单通过，8次loopback推理/0真实供应商/0页面错误；旧缓存、链接服务升级、选择刷新及原凭据引用保持。实际截图 MODEL_SETTINGS_MODELS_ONLY.png 已打开视觉检查。
+
+验收工具修正：首次期望数组排序错误、随后隐藏Electron locator截图稳定等待超时均完整留证；最终使用page.screenshot(animations=disabled)完成截图及全矩阵，未改安装包字节。门禁脚本已保留旧baseline包无新helper的兼容。首次构建命令exit1发生于门禁断言，不冒称原命令exit0；最终独立native门禁exit0，11项定向复测exit0。
+
+发布完成：https://github.com/JesstLe/naumi-desktop/releases/tag/v0.4.11；固定tag c08735d、GitHub Latest、实际匿名latest.yml HTTP200/版本/hash/完整字节均匹配，官方资产digest及size一致。镜像本次429，直接GitHub更新源200，不泛化为全网镜像可用。公开说明仅一条中性体验描述，无内部路由/凭据实现。当前用户客户端未安装/重启，未发起真实付费推理；仍为原已授权测试版内嵌配置方式，不宣称凭据已从本地消失或47授权服务已部署。
+
+稳定交付和四件套：D:/NaumiReleases/0.4.11。VERIFICATION.txt含精确命令、输入、stdout、exit、原始/修改hash与副本恢复状态；MODIFIED_FILE.js保持修改，独立回滚副本恢复旧行为。实际固定包、最终门禁、失败原证据和发布回执均保留。
