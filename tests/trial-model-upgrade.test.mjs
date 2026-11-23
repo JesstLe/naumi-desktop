@@ -31,8 +31,8 @@ test('catalog authentication/network/timeout failures keep Flash usable, retain 
  for(const code of['MODEL_DISCOVERY_AUTH','MODEL_DISCOVERY_FAILED','MODEL_DISCOVERY_TIMEOUT']){
   let online=false;const f=fixture('r2',{discover:async()=>{if(!online)throw Object.assign(Error(code),{code});return{models:[{id:'gpt-6-luna'}]};}});await f.policy.apply();assert.equal(f.policy.state.ready,true);assert.deepEqual(f.policy.state.missing,['gpt-6-luna']);assert(!f.providers['ccs-codex-gpt-2f6b6a']);assert.equal(Object.values(f.providers).flatMap(p=>p.models).length,1);f.policy.assert(f.selection);
   assert.throws(()=>f.policy.assert({provider:'ccs-codex-gpt-2f6b6a',model:'gpt-6.1-sol'}),/MODEL_POLICY_MODEL_DENIED/);
-  const api=new ModelConnections(f.ctx),partial=await api.read();assert.equal(partial.groups.length,1);assert.equal(partial.writable,false);
-  online=true;const ready=await api.execute({action:'retry-policy'});assert.equal(ready.managedPolicy.missing.length,0);assert.equal(ready.groups.flatMap(g=>g.models).length,3);assert.equal(f.writes,2);
+  const api=new ModelConnections(f.ctx),partial=await api.read();assert.equal(partial.models.length,1);assert.equal(partial.writable,false);
+  online=true;const ready=await api.execute({action:'retry-policy'});assert.equal(ready.managedPolicy.missingCount,0);assert.equal(ready.models.length,3);assert.equal(f.writes,2);
  }
 });
 test('a similarly named catalog model never qualifies or silently replaces requested model',async()=>{

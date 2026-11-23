@@ -1,8 +1,9 @@
+import {modelSettingsView} from './model-settings-view.js';
 const levels=['off','minimal','low','medium','high','xhigh','max'],effortNames={off:'关闭',minimal:'最低',low:'低',medium:'中',high:'高',xhigh:'超高',max:'最大'};
 const labels={MODEL_POLICY_MANAGED:'模型配置由管理员统一管理',MODEL_REASONING_INVALID:'请至少选择一个有效推理档位',MODEL_REASONING_UNVERIFIED:'此型号尚未核验推理档位',MODEL_REASONING_PROTOCOL:'推理模式与接口协议不匹配',MODEL_REASONING_DEFAULT_UNSUPPORTED:'默认档位必须被连接内所有模型支持',MODEL_CONTEXT_RANGE:'上下文预算超出官方或最大输入允许范围',MODEL_OUTPUT_RANGE:'输出预算超出官方上限',MODEL_TOKEN_BUDGET:'上下文预算必须大于输出预算',MODEL_SPEC_UNVERIFIED:'此型号尚未核验官方上限，仅支持调低已有预算',MODEL_DISCOVERY_KEY_ORIGIN_CHANGED:'API 地址已更换，请填写此地址的 API Key',MODEL_DISCOVERY_AUTH:'API Key 无效或没有模型列表权限',MODEL_DISCOVERY_UNSUPPORTED:'此接口未提供模型列表，可手动填写模型 ID',MODEL_DISCOVERY_RATE_LIMITED:'请求过于频繁，请稍后重试',MODEL_DISCOVERY_REDIRECT:'模型接口发生跳转，请检查 API URL',MODEL_DISCOVERY_TIMEOUT:'获取超时，请重试',MODEL_DISCOVERY_INVALID:'接口未返回有效的模型列表',MODEL_DISCOVERY_TOO_LARGE:'模型列表过大，请手动填写模型 ID',MODEL_DISCOVERY_BUSY:'正在获取模型列表，请稍后重试',MODEL_DISCOVERY_FAILED:'获取失败，请检查 API URL 和网络后重试',MODEL_URL_INVALID:'请填写 API 基础地址，不含密钥或请求路径',MODEL_KEY_REQUIRED:'请填写 API Key',MODEL_KEY_INVALID:'API Key 包含无效字符',MODEL_DUPLICATE_ID:'模型 ID 重复',MODEL_SETTINGS_CONFLICT:'配置已被更新，请重新载入后再保存',MODEL_SAVE_FAILED:'保存失败，请重试',MODEL_SETTINGS_READ_ONLY:'当前配置只读',OWNER_REQUIRED:'仅本机所有者可配置',AUTH_REQUIRED:'请重新连接工作台'};
 export function modelInputPayload(model){return model&&Object.hasOwn(model,'input')?{input:model.input}:{};}
 export function mergeModelIds(text,models){return [...new Set([...text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),...models.map(m=>m.id)])].join('\n');}
-async function request(body,signal){const r=await fetch('/naumi/model-connections',{credentials:'same-origin',signal,cache:'no-store',...body?{method:'POST',headers:{'Content-Type':'application/json','x-naumi-model-connections':'1'},body:JSON.stringify(body)}:{}});const v=await r.json();if(!r.ok)throw Object.assign(Error(labels[v.error]??'模型连接暂不可用'),{status:r.status});return v;}
+async function request(body,signal){const r=await fetch('/naumi/model-connections',{credentials:'same-origin',signal,cache:'no-store',...body?{method:'POST',headers:{'Content-Type':'application/json','x-naumi-model-connections':'1'},body:JSON.stringify(body)}:{}});const v=await r.json();if(!r.ok)throw Object.assign(Error(labels[v.error]??'模型连接暂不可用'),{status:r.status});return modelSettingsView(v);}
 export function installModelConnectionsUI(ctx,React){
  const h=React.createElement,{useState,useEffect,useRef}=React;
  function Connections(){
@@ -40,6 +41,7 @@ export function installModelConnectionsUI(ctx,React){
    r.preset==='custom'&&h('label',null,'参数模式',h('select',{'aria-label':id+' 推理参数模式',disabled:locked,value:r.m.reasoningMode??(draft.api==='anthropic-messages'?'adaptive':'native'),onChange:e=>changeReasoning(id,{reasoningMode:e.target.value})},...(draft.api==='anthropic-messages'?[['adaptive','Adaptive effort'],['budget','Token budget']]:[['native','原生 effort']]).map(([value,label])=>h('option',{key:value,value},label)))));
   }
   const visibleModels=catalog?.filter(m=>(m.id+' '+(m.name??'')).toLocaleLowerCase().includes(query.toLocaleLowerCase()))??[];
+  if(data?.presentation==='managed-models')return renderManagedModels(React,data,{busy,error,onRetry:()=>submit({action:'retry-policy'})});
   return h('section',{className:'nm-connections','aria-label':'模型连接'},
    h('header',null,h('h2',null,'模型连接'),!draft&&h('div',{className:'nm-header-actions'},h('button',{type:'button',disabled:locked,onClick:()=>submit({action:'refresh-specs'})},'校准官方参数'),h('button',{type:'button',className:'nm-primary',disabled:locked,onClick:()=>edit()},'添加连接'))),
    error&&h('div',{className:'nm-error',role:'alert'},error,h('button',{type:'button',disabled:busy,onClick:reload},conflict?'重新载入':'重试')),
@@ -69,3 +71,5 @@ export function installModelConnectionsUI(ctx,React){
  }
  return ctx.slots.inject('settings.section',()=>ctx.slots.register({name:'settings.section',id:'models',order:10,label:()=> '模型连接'},Connections));
 }
+
+export function renderManagedModels(React,data,{busy=false,error='',onRetry=()=>{}}={}){const h=React.createElement,view=modelSettingsView(data);return h('section',{className:'nm-connections nm-managed','aria-label':'模型','data-presentation':'managed-models'},h('header',null,h('h2',null,'模型')),error&&h('div',{className:'nm-error',role:'alert'},error),(!view.managedPolicy.ready||view.managedPolicy.missingCount>0)&&h('button',{type:'button',disabled:busy,onClick:onRetry},busy?'连接中…':'重新连接'),h('div',{className:'nm-list'},...view.models.map((m,i)=>h('article',{key:i},h('div',{className:'nm-group-head'},h('h3',null,m.name),h('span',{className:m.configured?'nm-ready':'nm-missing'},m.configured?'已配置':'待连接'))))));}

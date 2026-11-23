@@ -1,3 +1,4 @@
+import {modelSettingsView} from './assets/model-settings-view.js';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {officialModelSpecs,modelSpecView,configureModelSpec,refreshModelSpecs} from './model-specs.js';
@@ -27,6 +28,7 @@ const official=id=>['deepseek-official','deepseek-account'].includes(id);
 export class ModelConnections{
  constructor(ctx,{request=fetch,timeoutMs=12000}={}){this.ctx=ctx;this.queue=Promise.resolve();this.request=request;this.timeoutMs=timeoutMs;this.discoveries=0;}
  async discover(input,{signal}={}){
+  if(this.ctx.get?.('naumiModelPolicy')||this.ctx.get?.('naumiAccountModels'))throw error('MODEL_POLICY_MANAGED',403);
   const parsed=discover.safeParse(input);if(!parsed.success)throw error('MODEL_INVALID_REQUEST');const p=parsed.data,base=endpoint(p.baseURL);
   const previous=p.id?this.namespace().value.providers?.[p.id]:undefined;
   // A saved credential is reusable only for the same origin, never for a newly typed host.
@@ -57,7 +59,7 @@ export class ModelConnections{
   finally{this.discoveries--;}
  }
  namespace(){const ns=this.ctx.settings.describe({redactSecrets:true}).find(n=>n.ns==='llm-pi-ai');if(!ns)throw error('MODEL_SETTINGS_UNAVAILABLE',503);return ns;}
- async read(){const managed=this.ctx.get?.('naumiAccountModels');if(managed)return {revision:managed.value.revision,writable:false,managedPolicy:{ready:true,revision:managed.value.revision},groups:managed.value.routes.map(r=>({id:r.provider,displayName:r.group,api:r.api,baseURL:r.baseURL,models:[r.model],configured:true,editable:false})),specs:officialModelSpecs};const ns=this.namespace(),groups=[];for(const[id,p]of Object.entries(ns.value.providers??{})){
+ async read(){const account=this.ctx.get?.('naumiAccountModels');if(account)return modelSettingsView({revision:account.value.revision,presentation:'managed-models',managedPolicy:{ready:true,missingCount:0},models:account.value.routes.map(r=>({name:r.model.name,configured:true}))});const ns=this.namespace(),policy=this.ctx.get?.('naumiModelPolicy');if(policy){const models=[];for(const m of policy.state.ready?policy.state.models??[]:[]){let configured=false;try{const p=ns.value.providers?.[m.provider];configured=!!p?.apiKeyEnv&&(await this.ctx.credentials.describe(p.apiKeyEnv)).configured===true;}catch{}models.push({name:m.name,configured});}return modelSettingsView({revision:ns.revision,presentation:'managed-models',managedPolicy:policy.state,models});}const groups=[];for(const[id,p]of Object.entries(ns.value.providers??{})){
   if(this.ctx.get?.('naumiModelPolicy')&&!p.models?.length)continue;
   const info=p.apiKeyEnv?await this.ctx.credentials.describe(p.apiKeyEnv):{configured:false,writable:true};
   groups.push({id,displayName:p.displayName??id,api:p.api??'openai-completions',reasoning:p.reasoning??null,baseURL:p.baseURL??'',models:(p.models??[]).map(m=>({id:m.id,...m.name?{name:m.name}:{}})),configured:info.configured,editable:protocols.includes(p.api)&&Array.isArray(p.models)&&p.models.length>0});

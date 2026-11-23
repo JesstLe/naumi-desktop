@@ -1,0 +1,15 @@
+# 受管模型设置显示修复
+
+模块与职责：基线 c34e034ce2d5eb31baea3c492e61ad43475af0a5；独立分支 codex/managed-model-settings-20261123，工作树 D:/NaumiBuild/managed-model-settings。负责模型连接服务、设置呈现、资产注册、发布门禁、相关测试及0.4.11版本。功能切片计数1。
+
+公共接口、依赖方向、数据/状态/事务归属：模型策略和原凭据服务仍拥有真实路由/密钥；model-settings-view.js 是服务端与客户端共用的受管显示白名单。专用 GET /naumi/model-connections 仅包含 revision/writable/presentation/managedPolicy(ready,missingCount)/models(name,configured)。非受管自配连接保持原编辑契约。
+
+本次实现与迁移状态：截图根因是设置页直接渲染 g.displayName、g.baseURL，旧修复只覆盖选择器与/model；禁用编辑并未去掉供应商信息。现受管分支使用独立只读模型卡片，不生成供应商、URL、协议、真实ID、参数来源或编辑控件；不是CSS遮挡，不重命名本机配置。服务端不再建立完整连接DTO，客户端白名单同时兼容旧受管响应。缺失状态只返回计数，保留重连。发布门禁新增四配置原生设置UI和响应检查，安装器内文件与被测EXE来源比对，缺回执阻止发布。
+
+验证命令、结果及证据层级：初次模块集中测试56/56通过；加入门禁测试后61/61通过。完整模块与桌面全仓测试、真实打包EXE、固定main构建及更新源发布的结果在执行后追加。证据根 D:/NaumiReleases/0.4.11。
+
+未完成项与下一步：正在集中全仓验证与主线整合，随后固定main构建/真实设置页验收/发布。此修复保证普通受管设置及其专用DTO不披露连接细节，不宣称本地内嵌测试包或所有者底层配置中没有路由信息。保留现有路由、凭据、会话、Bot、浏览器/微信/CUA。无须真实供应商推理，不安装或重启当前用户客户端。
+
+主线同步：整合 origin/main 20fd28b（账号模型接入），保留账号登录生命周期与原有生产未部署状态；解决模型设置read冲突，两种受管来源均走同一个白名单，不回传账号网关路由。新增账号受管响应/禁止发现及编辑测试。全仓首次1116/1116，exit0；整合后重新集中验证。
+
+整合验收：node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs，1129/1129 PASS exit0，日志 D:/NaumiReleases/0.4.11/FULL_INTEGRATED.log。原缺陷BASELINE supplier_fields=exposed；MODIFIED supplier_fields=absent；独立副本ROLLBACK supplier_fields=exposed，三命令exit0，原hash保持、修改工件仍保留；原路由JSON不变。四件套位于同一证据根。
