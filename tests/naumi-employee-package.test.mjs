@@ -62,3 +62,6 @@ test('runtime scan rejects credential files, sessions, device keys and browser s
 test('runtime staging rejects unrelated and symlink targets before modifying data',async()=>{
  const f=fixture();try{const original=f.write('unrelated/keep.txt','preserved');await assert.rejects(prepareRuntime({root:f.dir,target:f.dir+'/unrelated'}),/TARGET_INVALID/);f.write('runtime/backend/keep.txt','preserved');await assert.rejects(prepareRuntime({root:f.dir,target:f.dir+'/runtime/backend'}),/TARGET_NOT_OWNED/);assert.equal(fs.readFileSync(original,'utf8'),'preserved');}finally{f.close();}
 });
+
+// Packaged linked services resolve the shipped CLI without installing anything into the legacy root.
+test('explicit managed bundle manifest remains pinned and rejects relative/foreign overrides',()=>{const f=fixture();try{assert.throws(()=>resolveDingTalk({environment:{NAUMI_DINGTALK_MANIFEST:'relative/package.json'}}),/BUNDLE_INVALID/);const manifestPath=f.write('package.json',{name:'dingtalk-cli',version:DINGTALK_VERSION});assert.throws(()=>resolveDingTalk({environment:{NAUMI_DINGTALK_MANIFEST:manifestPath}}),/BUNDLE_INVALID/);}finally{f.close();}});

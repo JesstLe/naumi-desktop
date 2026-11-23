@@ -8,8 +8,10 @@ export const DINGTALK_VERSION='1.0.68';
 export const DINGTALK_SHA256='3bb67f7a59d98ebf7ff75410f742eef498d66148dae2fb49a045e9534f255f4a';
 const require=createRequire(import.meta.url);
 // Resolve only the verified distributed package, never PATH, npx, or a user's global CLI.
-export function resolveDingTalk({manifestPath,platform=process.platform,arch=process.arch}={}){
+export function resolveDingTalk({manifestPath,platform=process.platform,arch=process.arch,environment=process.env}={}){
   if(platform!=='win32'||arch!=='x64')throw Error('DINGTALK_PLATFORM_NOT_BUNDLED');
+  manifestPath??=environment.NAUMI_DINGTALK_MANIFEST;
+  if(manifestPath!==undefined&&(typeof manifestPath!=='string'||!path.isAbsolute(manifestPath)))throw Error('DINGTALK_BUNDLE_INVALID');
   try{manifestPath??=require.resolve('dingtalk-workspace-cli/package.json');}catch{throw Error('DINGTALK_BUNDLE_MISSING');}
   const root=path.dirname(manifestPath),manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
   if(manifest.name!=='dingtalk-workspace-cli'||manifest.version!==DINGTALK_VERSION||manifest.scripts)throw Error('DINGTALK_BUNDLE_INVALID');

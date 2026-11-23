@@ -82,6 +82,14 @@ function createQuitGate({shutdown,onReady,onError}){
  const prepare=()=>{if(!flight){phase='stopping';flight=Promise.resolve().then(shutdown).then(()=>{phase='ready';},error=>{phase='failed';throw error;});}return flight;};
  return {prepare,reset(){if(phase==='stopping')throw Error('QUIT_PREPARATION_ACTIVE');phase='idle';flight=null;quitting=false;},beforeQuit(event){if(phase==='ready')return;event.preventDefault();if(quitting)return;quitting=true;prepare().then(onReady,onError);},settled:()=>flight??Promise.resolve(),get phase(){return phase;}};
 }
+// Linked services retain their own root; distributed CLI resources belong to the fixed app bundle.
+function backendEnvironment(settings,source=process.env){
+ const bundled=settings.isolated||settings.linkedService,toolsRoot=bundled?(settings.releaseRoot??settings.root):settings.root;
+ const roots=[...new Set([toolsRoot,settings.root])],env={...source,PATH:[...roots.flatMap(root=>[path.join(root,'bin'),root]),source.PATH??''].join(path.delimiter),DSH_HOME:settings.home,DSH_TELEMETRY_MODE:'DISABLED'};
+ delete env.NAUMI_DINGTALK_MANIFEST;
+ if(bundled)env.NAUMI_DINGTALK_MANIFEST=path.join(toolsRoot,'node_modules/dingtalk-workspace-cli/package.json');
+ return env;
+}
 async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs=350,portRetries=2}={}){
  if(settings.accountModels&&!settings.isolated&&!settings.linkedService)throw Error('ACCOUNT_MODEL_MANAGED_BACKEND_REQUIRED');
  if(settings.linkedService&&!settings.serviceLease){const release=require('./linked-service.cjs').acquire(settings.root,'desktop-linked-update');settings.serviceLease=true;try{return await ensureBackend(settings,{fetcher,startTimeoutMs,pollMs,portRetries});}finally{delete settings.serviceLease;release();}}
@@ -120,7 +128,7 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
  fs.mkdirSync(settings.logDir,{recursive:true});
  const trial=settings.accountModels?{args:[],env:{}}:require('./internal-trial.cjs').trialLaunch(settings);
  if(settings.accountModels){const patch=path.join(settings.home,'account-models-runtime.patch.json');profile.atomic(patch,[{id:'llm-pi-ai',disabled:true}]);trial.args.push('--patch',patch);}
- const target=new URL(settings.url),runId=randomUUID(),env={...process.env,PATH:path.join(settings.root,'bin')+path.delimiter+settings.root+path.delimiter+(process.env.PATH??''),DSH_HOME:settings.home,DSH_TELEMETRY_MODE:'DISABLED'};
+ const target=new URL(settings.url),runId=randomUUID(),env=backendEnvironment(settings);
  Object.assign(env,trial.env);
  // Only an explicitly staged rollout enables replacement. Ordinary/frozen bundles stay unchanged.
  delete env.NAUMI_MODEL_POLICY;delete env.NAUMI_ACCOUNT_MODELS_CONFIG;delete env.NAUMI_ACCOUNT_MODELS_TOKEN;
@@ -163,4 +171,4 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
   throw e;
  }
 }
-module.exports={maintenanceRequest,localSettings,ensureBackend,launchFromLog,localURL,probeIdentity,stopBackend,portTaken,createQuitGate};
+module.exports={backendEnvironment,maintenanceRequest,localSettings,ensureBackend,launchFromLog,localURL,probeIdentity,stopBackend,portTaken,createQuitGate};
