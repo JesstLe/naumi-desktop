@@ -13,3 +13,5 @@
 主线同步：整合 origin/main 20fd28b（账号模型接入），保留账号登录生命周期与原有生产未部署状态；解决模型设置read冲突，两种受管来源均走同一个白名单，不回传账号网关路由。新增账号受管响应/禁止发现及编辑测试。全仓首次1116/1116，exit0；整合后重新集中验证。
 
 整合验收：node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs，1129/1129 PASS exit0，日志 D:/NaumiReleases/0.4.11/FULL_INTEGRATED.log。原缺陷BASELINE supplier_fields=exposed；MODIFIED supplier_fields=absent；独立副本ROLLBACK supplier_fields=exposed，三命令exit0，原hash保持、修改工件仍保留；原路由JSON不变。四件套位于同一证据根。
+
+完整包固定c08735d构建完成，首次新设置门禁在DTO键顺序断言处失败（实际keys已排序、期望数组未排序），未发布。保留BUILD.log/INITIAL_GATE_FAILURE.json，修正仅验收脚本的排序期望，同时保留旧包baseline模式无新helper文件的兼容。产品/安装器字节不变，用同一实际安装包重跑完整门禁；包构建SHA继续固定c08735d，验收脚本修订另记。
