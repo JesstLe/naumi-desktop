@@ -1,0 +1,7 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),path=require('node:path');
+const{backendEnvironment}=require('../app/backend.cjs');
+const s={root:path.resolve('legacy-root'),home:path.resolve('legacy-root/.dsh'),releaseRoot:path.resolve('fixed-bundle')};
+test('linked backend uses app bundled tools before linked root and inherited global tools',()=>{const env=backendEnvironment({...s,linkedService:true},{PATH:'global-tools',NAUMI_DINGTALK_MANIFEST:'foreign'});assert.deepEqual(env.PATH.split(path.delimiter),[path.join(s.releaseRoot,'bin'),s.releaseRoot,path.join(s.root,'bin'),s.root,'global-tools']);assert.equal(env.NAUMI_DINGTALK_MANIFEST,path.join(s.releaseRoot,'node_modules/dingtalk-workspace-cli/package.json'));assert.equal(env.DSH_HOME,s.home);});
+test('isolated bundle shares its own CLI location without duplicate PATH entries',()=>{const env=backendEnvironment({...s,root:s.releaseRoot,isolated:true},{PATH:'system'});assert.deepEqual(env.PATH.split(path.delimiter),[path.join(s.releaseRoot,'bin'),s.releaseRoot,'system']);assert.equal(env.NAUMI_DINGTALK_MANIFEST,path.join(s.releaseRoot,'node_modules/dingtalk-workspace-cli/package.json'));});
+test('unmanaged developer backend retains its own root and never inherits a packaged CLI override',()=>{const env=backendEnvironment(s,{PATH:'system',NAUMI_DINGTALK_MANIFEST:'foreign'});assert.equal(env.NAUMI_DINGTALK_MANIFEST,undefined);assert.deepEqual(env.PATH.split(path.delimiter),[path.join(s.root,'bin'),s.root,'system']);assert.equal(env.DSH_TELEMETRY_MODE,'DISABLED');});
