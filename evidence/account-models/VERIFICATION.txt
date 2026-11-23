@@ -1,0 +1,67 @@
+Naumi Account Models / 2026-11-23
+BRANCH=codex/account-models-20261123
+BASELINE=c34e034ce2d5eb31baea3c492e61ad43475af0a5
+FEATURE=02220cc21f64172de10856319605eb001fad3a5a
+CHANGED_FIELDS=default/account model grant, CAS+operationId, monotonic policyRevision, five-minute account/device token hash lease, frozen source registry digest, exact three-protocol proxy, request UUID UNKNOWN/no replay, Desktop pre-worker bootstrap, native PiAiAdapter registry and public disabled-plugin patch, readonly managed model settings.
+Original hashes and modified hashes: manifest.json, files=31, original=10, added=21.
+
+FOUR ARTIFACTS (final main paths):
+E:/Workspace/naumi-desktop/evidence/account-models/MODIFIED_FILE.zip
+E:/Workspace/naumi-desktop/evidence/account-models/DIFF_FILE.patch
+E:/Workspace/naumi-desktop/evidence/account-models/VERIFICATION.txt
+E:/Workspace/naumi-desktop/evidence/account-models/ROLLBACK.sh
+Additional candidate deployable bundle (NOT a Desktop installer):
+E:/Workspace/naumi-desktop/evidence/account-models/SERVER_BUNDLE.zip
+
+BASELINE
+cwd/input=D:/NaumiChecks/account-models-copy-c34e034; original source at BASELINE, original configurations, no account model service.
+command=node --test desktop/tests/identity.test.cjs tests/naumi-model-policy.test.mjs tests/naumi-model-connections.test.mjs
+literal result=tests 59; pass 59; fail 0
+exit=0; log=BASELINE_COMPLETE.log
+Earlier incomplete copy omitted scripts/vendor dependencies; first 58/59 was a setup failure, not product regression. Initial BASELINE.log=21 identity tests only, not combined model baseline.
+
+MODIFIED
+cwd/input=E:/Workspace/naumi-account-models-20261123; modified source and isolated fixtures, no production model call or shared backend mutation.
+command=node --test tests/*.test.mjs desktop/tests/*.test.cjs
+literal result=tests 1123; pass 1123; fail 0
+exit=0; log=FULL_ACCEPTANCE.log
+command=node --test tests/account-models.test.mjs
+literal result=tests 12; pass 12; fail 0
+exit=0; log=DEFAULTS_ACCEPTANCE.log
+command=node scripts/verify-account-model-admin.mjs
+input=actual Chrome + actual new HTTP/SQLite, explicitly fixture admin authentication, no production browser state.
+literal output=ACCOUNT_MODEL_ADMIN checks=8 default_policy=PASS account_override=PASS page_errors=0 modelCalls=0 fixture_auth=1 exit=0
+exit=0; log=ADMIN_UI.log; inspected image=admin.png
+command=node scripts/prepare-account-models.mjs
+input=original public credential reader source at 5aac42a2cff79080ba6f9bf20a46825c6ae1d2c9; no credentials input.
+literal output=ACCOUNT_MODEL_SERVICE_BUNDLE credentialsIncluded=false source=5aac42a2cff79080ba6f9bf20a46825c6ae1d2c9 bytes=211516
+exit=0; log=BUNDLE_FINAL.log; hash/source pin=CONTRACT_PIN.json
+command=node scripts/verify-account-model-service.mjs
+input=real standalone bundled server, NO node_modules next to bundle, isolated SQLite, no credentials.
+literal output=ACCOUNT_MODEL_BUNDLE process=PASS HTTP=200 admin_without_login=401 credentials=NONE modelCalls=0
+exit=0; log=SERVICE_PROCESS_FINAL.log
+Earlier native fixture/SDK SSE and bundle resolution/market-entry failures retained; only final outputs count as accepted.
+
+REMOTE READ ONLY
+command=node scripts/prepare-account-models.mjs E:/Workspace/naumi-central-identity-20261118 inspect
+command=node scripts/inspect-account-models47.mjs
+input=SSH pinned existing operator access, original live PG repeatable-read read-only transaction and original encrypted credential reader; ephemeral public inspector removed afterward.
+literal output=REGISTRY_READONLY {"status": "PASS", "mode": "read-only", "routes": 36, "unavailable": 2, "unavailableReasons": ["ACCOUNT_MODEL_CAPACITY_REQUIRED"], "credentialsVerified": 36, "protocols": ["anthropic-messages", "openai-responses"], "modelCalls": 0, "grantsChanged": 0, "existingContainersUnchanged": true}
+exit=0; log=REMOTE_REGISTRY_READONLY.log
+36 means parameter-complete source entries with readable credentials, not paid upstream availability. Two capacity-incomplete entries are excluded and explicitly reported to admin. Source modality=text is reused when imported input omitted; no guessed vision/capacity. Earlier CAPABILITY/CAPACITY failures retained.
+Actual public model health=404; Nginx has no account model route. NO production service deployment, default grant, real account grant, original credential rotation, installer publication or shared backend restart happened.
+
+ROLLBACK
+cwd=E:/Workspace/naumi-account-models-20261123
+command=D:/DEV/Git/bin/bash.exe E:/Workspace/naumi-account-models-20261123/evidence/account-models/ROLLBACK.sh D:/NaumiChecks/account-models-copy-c34e034
+input=separate marked modified source COPY, not a user workspace/profile/database.
+literal output=ROLLBACK restored=10 removed=21 hashes=PASS source=MODIFIED live=UNTOUCHED exit=0
+exit=0; log=ROLLBACK.log
+cwd=D:/NaumiChecks/account-models-copy-c34e034
+command=node --test desktop/tests/identity.test.cjs tests/naumi-model-policy.test.mjs tests/naumi-model-connections.test.mjs
+literal result=tests 59; pass 59; fail 0
+exit=0; log=ROLLBACK_TESTS.log
+restored behavior/status=copy returned to original identity/local model policy and no account bootstrap/authorization module; hashes verified. Active source remains modified. Live PG/SQLite grants, user data and installed packages were not reverted.
+ZIP=MODIFIED_FILE 43 entries CRC PASS; SERVER_BUNDLE 7 entries CRC PASS. ROLLBACK.sh executable mode100755 in Git/ZIP. Patch reverse check passed on modified copy.
+
+Remaining acceptance: deploy only fixed main service under existing 47 lock/hash gates; administrator choose defaults/overrides; package new Desktop and verify installed old-account upgrade; real authorized account + upstream/provider acceptance. Existing 0.4.10 embedded test edition remains unchanged and is NOT evidence this feature is active online. Existing distributed embedded keys must be explicitly rotated at source when migrating, not silently deleted here. No M4 budget/accounting or enterprise-policy redesign is claimed.

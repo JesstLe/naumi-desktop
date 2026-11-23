@@ -1,0 +1,155 @@
+X [ERROR] Cannot find module '@/platform/db/pool'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json [plugin original-credential-owner]
+
+    ../naumi-central-identity-20261118/src/lib/settings.ts:3:24:
+      3 │ import {dbEnabled} from "@/platform/db/pool";
+        ╵                         ~~~~~~~~~~~~~~~~~~~~
+
+  This error came from the "onResolve" callback registered here:
+
+    ../naumi-task-evidence/capability-gate-fixes-20261112/dependencies/node_modules/esbuild/lib/main.js:1422:20:
+      1422 │       let promise = setup({
+           ╵                     ^
+
+    at setup (file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:671)
+    at handlePlugins (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1422:21)
+    at buildOrContextImpl (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1135:5)
+    at Object.buildOrContext (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:961:5)
+    at E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2316:15
+    at new Promise (<anonymous>)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2315:25)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2166:51)
+    at file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:28
+
+X [ERROR] Cannot find module '@/lib/settings/repository'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json [plugin original-credential-owner]
+
+    ../naumi-central-identity-20261118/src/lib/settings.ts:4:48:
+      4 │ ...etSetting,getSettings,setSetting} from "@/lib/settings/repository";
+        ╵                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  This error came from the "onResolve" callback registered here:
+
+    ../naumi-task-evidence/capability-gate-fixes-20261112/dependencies/node_modules/esbuild/lib/main.js:1422:20:
+      1422 │       let promise = setup({
+           ╵                     ^
+
+    at setup (file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:671)
+    at handlePlugins (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1422:21)
+    at buildOrContextImpl (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1135:5)
+    at Object.buildOrContext (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:961:5)
+    at E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2316:15
+    at new Promise (<anonymous>)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2315:25)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2166:51)
+    at file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:28
+
+X [ERROR] Cannot find module '@/lib/billing/signup'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json [plugin original-credential-owner]
+
+    ../naumi-central-identity-20261118/src/lib/settings.ts:5:29:
+      5 │ import {getSignupBonus} from "@/lib/billing/signup";
+        ╵                              ~~~~~~~~~~~~~~~~~~~~~~
+
+  This error came from the "onResolve" callback registered here:
+
+    ../naumi-task-evidence/capability-gate-fixes-20261112/dependencies/node_modules/esbuild/lib/main.js:1422:20:
+      1422 │       let promise = setup({
+           ╵                     ^
+
+    at setup (file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:671)
+    at handlePlugins (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1422:21)
+    at buildOrContextImpl (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1135:5)
+    at Object.buildOrContext (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:961:5)
+    at E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2316:15
+    at new Promise (<anonymous>)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2315:25)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2166:51)
+    at file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:28
+
+X [ERROR] Cannot find module '@/lib/settings-secret'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json [plugin original-credential-owner]
+
+    ../naumi-central-identity-20261118/src/lib/settings.ts:6:31:
+      6 │ import { settingsSecret } from "@/lib/settings-secret";
+        ╵                                ~~~~~~~~~~~~~~~~~~~~~~~
+
+  This error came from the "onResolve" callback registered here:
+
+    ../naumi-task-evidence/capability-gate-fixes-20261112/dependencies/node_modules/esbuild/lib/main.js:1422:20:
+      1422 │       let promise = setup({
+           ╵                     ^
+
+    at setup (file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:671)
+    at handlePlugins (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1422:21)
+    at buildOrContextImpl (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1135:5)
+    at Object.buildOrContext (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:961:5)
+    at E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2316:15
+    at new Promise (<anonymous>)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2315:25)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2166:51)
+    at file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:28
+
+X [ERROR] Cannot find module '@/lib/billing/runtime'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json [plugin original-credential-owner]
+
+    ../naumi-central-identity-20261118/src/lib/settings.ts:440:52:
+      440 │ ...ateBillingCompatibility} = await import("@/lib/billing/runtime");
+          ╵                                            ~~~~~~~~~~~~~~~~~~~~~~~
+
+  This error came from the "onResolve" callback registered here:
+
+    ../naumi-task-evidence/capability-gate-fixes-20261112/dependencies/node_modules/esbuild/lib/main.js:1422:20:
+      1422 │       let promise = setup({
+           ╵                     ^
+
+    at setup (file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:671)
+    at handlePlugins (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1422:21)
+    at buildOrContextImpl (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1135:5)
+    at Object.buildOrContext (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:961:5)
+    at E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2316:15
+    at new Promise (<anonymous>)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2315:25)
+    at Object.build (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:2166:51)
+    at file:///E:/Workspace/naumi-account-models-20261123/scripts/prepare-account-models.mjs:4:28
+
+E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1748
+  let error = new Error(text);
+              ^
+
+Error: Build failed with 5 errors:
+../naumi-central-identity-20261118/src/lib/settings.ts:3:24: ERROR: [plugin: original-credential-owner] Cannot find module '@/platform/db/pool'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json
+../naumi-central-identity-20261118/src/lib/settings.ts:4:48: ERROR: [plugin: original-credential-owner] Cannot find module '@/lib/settings/repository'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json
+../naumi-central-identity-20261118/src/lib/settings.ts:5:29: ERROR: [plugin: original-credential-owner] Cannot find module '@/lib/billing/signup'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json
+../naumi-central-identity-20261118/src/lib/settings.ts:6:31: ERROR: [plugin: original-credential-owner] Cannot find module '@/lib/settings-secret'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json
+../naumi-central-identity-20261118/src/lib/settings.ts:440:52: ERROR: [plugin: original-credential-owner] Cannot find module '@/lib/billing/runtime'
+Require stack:
+- E:\Workspace\naumi-central-identity-20261118\package.json
+    at failureErrorWithLog (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1748:15)
+    at E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1207:25
+    at runOnEndCallbacks (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1588:45)
+    at buildResponseToResult (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1205:7)
+    at E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:1232:16
+    at responseCallbacks.<computed> (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:884:9)
+    at handleIncomingPacket (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:939:12)
+    at Socket.readFromStdout (E:\Workspace\naumi-task-evidence\capability-gate-fixes-20261112\dependencies\node_modules\esbuild\lib\main.js:862:7)
+    at Socket.emit (node:events:509:28)
+    at addChunk (node:internal/streams/readable:563:12) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter]
+}
+
+Node.js v24.19.0

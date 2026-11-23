@@ -1,0 +1,94 @@
+✔ identity origin enforces exact HTTPS authority or loopback, with no executable URLs or URL credentials (0.9924ms)
+✔ only canonical account identity crosses the adapter, never role, credits, tokens or server secrets (0.5861ms)
+✔ account and authority namespaces are stable, separate and path-safe without reusing legacy home (15.7445ms)
+✔ linked/malformed profile owners and future config versions fail without claiming or replacing user data (4.2495ms)
+✔ a symlink namespace is rejected and never dereferenced for writes (2.6469ms)
+✔ login reuses Canvas native API and confirms the actual Chromium session before exposing a user (16.4911ms)
+✔ wrong password, disabled/expired account and rate limiting preserve server decisions with one attempt only (1.2526ms)
+✔ login success response without a confirmed server session does not authenticate (0.3313ms)
+✔ invalid input never reaches the account server (0.227ms)
+✔ network failure or redirect never leaks remote details, changes a namespace or replays password submission (1.3662ms)
+✔ identity JSON responses are bounded and reject login HTML or malformed sessions (0.898ms)
+✔ concurrent password submissions are rejected rather than queued (0.3275ms)
+✔ managed authority cannot be replaced by renderer input; cookie partitions are origin-bound (0.8464ms)
+✔ logout clears only the owned account session and retains every local account home even offline (6.4548ms)
+✔ cold start validates the server; an already open local identity survives an outage in this process only (7.3307ms)
+✔ revoked/reset/disabled Canvas sessions cannot restore a logged-in account on cold start (6.8559ms)
+✔ changing account requires logout, and no remote password or token is persisted on disk (6.1193ms)
+✔ native wiring keeps legacy dev hosts intact, accounts scope enterprise/browser homes and logout quiesces before stopping (0.3509ms)
+✔ package audit excludes identity state and all per-account profiles from distributable runtime (49.8148ms)
+✔ account entry renders nothing on web/linked shells and appears only for a real native identity capability (4.5332ms)
+✔ login reuses the requested Smoke/Liquid presentation locally and removes only the Design brand sublabel (1.6477ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (11.8639ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.2824ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (259.8665ms)
+✖ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (314.5879ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (74.8101ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (32.3959ms)
+✔ new unprovisioned server stays unchanged, enrollment prevents rollback, cross-account late response is discarded (1.5736ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (10.8705ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.4245ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (13.1107ms)
+✔ custom group persists URL/protocol/models and only a credential reference, never a returned key (3.987ms)
+✔ blank-key edits preserve original reference and nested model/protocol metadata (0.59ms)
+✔ key rotation uses a new immutable reference and does not alter another route sharing the old key (0.4274ms)
+✔ stale revision is rejected before any credential write, preserving all groups (0.584ms)
+✔ settings failure or late CAS conflict cleans the staged key and retains prior working key/configuration (0.7345ms)
+✔ concurrent same-revision saves serialize with one winner, and a retry succeeds (0.3883ms)
+✔ removal repairs the default but preserves shared credentials; last removal leaves explicit unconfigured state (0.6868ms)
+✔ nonofficial defaults and unrelated group settings remain unchanged (0.1788ms)
+✔ editing away the current default model selects the remaining model in that group (0.231ms)
+✔ URL validation rejects embedded credentials, query secrets, fragments and request endpoints but supports custom HTTP hosts (0.2346ms)
+✔ invalid protocol, empty/duplicate models, newline keys, missing keys and unknown fields never write config (0.9439ms)
+✔ all three custom wire protocols are accepted, and read-only deployments reject mutations (0.3812ms)
+✔ new models settings replaces the native models slot without another navigation or model selector (0.1203ms)
+✔ Naumi composition disables official authentication, official model adapters, onboarding and cloud credential consumers (0.3072ms)
+✔ owner HTTP protects secrets against guests, foreign origins, missing headers and malformed/oversized bodies (115.3202ms)
+✔ reasoning official/default save is durable, safely projected and preserves raw budgets, credentials and default model (0.5807ms)
+✔ invalid reasoning and incompatible mixed-group default never stage keys or mutate settings (0.7513ms)
+✔ concurrent reasoning saves retain CAS and write failure retains original capabilities and defaults (0.2939ms)
+✔ sparse custom effort maps persist through actual request validation (0.2315ms)
+✔ exact IDs, three display choices and explicit vision preserve endpoints, keys, budgets and compat (1.3594ms)
+✔ similar Flash names do not qualify and missing sources never produce placeholders (0.3209ms)
+✔ both exact models on one endpoint stay on one credential reference (0.1773ms)
+✔ invalid endpoints/protocols/ref reject before migration (0.1897ms)
+✔ one settings CAS persists only selected providers; backup precedes write, defaults and Session selections remap (1.0822ms)
+✔ repeated startup is idempotent and does not rewrite backup, credentials or default (0.5164ms)
+✔ Terra is an independent native selection sharing Sol credentials and preserves a saved Terra choice (0.413ms)
+✔ reserved Terra route collisions refuse rather than overwrite another endpoint or key (0.2277ms)
+✔ missing keys, read-only settings, backup failures and failed CAS never remove old providers (0.8004ms)
+✔ default-selection failure is reported after durable policy; repeat repairs it (0.5487ms)
+✔ post-write validation failure restores the original config through a second guarded CAS (0.3737ms)
+✔ post-migration owner settings drift denies dispatch rather than admitting a changed endpoint (1.2879ms)
+✔ existing model configuration API becomes read-only only when policy service is mounted (0.6475ms)
+✔ backup is durable/idempotent and modified backup refuses before overwrite (5.2809ms)
+✔ ordinary development hosts are unaffected when distributed mode is disabled (0.1243ms)
+✔ distributed host hooks gate real dispatch, remap restored agents, and never dispatch an old model (3.5708ms)
+✔ native pi-ai sees three visual options backed by two real model IDs with aliases, retaining actual wire IDs; network calls=0 (13.4719ms)
+✔ real native Anthropic serialization sends gpt-6-luna for both Sol and Terra, never either display alias (169.5138ms)
+✔ optional Claude route preserves real Sonnet ID, custom display name and existing three choices (0.2833ms)
+ℹ tests 69
+ℹ suites 0
+ℹ pass 68
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1008.4152
+
+✖ failing tests:
+
+test at tests\account-models.test.mjs:28:1
+✖ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (314.5879ms)
+  AssertionError [ERR_ASSERTION]: [{"type":"usage","usage":{"inputTokens":0,"outputTokens":0,"totalTokens":0}},{"type":"finish","reason":{"kind":"error","failure":{"message":"Anthropic stream ended without a stop reason","code":"TRANSPORT"}}}]
+      at TestContext.<anonymous> (file:///E:/Workspace/naumi-account-models-20261123/tests/account-models.test.mjs:28:747)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
