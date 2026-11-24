@@ -1,5 +1,8 @@
 'use strict';
-const {contextBridge,ipcRenderer}=require('electron');
+const {contextBridge,ipcRenderer,webUtils}=require('electron');
+// Native composer contract: only resolve paths from Chromium-backed File objects.
+// No arbitrary path lookup, file reads or broad IPC surface is exposed.
+contextBridge.exposeInMainWorld('__DSH_HOST_PATHS__',{pathFor:file=>{try{return webUtils.getPathForFile(file);}catch{return '';}}});
 const subscribe=(channel,listener)=>{const handler=(_event,value)=>listener(value);ipcRenderer.on(channel,handler);return()=>ipcRenderer.removeListener(channel,handler);};
 const browser={
   manage:input=>ipcRenderer.invoke('naumi:browser-manager',input),
