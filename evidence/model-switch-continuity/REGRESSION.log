@@ -1,0 +1,36 @@
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (18.6022ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.4589ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (293.0005ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (453.043ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (75.4615ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (31.2823ms)
+✔ first login also fails closed on missing service; cross-account late response is discarded (1.7897ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (8.2425ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.5021ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (20.6233ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (33.2942ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (197.446ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (4.4257ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (50.6132ms)
+✔ opaque catalog model IDs are rewritten only at the server, and upstream never receives the display alias (21.8875ms)
+✔ completed work continues in the exact same task, Bot, workspace and Session with an immutable original request (45.7084ms)
+✔ concurrent continuation retries are idempotent and stale distinct updates conflict (29.5203ms)
+✔ queued amendments wait for provisioning and never create a second execution Session (23.1126ms)
+✔ queued revision survives restart and idempotent delivery recovery (56.4845ms)
+✔ only source Lead can amend; failed/cancelled/interrupted work never resurrects through continue (39.9751ms)
+✔ real Session and HTTP preserve original delivery events across revision rounds, enforcing CAS and owner admission (120.2405ms)
+✔ a direct human continuation in a completed execution Session is tracked and returned under the same task (30.3908ms)
+✔ a revision round requires its own validated file delivery while retaining the prior original file event (71.3604ms)
+✔ Bot-level task projection spans source and target Sessions without changing reception or reviving archived cards (0.8127ms)
+✔ retired-model compaction uses the explicitly chosen custom route without rewriting historical header or global policy (0.3146ms)
+✔ compaction does not reroute a registered provider, unrelated history or an unavailable selected route (0.2037ms)
+✔ real BasicCompactionEngine summarizer sends an explicit custom compaction request preserving history and checkpoint text (0.5367ms)
+✔ model-visible task list is bounded and omits full old results without changing detailed HTTP records (15.3466ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1591.7831

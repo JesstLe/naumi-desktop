@@ -1,0 +1,105 @@
+{
+  "status": "PASS",
+  "mode": "ordinary-custom",
+  "checks": [
+    "A_first_request_has_initial_task",
+    "B_receives_A_history_and_new_task",
+    "A_return_receives_B_latest_task",
+    "A_return_receives_B_reply",
+    "A_return_uses_same_native_session",
+    "Responses_receives_latest_task",
+    "different_session_does_not_receive_BETA",
+    "restart_makes_no_provider_request",
+    "restart_and_model_switch_preserve_latest_task",
+    "other_session_not_merged_on_restart"
+  ],
+  "boots": 2,
+  "fixtureRequests": 8,
+  "realSupplierRequests": 0,
+  "sharedServiceWrites": 0,
+  "actualAffectedUserSession": false,
+  "tier": "real isolated native Harness/AgentLoop/PiAiAdapter/HTTP/JSONL; synthetic conversation; not reproduction of the reported user session",
+  "finding": "No per-model history rollback or missing B-task was reproduced in this matrix.",
+  "requests": [
+    {
+      "path": "/v1/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "INITIAL_TASK_ALPHA",
+      "bytes": 840,
+      "containsAlpha": true,
+      "containsBeta": false,
+      "containsDelta": false,
+      "bodySHA256": "d54d80a7b3ee4640964d3a7ad81b7e991026bce5089083af95c33309c1e9e2a4"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "INITIAL_TASK_ALPHA",
+      "bytes": 92129,
+      "containsAlpha": true,
+      "containsBeta": false,
+      "containsDelta": false,
+      "bodySHA256": "63ff4276575af62552b1559f69918b4facc1e9d3287aa302c240897701e4ca84"
+    },
+    {
+      "path": "/v1/messages?beta=true",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 96160,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "b11b572989315d8aa341b3d826f1f34e9d85bf2a75440128fde599b7809ca63c"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 96629,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "3163087e60b905a3d441c3f4c50759fd2bde37f2e97b3443db756924d5f517d3"
+    },
+    {
+      "path": "/v1/responses",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 96447,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "d2aadee4c1c1672ef23ed258c84816d211260b229f5ea142ca3a33fb7b4afd30"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "OTHER_SESSION_DELTA",
+      "bytes": 59242,
+      "containsAlpha": false,
+      "containsBeta": false,
+      "containsDelta": true,
+      "bodySHA256": "63e7f03cf32c35030fe1c1926152180078b7df86f59e6ca145ac1c769bbc7790"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "OTHER_SESSION_DELTA",
+      "bytes": 844,
+      "containsAlpha": false,
+      "containsBeta": false,
+      "containsDelta": true,
+      "bodySHA256": "76fececd38749843c441f817c8320d49b0968a131f88764d163081b14fce1383"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 93502,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "15fc0ff9bf3d69f69a16210ab55200000c9b60f83f4b63ae5542eba95b4aedc9"
+    }
+  ]
+}
