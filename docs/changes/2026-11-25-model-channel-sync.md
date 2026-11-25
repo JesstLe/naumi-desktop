@@ -14,7 +14,7 @@
 ## 实现与迁移状态
 - 图片验证同时检查随机码、颜色顺序与正常结束，支持明确颜色同义词；保留原始响应与首轮判定，不通过覆盖证据“修成功”。
 - 文字能力与图片能力分开；不把HTTP200、推理token消耗或接受图片请求直接当成视觉通过。
-- 本轮工具完成；生产同步尚未执行，不能以候选生成/测试完成冒称线上目录已更新。
+- 工具阶段与实际部署分开记证；本轮运行交付结果见下节，不能以候选生成/测试完成冒称线上目录已更新。
 
 ## 验证命令、结果及证据层级
 - 基线：`node --test --test-concurrency=2 tests/account-model-takeover.test.mjs tests/desktop-model-import47.test.mjs tests/account-models.test.mjs`，25/25，exit0。
