@@ -1,0 +1,10 @@
+✔ prepare re-derives exact public source, provider IDs and config digest before any remote transfer (9.9461ms)
+✔ remote preparation uses bounded writes, whole nginx closure and original container identity without changing ingress (0.9411ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.3494
