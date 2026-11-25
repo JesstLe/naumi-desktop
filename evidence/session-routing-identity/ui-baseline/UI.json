@@ -1,0 +1,12 @@
+{
+  "status": "BASELINE_REPRODUCED",
+  "checks": [
+    "actual_native_extension_loaded",
+    "ordinary_thread_visible",
+    "bot_history_absent_from_threads",
+    "dedicated_bot_workspace_absent",
+    "baseline_background_dispatch_forces_bot_mode"
+  ],
+  "modelCalls": 0,
+  "shared3080Writes": 0
+}

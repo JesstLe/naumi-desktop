@@ -1,0 +1,26 @@
+✔ only explicit context-limit failures activate recovery, never auth, quota, timeout or arbitrary 400 (0.8604ms)
+✔ baseline native compaction reproduces summary-overflow dead end with original events unchanged apart from failure markers (12.8337ms)
+✔ normal summarization keeps the exact original hook, input, target and return value (2.597ms)
+✔ provider-rejected summarization becomes a durable native replacement without deleting original messages (13.2884ms)
+✔ known failed prior turn recovers locally before any new model call, then pending flag clears (12.5242ms)
+✔ cancellation, unrelated summary failures and too-small history never become misleading checkpoints (3.401ms)
+✔ checkpoint is UTF8 byte-bounded, excludes system/developer/reasoning/image content and labels omissions (2.8737ms)
+✔ different sessions and hook disposal never mutate native prototype or leak another history (2.8917ms)
+✔ production pre-step extension owns native checkpoint and flush before downstream request, restores hook on dispose (14.5593ms)
+✔ baseline native summarize routes the retired request header and reproduces screenshot denial without a paid dispatch (2.0282ms)
+✔ native summarize hook uses only this Session explicitly selected allowed route, reports actual route and preserves history (1.1043ms)
+✔ authorized old summarization route keeps original native behavior instead of switching it implicitly (0.257ms)
+✔ revoked selection, provider error, truncated summary and cancellation never become a successful checkpoint or retry (0.7247ms)
+✔ dispatch source provenance never transfers ordinary thread ownership or its native children to Bot navigation (0.2675ms)
+✔ managed model description uses public display label, unknown/legacy routes do not disclose internal IDs or infer vendors (0.1769ms)
+✔ native prompt and native model-switch notice use scoped Naumi presentation without touching user text or other scopes (7.582ms)
+✔ preset-isolated native engine resolves through public serviceFor and never creates a parallel compactor (1.5214ms)
+✔ refresh-time revocation fails before dispatch, and only the exact selected route may summarize (0.2198ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 310.653

@@ -1,0 +1,42 @@
+{
+  "plugins/naumi-enterprise/agent-presentation.js": {
+    "bytes": 4764,
+    "sha256": "4212d01a0d8ed230bf6dcdfd23a4498b25445622beaec0188df8206fcfc73c9a"
+  },
+  "plugins/naumi-enterprise/managed-compaction.js": {
+    "bytes": 3231,
+    "sha256": "90a27f404ec1a96bf0a227d62ce8779dcf8ed409baf198c5fad1987c36ea3706"
+  },
+  "plugins/naumi-enterprise/context-recovery.js": {
+    "bytes": 6303,
+    "sha256": "256abe0b1e411173ec3e25287ccbc3b0182bf928268eacaa46438e4aac23b38c"
+  },
+  "plugins/naumi-enterprise/host.js": {
+    "bytes": 10354,
+    "sha256": "b8b3e5fa7925ff508b070ae3b213fd955d369e1435e3e2b8d5d037d3649dc6b3"
+  },
+  "plugins/naumi-enterprise/package.json": {
+    "bytes": 4074,
+    "sha256": "7307f43e393d8eeb3ff4bc4e6848c91fc33666cdb8461ca4840a7e3a88314545"
+  },
+  "plugins/naumi-enterprise/assets/bot-sidebar-model.js": {
+    "bytes": 9881,
+    "sha256": "9cfb8328379091763ba66e152a08b5723b4f5296ebe60882138f40b87228023d"
+  },
+  "plugins/naumi-enterprise/assets/bot-sidebar.js": {
+    "bytes": 23724,
+    "sha256": "b77046408e1aa1117a19302b3a76aaff98bd7513dcaa07af35129935185a732c"
+  },
+  "tests/session-routing-identity.test.mjs": {
+    "bytes": 9137,
+    "sha256": "b172fda995ba92ef427e5fd67e87d8f30c8255afe60b0c17a2905a7da50569dd"
+  },
+  "scripts/verify-session-model-recovery.mjs": {
+    "bytes": 9791,
+    "sha256": "de4527a1bbfca43da47211f9843e92cc73e94539e2322c483d73c95a30fb4171"
+  },
+  "scripts/verify-session-navigation.mjs": {
+    "bytes": 15559,
+    "sha256": "1a420dd0e2fff1c1bd5b956ce88a59febe99606bcfae895eac22269c3a37e7e4"
+  }
+}

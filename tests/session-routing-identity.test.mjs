@@ -1,0 +1,45 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {Context} from '@deepseek-ai/cordis';
+import SystemPrompt,{renderPrompt,renderContextSections} from '@deepseek-ai/dsh-system-prompt';
+import {createScope} from '@deepseek-ai/dsh-scope';
+import {installModelSelection,agentEvents} from '@deepseek-ai/dsh-agent';
+import {BasicCompactionEngine} from '@deepseek-ai/dsh-compaction-basic';import {LlmError} from '@deepseek-ai/dsh-llm';
+import {Session} from '@deepseek-ai/dsh-session';import {installContextRecovery,protectContextSummarizer} from '../plugins/naumi-enterprise/context-recovery.js';
+import {threadOwnership} from '../plugins/naumi-enterprise/assets/bot-sidebar-model.js';
+import {displayedModel,installAgentPresentation} from '../plugins/naumi-enterprise/agent-presentation.js';
+const active={provider:'naumi-account-active',model:'m-public'},old={provider:'retired-local',model:'legacy-wire'};
+function fixture({selected=active,source=old,mode='ok'}={}){
+ const session=Session.create('continuation-session');session.append('request/header',{header:{config:source},reason:'initial'});
+ const seen=[],client={value:{routes:[{provider:active.provider,model:{id:active.model,name:'界面所选模型',maxTokens:128}}]},refresh:async()=>{},allowed:r=>r?.provider===active.provider&&r?.model===active.model};
+ const llm={async *stream(options){if(!client.allowed(options))throw new LlmError('ACCOUNT_MODEL_ROUTE_DENIED','ACCOUNT_MODEL_ROUTE_DENIED');seen.push(options);if(mode==='error')throw new LlmError('fixture error','SERVER');if(mode==='abort'){options.signal.throwIfAborted();}yield {type:'text-delta',index:0,text:'checkpoint: CURRENT_TASK_BETA completed stage2, next stage3'};yield {type:'finish',reason:{kind:mode==='truncated'?'max-tokens':'stop'}};}};
+ const engine=Object.create(BasicCompactionEngine.prototype);engine.config={summarizationProvider:'',summarizationModel:'',modelPolicies:[],maxTokens:2048,thresholdRatio:.8,headroomTokens:4096,retainRatio:.2,compactionRetries:1,maxOverflowRetries:1};engine.ctx={llm};
+ const agent={options:old,session,model:{current:()=>selected},ctx:{llm,get:k=>k==='naumiAccountModels'?client:undefined}};
+ return {engine,agent,client,seen,input:{messages:[{role:'user',content:[{type:'text',text:'CURRENT_TASK_BETA stage2 is complete'}]}]}};
+}
+test('baseline native summarize routes the retired request header and reproduces screenshot denial without a paid dispatch',async()=>{const f=fixture();await assert.rejects(f.engine.summarize(f.input,f.agent),e=>e.code==='ACCOUNT_MODEL_ROUTE_DENIED');assert.equal(f.seen.length,0);});
+test('native summarize hook uses only this Session explicitly selected allowed route, reports actual route and preserves history',async()=>{const f=fixture(),before=f.agent.session.snapshotEvents(),undo=protectContextSummarizer(f.engine);try{const r=await f.engine.summarize(f.input,f.agent,new AbortController().signal);assert.equal(r.provider,active.provider);assert.equal(r.model,active.model);assert.equal(r.maxTokens,128);assert(r.summary[0].text.includes('CURRENT_TASK_BETA'));assert.equal(f.seen.length,1);assert.equal(f.seen[0].sessionId,f.agent.session.id);assert.equal(f.seen[0].purpose,'compaction');assert.equal(f.seen[0].messages[0],f.input.messages[0]);assert.deepEqual(f.agent.session.snapshotEvents(),before);}finally{undo();}});
+test('authorized old summarization route keeps original native behavior instead of switching it implicitly',async()=>{const f=fixture({source:active}),undo=protectContextSummarizer(f.engine);try{const r=await f.engine.summarize(f.input,f.agent);assert.equal(r.provider,active.provider);assert.equal(f.seen.length,1);}finally{undo();}});
+test('revoked selection, provider error, truncated summary and cancellation never become a successful checkpoint or retry',async()=>{for(const mode of ['revoked','error','truncated','abort']){const f=fixture({mode,selected:mode==='revoked'?old:active}),controller=new AbortController(),undo=protectContextSummarizer(f.engine);if(mode==='abort')controller.abort();try{await assert.rejects(f.engine.summarize(f.input,f.agent,controller.signal));assert(f.seen.length<=1);assert.equal(f.agent.session.snapshotEvents().filter(e=>e.type==='compaction/summary').length,0);}finally{undo();}}});
+test('dispatch source provenance never transfers ordinary thread ownership or its native children to Bot navigation',()=>{const catalog={status:'ready',bots:[{id:'b',homeSessionId:'home',sessionIds:['home'],cwd:'E:/bot'}]},jobs={status:'ready',tasks:[{sourceBotId:'b',sourceSessionId:'ordinary',targetBotId:'b',targetSessionId:'task'}]},groups={status:'ready',rooms:[]},sessions={byId:{ordinary:{id:'ordinary'},child:{id:'child',parentId:'ordinary'},home:{id:'home'},task:{id:'task'}},projectionsBySession:{}},r=threadOwnership(catalog,jobs,groups,sessions,{items:[]});assert(!r.sessionIds.includes('ordinary'));assert(!r.sessionIds.includes('child'));assert(r.sessionIds.includes('task'));assert(r.sessionIds.includes('home'));});
+test('managed model description uses public display label, unknown/legacy routes do not disclose internal IDs or infer vendors',()=>{const f=fixture(),ctx={get:k=>k==='naumiAccountModels'?f.client:undefined};assert.equal(displayedModel(ctx,active),'界面所选模型');assert.equal(displayedModel(ctx,old),'当前所选模型');assert(!displayedModel(ctx,old).includes(old.model));});
+test('native prompt and native model-switch notice use scoped Naumi presentation without touching user text or other scopes',async()=>{
+ const ctx=new Context(),f=fixture();let agentScope,plugin;const agents=[];await ctx.plugin({apply(c){c.provide('agents',{list:()=>agents});c.provide('llm',f.agent.ctx.llm);c.provide('naumiAccountModels',f.client);}});const prompt=ctx.plugin(SystemPrompt,{});await prompt;
+ let parent;await ctx.plugin({inject:['systemPrompt','llm'],apply(c){parent=c;}});
+ const agent={...f.agent};agentScope=createScope(parent,agent);agent.ctx=agentScope.ctx;agents.push(agent);const undoNative=installModelSelection(agent.ctx);plugin=installAgentPresentation(ctx);await plugin;
+ try{const assembly=await agent.ctx.systemPrompt.assemble({scope:agent,agent,modelSelection:active});assert(renderPrompt(assembly).includes('Naumi assistant'));assert(!renderPrompt(assembly).includes('powered by DeepSeek Harness'));assert.equal(assembly.variables.model,'界面所选模型');const context=JSON.stringify(renderContextSections(assembly));assert(context.includes('界面所选模型'));assert(!context.includes('m-public'));
+  const user={role:'user',source:{kind:'user'},content:[{type:'text',text:'用户引用 DeepSeek Harness retired-local/legacy-wire 的源码'}]},events=agentEvents(ctx,agent),result=await events.waterfall('agent/pre-step',{signal:new AbortController().signal,step:2,messages:[user],modelSelection:active},async()=>({kind:'enter',messages:[user]}));assert.equal(result.messages[0],user);const notice=result.messages.find(m=>m.source?.kind==='model-selection');assert(notice);assert(JSON.stringify(notice).includes('界面所选模型'));assert(!JSON.stringify(notice).includes('retired-local'));assert(!JSON.stringify(notice).includes('legacy-wire'));assert(!JSON.stringify(notice).includes('m-public'));
+  await assert.rejects(events.waterfall('agent/request',{},async()=>{throw new LlmError('Cannot switch to internal-route/internal-model','MODEL_SWITCH_COMPACTION_FAILED');}),e=>e.code==='MODEL_SWITCH_COMPACTION_FAILED'&&!e.message.includes('internal-route'));
+  await plugin.dispose();plugin=null;const restored=await agent.ctx.systemPrompt.assemble({scope:agent,agent,modelSelection:active});assert(renderPrompt(restored).includes('powered by DeepSeek Harness'));
+ }finally{await plugin?.dispose();undoNative();await agentScope.dispose();await prompt.dispose();await ctx.fiber.dispose();}
+});
+
+
+test('preset-isolated native engine resolves through public serviceFor and never creates a parallel compactor',async()=>{
+ const ctx=new Context(),f=fixture(),original=f.engine.summarize;f.agent.ctx.get=k=>k==='agentPresets'?{serviceFor:(agent,name)=>{assert.equal(agent,f.agent);assert.equal(name,'compaction');return f.engine;}}:k==='naumiAccountModels'?f.client:undefined;
+ await ctx.plugin({apply(c){c.provide('agents',{list:()=>[f.agent]});}});const plugin=installContextRecovery(ctx);await plugin;
+ try{assert.notEqual(f.engine.summarize,original);const result=await f.engine.summarize(f.input,f.agent,new AbortController().signal);assert.equal(result.model,active.model);assert.equal(f.seen.length,1);}finally{await plugin.dispose();assert.equal(f.engine.summarize,original);await ctx.fiber.dispose();}
+});
+
+test('refresh-time revocation fails before dispatch, and only the exact selected route may summarize',async()=>{
+ const f=fixture(),undo=protectContextSummarizer(f.engine);f.client.refresh=async()=>{f.client.value.routes=[];f.client.allowed=()=>false;};
+ try{await assert.rejects(f.engine.summarize(f.input,f.agent,new AbortController().signal),e=>e.code==='ACCOUNT_MODEL_ROUTE_DENIED');assert.equal(f.seen.length,0);}finally{undo();}
+});

@@ -1,0 +1,56 @@
+Current: session-routing-identity / SOURCE_VERIFIED / 0.4.15 release owner rebuild
+Branch: codex/session-routing-identity-20261125
+Baseline source: 19e83a3 (initial d78db942)
+Changed branch/field:
+- scoped harness:identity/source/app:web-surface, model/provider display variables and native model-selection notice (not user/historical content).
+- Bot task target ownership only; no sourceSessionId ownership transfer; background/cross-window refresh does not navigate; explicit Bot entry captures native navigation signal before await.
+- original unavailable summary route -> exact authorized current Session selection; preset-isolated native engine resolved with public agentPresets.serviceFor; original allowed route unchanged. Original history/request header/permissions unchanged.
+Four artifacts:
+MODIFIED_FILE=E:/tmp/naumi-session-routing-identity-20261125/MODIFIED_FILE.zip
+DIFF_FILE=E:/tmp/naumi-session-routing-identity-20261125/DIFF_FILE.patch
+VERIFICATION=E:/tmp/naumi-session-routing-identity-20261125/VERIFICATION.txt
+ROLLBACK=E:/tmp/naumi-session-routing-identity-20261125/ROLLBACK.sh
+
+BASELINE command (PowerShell cwd E:/Workspace/naumi-session-routing-identity-20261125):
+node --test --test-concurrency=2 tests/account-models.test.mjs tests/context-recovery.test.mjs tests/naumi-thread-bot-separation.test.mjs tests/thread-team-visibility.test.mjs
+Input: unchanged d78db source; literal output: tests 38 / pass 38 / fail 0; exit 0.
+BASELINE native command:
+node scripts/verify-session-model-recovery.mjs --baseline --source-root=E:/Workspace/naumi-desktop
+Input: 8 synthetic legacy-history prompts then managed selection and CURRENT_TASK_BETA continuation; 2 isolated Host boots, local HTTP SSE only.
+Literal output: NATIVE_MODEL_RECOVERY_PASS baseline=true checks=5 fixtureRequests=8 realSupplierRequests=0; exit 0.
+Persisted result: MODEL_SWITCH_COMPACTION_FAILED; message contains ACCOUNT_MODEL_ROUTE_DENIED; 0 successful compaction summaries; 0 new dispatch after switch.
+BASELINE UI command:
+node scripts/verify-session-navigation.mjs --baseline --source-root=E:/Workspace/naumi-desktop
+Input: isolated native UI + sourceBotId/sourceSessionId activity fixture.
+Literal output: NAV_BASELINE_REPRODUCED modelCalls=0; exit 0 (expected defect reproduced).
+
+MODIFIED command:
+node --test --test-concurrency=2 tests/session-routing-identity.test.mjs tests/account-models.test.mjs tests/context-recovery.test.mjs tests/naumi-thread-bot-separation.test.mjs tests/thread-team-visibility.test.mjs
+Literal output: tests 47 / pass 47 / fail 0; exit 0.
+MODIFIED native command:
+node scripts/verify-session-model-recovery.mjs
+Same synthetic history/managed selection input; literal output: NATIVE_MODEL_RECOVERY_PASS baseline=false checks=9 fixtureRequests=11 realSupplierRequests=0; exit 0.
+Actual persisted summary uses current selected route; new continuation completes. One native summary, then continuation and switch back; latest CURRENT_TASK_BETA preserved. Fixed responses prove transport/persistence, not model comprehension.
+MODIFIED UI command:
+node scripts/verify-session-navigation.mjs
+Literal output: THREAD_BOT_UI checks=21 models=0 shared3080=UNTOUCHED exit=0; exit 0.
+MODIFIED full command:
+node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs
+Literal output: tests 1165 / pass 1165 / fail 0; exit 0.
+After final text-only summary output guard, targeted command:
+node --test --test-concurrency=2 tests/session-routing-identity.test.mjs tests/context-recovery.test.mjs
+Literal output: tests 18 / pass 18 / fail 0; exit 0.
+
+ROLLBACK command (PowerShell):
+& 'D:/DEV/Git/bin/bash.exe' 'E:/tmp/naumi-session-routing-identity-20261125/ROLLBACK.sh' 'E:/tmp/naumi-session-routing-identity-20261125/rollback-copy'
+Input: marked independent source copy with all 7 changed product files matching MODIFIED_FILE SHA.
+Literal output: ROLLBACK_PASS files=7 baseline_hashes_restored=true modified_artifact_unchanged=true; exit 0.
+Restored behavior/status validation (PowerShell cwd E:/tmp/naumi-session-routing-identity-20261125/rollback-copy):
+$env:GIT_DIR='E:/Workspace/naumi-desktop/.git'; node --test --test-concurrency=2 tests/account-models.test.mjs tests/context-recovery.test.mjs tests/naumi-thread-bot-separation.test.mjs tests/thread-team-visibility.test.mjs
+Literal output: tests 38 / pass 38 / fail 0; exit 0. GIT_DIR supplies the pre-existing fixture's read-only git-show history; no git writes.
+node E:/Workspace/naumi-session-routing-identity-20261125/scripts/verify-session-model-recovery.mjs --baseline --source-root=E:/tmp/naumi-session-routing-identity-20261125/rollback-copy
+Literal output: NATIVE_MODEL_RECOVERY_PASS baseline=true checks=5 fixtureRequests=8 realSupplierRequests=0; exit 0.
+Restored native baseline again rejects old summary route with original error and no new dispatch; hash restoration verified for all 7 files, two added modules removed only in copy. Actual task source and MODIFIED_FILE remain changed.
+
+Earlier genuine failures retained: new-test invalid helper/injection fixture, wait cursor/address boundary fixture, 65536 context vs native default headroom, actual missing preset-isolated summarize hook, first full CUA_BUNDLE_MISSING, rollback first run archive lacked .git. Corrections and final receipts remain separate; no failures rewritten as initial success.
+No real supplier calls, shared service/profile mutations, installer/feed writes or production request replays in this repair acceptance. Fourth screenshot ACCOUNT_MODEL_UNAVAILABLE is separate, not claimed solved by these three source fixes.

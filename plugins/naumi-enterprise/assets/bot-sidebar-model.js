@@ -4,7 +4,9 @@ export const navigationMode=value=>value==='bot'?'bot':'threads';
 export function threadOwnership(catalog,jobs,groups,sessions,workspaces){
  const ids=new Set(),botIds=new Set(catalog.bots.map(b=>b.id)),add=id=>{if(typeof id==='string'&&id)ids.add(id);};
  for(const bot of catalog.bots){add(bot.homeSessionId);bot.sessionIds.forEach(add);}
- for(const task of jobs.tasks??[]){if(botIds.has(task.targetBotId))add(task.targetSessionId);if(botIds.has(task.sourceBotId))add(task.sourceSessionId);}
+ // Dispatch provenance does not transfer ownership of the sending ordinary thread.
+ // Explicit Bot homes/history are already classified above; only a task's target is owned.
+ for(const task of jobs.tasks??[])if(botIds.has(task.targetBotId))add(task.targetSessionId);
  for(const room of groups.rooms??[])for(const member of room.members??[])add(member.sessionId);
  // The native list's parentId is authoritative; loaded team projections cover
  // live members not yet in the durable catalog. Descend to a fixed point.

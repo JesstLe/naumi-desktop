@@ -45,7 +45,8 @@ function installNavigation(ctx,React,Icon,createPortal){
       const roomState=useSyncExternalStore(groups.subscribe,groups.getSnapshot,groups.getSnapshot),panel=props.usePanelInfo(s=>s.activePanelId),sessions=props.useSessions(s=>s);
       const ownership=useSyncExternalStore(visibility.subscribe,visibility.getSnapshot,visibility.getSnapshot),hiddenSessions=new Set(ownership.sessionIds);
       const sessionId=currentSessionId(sessions,panel);if(sessionId&&!ownership.waiting&&!hiddenSessions.has(sessionId))lastNative.current=sessionId;
-      useEffect(()=>{if(threadReturn.current===sessionId||threadReturn.current==='panel'&&panel!==null)threadReturn.current=null;if(mode==='threads'&&sessionId&&!threadReturn.current&&!ownership.waiting&&hiddenSessions.has(sessionId)){setMode('bot');try{localStorage.setItem(MODE_KEY,'bot');}catch{}}},[sessionId,ownership,mode]);
+      // Catalog/task refreshes classify sidebar rows; they do not navigate or change user mode.
+      useEffect(()=>{if(threadReturn.current===sessionId||threadReturn.current==='panel'&&panel!==null)threadReturn.current=null;},[sessionId,panel]);
       const [surface,setSurface]=useState(null),[wide,setWide]=useState(true);
       const catalog=useSyncExternalStore(source.subscribe,source.getSnapshot,source.getSnapshot);
       useLayoutEffect(()=>{
@@ -64,12 +65,12 @@ function installNavigation(ctx,React,Icon,createPortal){
         return()=>{disposed=true;observer.disconnect();detach();};
       },[]);
       useLayoutEffect(()=>{if(surface){surface.dataset.navigationMode=mode;surface.dataset.wide=String(wide);}},[surface,mode,wide]);
-      useEffect(()=>{const change=e=>{if(e.key===MODE_KEY)setMode(navigationMode(e.newValue));};window.addEventListener('storage',change);return()=>window.removeEventListener('storage',change);},[]);
-      const choose=(value,enter=true)=>{const intent=++entryIntent.current;threadReturn.current=value==='threads'?(lastNative.current??'panel'):null;setMode(value);setAdding(false);try{localStorage.setItem(MODE_KEY,value);}catch{}
+      // Another window's navigation preference must not redirect this active conversation.
+      const choose=(value,enter=true)=>{const intent=++entryIntent.current,navigation=value==='bot'&&enter?ctx.layout.beginNavigation?.():null;threadReturn.current=value==='threads'?(lastNative.current??'panel'):null;setMode(value);setAdding(false);try{localStorage.setItem(MODE_KEY,value);}catch{}
         if(value==='threads'&&([CHAT_PANEL,PRIMARY_PANEL,BOT_OVERVIEW_PANEL].includes(panel)||sessionId&&hiddenSessions.has(sessionId))){if(lastNative.current&&!hiddenSessions.has(lastNative.current))ctx.uiWorkspace.openSession(lastNative.current);else ctx.layout.selectPanel('naumi-workbench');}
-        if(value==='bot'&&enter)void source.refresh().then(()=>{if(entryIntent.current===intent)return enterBotMode(ctx,source.getSnapshot());}).catch(()=>setError('目录尚未读取，请重试。'));
+        if(value==='bot'&&enter)void source.refresh().then(()=>{if(entryIntent.current===intent&&!navigation?.aborted)return enterBotMode(ctx,source.getSnapshot());}).catch(()=>setError('目录尚未读取，请重试。'));
       };
-      useEffect(()=>{if(mode==='bot'&&catalog.status==='ready'&&!primaryBot(catalog)&&panel!==PRIMARY_PANEL){ctx.layout.beginNavigation?.();ctx.layout.selectPanel(PRIMARY_PANEL);}},[mode,catalog.status,catalog.primaryBotId,panel]);
+      // Primary setup is entered only by an explicit Bot action, never a background refresh.
       useEffect(()=>{const change=()=>choose('bot',false);window.addEventListener(CHAT_EVENT,change);return()=>window.removeEventListener(CHAT_EVENT,change);},[panel]);
       useEffect(()=>{if(!adding)return;const close=e=>{if(e.type==='keydown'&&e.key!=='Escape')return;if(e.type!=='keydown'&&addRef.current?.contains(e.target))return;setAdding(false);};document.addEventListener('pointerdown',close);document.addEventListener('keydown',close);return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',close);};},[adding]);
       const pin=id=>{setPinned(id);try{if(id)localStorage.setItem(PIN_KEY,id);else localStorage.removeItem(PIN_KEY);}catch{}};

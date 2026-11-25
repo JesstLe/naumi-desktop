@@ -1,5 +1,6 @@
 import {installSessionImport} from './session-import.js';
 import {installContextRecovery} from './context-recovery.js';
+import {installAgentPresentation} from './agent-presentation.js';
 import {installCreation} from './creation.js';
 import {installBusiness} from './business.js';
 import {installBlender} from './blender.js';
@@ -24,6 +25,7 @@ export function apply(ctx,config) {
   installDesktopIdentity(ctx);
   const accountManaged=!!process.env.NAUMI_ACCOUNT_MODELS_CONFIG;
   installAccountModels(ctx);
+  installAgentPresentation(ctx);
   if(!accountManaged)installModelPolicy(ctx);
   installSessionImport(ctx);
   installContextRecovery(ctx);
