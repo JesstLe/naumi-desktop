@@ -11,6 +11,8 @@
     "./cordis.patch.yml": "./cordis.patch.yml"
   },
   "files": [
+    "agent-presentation.js",
+    "managed-compaction.js",
     "context-recovery.js",
     "host.js",
     "session-import.js",

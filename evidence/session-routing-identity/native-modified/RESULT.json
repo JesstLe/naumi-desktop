@@ -1,0 +1,90 @@
+{
+  "status": "PASS",
+  "baseline": false,
+  "checks": [
+    "legacy_history_real_native_requests",
+    "Naumi_identity_in_actual_wire",
+    "legacy_identity_absent_from_actual_system_head",
+    "restart_itself_does_not_replay",
+    "selected_model_continuation_succeeds",
+    "native_compaction_uses_selected_allowed_model",
+    "summary_and_continuation_same_session_preserve_latest_work",
+    "native_model_notice_uses_labels_not_internal_ids",
+    "switch_back_keeps_current_task"
+  ],
+  "boots": 2,
+  "requests": 11,
+  "summaryRequests": 1,
+  "realSupplierRequests": 0,
+  "sharedWrites": 0,
+  "sessionId": "session-25ca26ee-0a2b-4607-a291-03baa8e3170d",
+  "sourceRoot": "E:\\Workspace\\naumi-session-routing-identity-20261125",
+  "wires": [
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 128655,
+      "sha256": "9ca628165d7ff1ca9e154941bc3437a91e1d31afa92e323687bb61b8901a1c6b"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 214827,
+      "sha256": "46b4c121e6e64f6457c28917e7ed09039b4fa1cc29895a3b7eb971cef27f8f65"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 291974,
+      "sha256": "ec520c94dc1167393df7c9d07c79bcc5620fcfeff5ccd4aa48379328aa19ef00"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 369121,
+      "sha256": "2c99d10225263a6a0ef3be4870debc5d02e1900f1d18c120407eff0794cd49ef"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 446268,
+      "sha256": "f69a1a81898070d4d80f019734a0f1a4ba3467386c59c7166bdbb65a40506d48"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 523415,
+      "sha256": "c228ad60032380dd56a570113e25d26461d520e3afd78a7304802884daefd00e"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 600562,
+      "sha256": "899a0796dcaec3a4b5fc5bac3e693daca70f47ff864b725c95e3ad1370ba79c1"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 677709,
+      "sha256": "ad7ccd0d5d26de669ab82a9aa046026af2131e8d37072a5d29988b4236fe615e"
+    },
+    {
+      "model": "m-bbbbbbbbbbbbbbbbbbbbbbbb",
+      "summary": true,
+      "bytes": 524030,
+      "sha256": "85bf4ac28bcf64e2f8f2627ab345e6012f0f34ff9be811dbf271d0bb10e0097c"
+    },
+    {
+      "model": "m-bbbbbbbbbbbbbbbbbbbbbbbb",
+      "summary": false,
+      "bytes": 202461,
+      "sha256": "c1e157eee176b37e6b80d18d34abcf75d8071edc132a07dae94f8d5af0e8abed"
+    },
+    {
+      "model": "m-aaaaaaaaaaaaaaaaaaaaaaaa",
+      "summary": false,
+      "bytes": 216412,
+      "sha256": "8e84b48ad46b22c3f60af9d7bc283671ee2d9dc930775d300d096d5c4da2ab02"
+    }
+  ]
+}

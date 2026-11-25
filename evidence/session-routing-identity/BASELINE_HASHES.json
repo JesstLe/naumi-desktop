@@ -1,0 +1,40 @@
+{
+  "baseline": "19e83a3eee185c63ff490cef1dd0e895e1afa3cf",
+  "files": [
+    {
+      "path": "plugins/naumi-enterprise/agent-presentation.js",
+      "before": null,
+      "after": "4212d01a0d8ed230bf6dcdfd23a4498b25445622beaec0188df8206fcfc73c9a"
+    },
+    {
+      "path": "plugins/naumi-enterprise/managed-compaction.js",
+      "before": null,
+      "after": "90a27f404ec1a96bf0a227d62ce8779dcf8ed409baf198c5fad1987c36ea3706"
+    },
+    {
+      "path": "plugins/naumi-enterprise/context-recovery.js",
+      "before": "7fff441796d0e21c1a0d1d304265755be09e0ce41e50187c4736d5dd8f799bdc",
+      "after": "256abe0b1e411173ec3e25287ccbc3b0182bf928268eacaa46438e4aac23b38c"
+    },
+    {
+      "path": "plugins/naumi-enterprise/host.js",
+      "before": "7fa9b57746f8e0d4a914f7b6f600f892f2253bc009d4f79920fbb7128ec371eb",
+      "after": "b8b3e5fa7925ff508b070ae3b213fd955d369e1435e3e2b8d5d037d3649dc6b3"
+    },
+    {
+      "path": "plugins/naumi-enterprise/package.json",
+      "before": "213e49d79fb7080a959ec0adc71268fb1b8fbf1678f1d57fcd2097638be242a9",
+      "after": "7307f43e393d8eeb3ff4bc4e6848c91fc33666cdb8461ca4840a7e3a88314545"
+    },
+    {
+      "path": "plugins/naumi-enterprise/assets/bot-sidebar-model.js",
+      "before": "04c0740ac5b588a00590bc0dca78ec0be73f31ad1707209943288ade1a0422ab",
+      "after": "9cfb8328379091763ba66e152a08b5723b4f5296ebe60882138f40b87228023d"
+    },
+    {
+      "path": "plugins/naumi-enterprise/assets/bot-sidebar.js",
+      "before": "8541f4443576b5dba670406cbaddc29e2824f75c809ca1dfca9e50398e787140",
+      "after": "b77046408e1aa1117a19302b3a76aaff98bd7513dcaa07af35129935185a732c"
+    }
+  ]
+}

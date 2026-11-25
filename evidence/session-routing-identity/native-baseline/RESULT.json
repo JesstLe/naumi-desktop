@@ -1,0 +1,68 @@
+{
+  "status": "PASS",
+  "baseline": true,
+  "checks": [
+    "legacy_history_real_native_requests",
+    "baseline_native_identity_exposed",
+    "restart_itself_does_not_replay",
+    "baseline_reproduces_route_denied_compaction",
+    "denied_summary_makes_no_provider_request"
+  ],
+  "boots": 2,
+  "requests": 8,
+  "summaryRequests": 0,
+  "realSupplierRequests": 0,
+  "sharedWrites": 0,
+  "sessionId": "session-848d134f-bcd4-4eb5-955a-bd60c091469b",
+  "sourceRoot": "E:\\Workspace\\naumi-desktop",
+  "wires": [
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 166026,
+      "sha256": "47f528916f663161e43959e10563a0b16eb3e1a745928855723810911f8d14fb"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 246961,
+      "sha256": "b9475b71e16e609df86d11c541ebda7072d7f73645951b9db1f8059c3c21df06"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 324108,
+      "sha256": "79190940f209ae40f9cc27b6c90e762d204adefb11f8204d60b0900d2994839f"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 401255,
+      "sha256": "b7187c365ee13759a4be69222c41d6c76b19a519af252b6f4e7e1f8a0382dc65"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 478402,
+      "sha256": "a56bc03528fdab5b014afd37cb39f143c0ba15150ffdde92d614f005f5c16372"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 555549,
+      "sha256": "565b3d68b3d232fa7c587f9fc57a76fe7bd251f3611260fa5a98c382e5d8b167"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 632696,
+      "sha256": "8c8013d59cdbfd4b5cd52afe46b4e630cae892e1f46dbfdbf82c23d5fb81c1a7"
+    },
+    {
+      "model": "legacy-fixture",
+      "summary": false,
+      "bytes": 709843,
+      "sha256": "334fdc9637d52041ad1b5689cb5e44aace35085702b236822d64fb9d9d2b2194"
+    }
+  ]
+}

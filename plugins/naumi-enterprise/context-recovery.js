@@ -1,4 +1,5 @@
 import {BasicCompactionEngine} from '@deepseek-ai/dsh-compaction-basic';
+import {managedSummary} from './managed-compaction.js';
 
 const bytes=value=>Buffer.byteLength(typeof value==='string'?value:JSON.stringify(value),'utf8');
 const excerpt=(text,max)=>new TextDecoder().decode(Buffer.from(text).subarray(0,Math.max(0,max)),{stream:true});
@@ -43,7 +44,7 @@ export function protectContextSummarizer(engine){
  const local=(input,owner)=>{const n=bytes(input.messages??[]);if(n<16384)throw Error('CONTEXT_RECOVERY_NO_REDUCTION');return {summary:[{type:'text',text:recoveryCheckpoint(input,owner,Math.min(8192,Math.max(1024,Math.floor(n/8))))}],provider:'naumi-local',model:'bounded-recovery-excerpt-v1'};};
  const wrapped=async function(input,owner,signal){
   signal?.throwIfAborted();if(pendingContextOverflow(owner.session))return local(input,owner);
-  try{return await original.call(this,input,owner,signal);}catch(error){signal?.throwIfAborted();if(!isContextOverflow(error))throw error;return local(input,owner);}
+  try{return await managedSummary(this,input,owner,signal)??await original.call(this,input,owner,signal);}catch(error){signal?.throwIfAborted();if(!isContextOverflow(error))throw error;return local(input,owner);}
  };
  Object.defineProperty(engine,'summarize',{value:wrapped,writable:true,configurable:true});
  return()=>{if(engine.summarize!==wrapped)return;if(own)Object.defineProperty(engine,'summarize',own);else delete engine.summarize;};
@@ -51,9 +52,10 @@ export function protectContextSummarizer(engine){
 export function installContextRecovery(ctx){
  return ctx.inject(['agents'],scope=>{
   const engines=new Map();
-  const mount=(agent,engine=agent.ctx.get('compaction'))=>{if(!engine||typeof engine.summarize!=='function'||typeof engine.compactIfNeeded!=='function')return false;let entry=engines.get(engine);if(!entry){entry={owners:new Set(),undo:protectContextSummarizer(engine)};engines.set(engine,entry);}entry.owners.add(agent);return true;};
+  const engineFor=agent=>agent.ctx.get('agentPresets')?.serviceFor(agent,'compaction')??agent.ctx.get('compaction');
+  const mount=(agent,engine=engineFor(agent))=>{if(!engine||typeof engine.summarize!=='function'||typeof engine.compactIfNeeded!=='function')return false;let entry=engines.get(engine);if(!entry){entry={owners:new Set(),undo:protectContextSummarizer(engine)};engines.set(engine,entry);}entry.owners.add(agent);return true;};
   const prepare=async(agent,signal)=>{
-   signal?.throwIfAborted();let engine=agent.ctx.get('compaction');
+   signal?.throwIfAborted();let engine=engineFor(agent);
    if(!engine&&agent.ctx.plugin&&agent.ctx.get('tokenMeter')){const handle=agent.ctx.plugin(BasicCompactionEngine,{auto:true,headroomTokens:4096,maxTokens:2048});await handle.await();engine=agent.ctx.get('compaction');}
    if(!engine)return;
    if(!mount(agent,engine))return;

@@ -1,0 +1,109 @@
+{
+  "tier": "isolated real native Session, deterministic loopback responses; not actual affected user session",
+  "turnEnds": [
+    {
+      "type": "turn/end",
+      "seq": 17,
+      "time": 1795592578306,
+      "data": {
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 28,
+      "time": 1795592578596,
+      "data": {
+        "turn": 2,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 36,
+      "time": 1795592578873,
+      "data": {
+        "turn": 3,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 44,
+      "time": 1795592579121,
+      "data": {
+        "turn": 4,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 52,
+      "time": 1795592579338,
+      "data": {
+        "turn": 5,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 60,
+      "time": 1795592579587,
+      "data": {
+        "turn": 6,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 68,
+      "time": 1795592579821,
+      "data": {
+        "turn": 7,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 76,
+      "time": 1795592580039,
+      "data": {
+        "turn": 8,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    },
+    {
+      "type": "turn/end",
+      "seq": 87,
+      "time": 1795592593075,
+      "data": {
+        "turn": 9,
+        "reason": {
+          "kind": "error",
+          "error": {
+            "message": "Cannot switch to naumi-account-m-bbbbbbbbbbbbbbbbbbbbbbbb/m-bbbbbbbbbbbbbbbbbbbbbbbb: context compaction failed: ACCOUNT_MODEL_ROUTE_DENIED. The previous request model is preserved; retry or select a model with a larger context window.",
+            "code": "MODEL_SWITCH_COMPACTION_FAILED"
+          }
+        }
+      }
+    }
+  ],
+  "summaries": []
+}
