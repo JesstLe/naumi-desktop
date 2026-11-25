@@ -21,9 +21,23 @@ def atomic(file,data,mode=0o600):
  finally:
   if temp.exists():temp.unlink()
 def request(url):
+ def parsed(raw):
+  try:return json.loads(raw)
+  except (ValueError,UnicodeDecodeError):return {'invalidJSON':True}
  try:
-  with urllib.request.urlopen(url,timeout=15) as r:return r.status,json.loads(r.read())
- except urllib.error.HTTPError as e:return e.code,json.loads(e.read())
+  with urllib.request.urlopen(url,timeout=15) as r:return r.status,parsed(r.read())
+ except urllib.error.HTTPError as e:return e.code,parsed(e.read())
+def wait_public_health(url,record):
+ end=time.monotonic()+8;observations=[]
+ while True:
+  try:
+   status,value=request(url);observations.append({'status':status,'validJSON':not value.get('invalidJSON',False)})
+   if status==200 and value.get('product')=='Naumi Account Models':
+    atomic(record/'PUBLIC_HEALTH_READINESS.json',(json.dumps({'status':'PASS','observations':observations})+'\n').encode());return
+  except Exception as e:observations.append({'status':'READ_ERROR','type':type(e).__name__})
+  if time.monotonic()>=end:
+   atomic(record/'PUBLIC_HEALTH_READINESS.json',(json.dumps({'status':'FAIL','observations':observations})+'\n').encode());raise RuntimeError('PUBLIC_HEALTH_FAILED')
+  time.sleep(.5)
 def inventory():return {r['Name']:{'Id':r['Id'],'Image':r['Image'],'StartedAt':r['State']['StartedAt']} for r in json.loads(run(['docker','inspect',*run(['docker','ps','-q']).decode().split()]))}
 def locks(stack):
  for f in ['/opt/naumi-staging/releases/deploy.lock','/opt/naumi-reverse-hub/releases/deploy.lock','/opt/reference-workbench/deploy.lock',str(BASE/'deploy.lock')]:
@@ -49,12 +63,12 @@ def main():
   assert request(ORIGIN+'/api/auth/session')==(200,{'user':None}),'AUTH_PREFLIGHT_FAILED'
   release=BASE/'releases'/a.source;record=BASE/'evidence'/a.source;record.mkdir(parents=True,mode=0o700,exist_ok=True)
   container='naumi-desktop-models-'+a.source[:12];snippet=release/'nginx-location.conf'
-  atomic(record/'nginx-T.before',dump);state={'import':'NOT_STARTED','role':'NOT_STARTED','container':'NOT_STARTED','defaults':'NOT_STARTED'}
+  atomic(record/'nginx-T.before',dump);state={'import':'NOT_STARTED','role':'NOT_STARTED','container':'NOT_STARTED','defaults':'NOT_STARTED'} if a.phase=='prepare' else {'ingress':'NOT_STARTED'}
   def admission():
    assert datetime.datetime.now(datetime.timezone.utc)<deadline,'WINDOW_EXPIRED'
    free=shutil.disk_usage('/').free;mem=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024
    assert free>=10*1024**3+1200*1024**2,'ROOT_SPACE_ADMISSION';assert mem>=768*1024**2,'MEMORY_ADMISSION';return free,mem
-  def checkpoint():atomic(record/'PREPARE_STATE.json',(json.dumps({'source':a.source,'state':state,'operators':NODE_RECORDS,'rootFree':shutil.disk_usage('/').free,'memAvailable':int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024})+'\n').encode())
+  def checkpoint():atomic(record/('PREPARE_STATE.json' if a.phase=='prepare' else 'INGRESS_STATE.json'),(json.dumps({'source':a.source,'state':state,'operators':NODE_RECORDS,'rootFree':shutil.disk_usage('/').free,'memAvailable':int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024})+'\n').encode())
   atexit.register(checkpoint)
   if a.phase=='prepare':
    assert not release.exists(),'OWN_RELEASE_EXISTS';assert not (BASE/'private/service.env').exists(),'OWN_SERVICE_EXISTS'
@@ -120,20 +134,21 @@ def main():
    atomic(record/'nginx.before',before);atomic(record/'nginx.after',after)
    assert all(sha(pathlib.Path(f).read_bytes())==v for f,v in protected.items()),'NGINX_INCLUDED_FILE_CHANGED';admission()
    try:
-    atomic(GATE,after,0o644)
+    state['ingress']='WRITE_PENDING';checkpoint();atomic(GATE,after,0o644);state['ingress']='WRITTEN';checkpoint()
     for label,cmd in [('nginx-test',['nginx','-t']),('nginx-reload',['systemctl','reload','nginx'])]:
      assert datetime.datetime.now(datetime.timezone.utc)<deadline,'WINDOW_EXPIRED'
      result=subprocess.run(cmd,capture_output=True,timeout=30);atomic(record/(label+'.log'),result.stdout+result.stderr);assert result.returncode==0,'INGRESS_COMMAND_FAILED'
     after_dump=run(['nginx','-T']);atomic(record/'nginx-T.after-ingress',after_dump)
     assert all(sha(pathlib.Path(f).read_bytes())==(sha(after) if os.path.realpath(f)==str(GATE) else v) for f,v in protected.items()),'NGINX_INCLUDED_FILE_CHANGED'
-    assert request(ORIGIN+'/api/desktop-models/health')[0]==200,'PUBLIC_HEALTH_FAILED'
+    wait_public_health(ORIGIN+'/api/desktop-models/health',record)
     assert request(ORIGIN+'/admin/desktop-models')[0]==401,'ADMIN_ANONYMOUS_NOT_DENIED'
     assert request(ORIGIN+'/api/desktop-models/v1/admin/catalog')[0]==401,'ADMIN_API_ANONYMOUS_NOT_DENIED'
     assert request(ORIGIN+'/api/auth/session')==(200,{'user':None}),'AUTH_REGRESSION'
     check_original(original)
-   except Exception:
-    assert GATE.read_bytes()==after,'ROLLBACK_GATEWAY_DRIFT';atomic(GATE,before,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);restored=run(['nginx','-T']);atomic(record/'nginx-T.after-failed-ingress-rollback',restored);assert restored==dump,'NGINX_ROLLBACK_CLOSURE_DRIFT';atomic(record/'FAILED_INGRESS_ROLLBACK.json',(json.dumps({'status':'CAS_RESTORED','gatewaySHA256':sha(before),'nginxFullStdoutSHA256':sha(restored),'persistentDataPreserved':True})+'\n').encode());raise
-   report={'status':'INGRESS_PASS','source':a.source,'gatewayBefore':sha(before),'gatewayAfter':sha(after),'snippetSHA256':sha(snippet.read_bytes()),'nginxFullStdoutSHA256':sha(run(['nginx','-T'])),'publicTLSHealth':200,'anonymousAdmin':401,'originalContainersUnchanged':len(original),'modelCalls':0,'centralSupervisorAcceptance':False}
+   except Exception as error:
+    atomic(record/'INGRESS_ERROR.json',(json.dumps({'type':type(error).__name__,'error':str(error) if str(error).replace('_','').isalnum() else 'READINESS_OR_POSTFLIGHT_FAILED','state':state})+'\n').encode())
+    assert GATE.read_bytes()==after,'ROLLBACK_GATEWAY_DRIFT';atomic(GATE,before,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);restored=run(['nginx','-T']);atomic(record/'nginx-T.after-failed-ingress-rollback',restored);assert restored==dump,'NGINX_ROLLBACK_CLOSURE_DRIFT';atomic(record/'FAILED_INGRESS_ROLLBACK.json',(json.dumps({'status':'CAS_RESTORED','gatewaySHA256':sha(before),'nginxFullStdoutSHA256':sha(restored),'persistentDataPreserved':True})+'\n').encode());state['ingress']='CAS_RESTORED';checkpoint();raise
+   state['ingress']='PASS';checkpoint();report={'status':'INGRESS_PASS','source':a.source,'gatewayBefore':sha(before),'gatewayAfter':sha(after),'snippetSHA256':sha(snippet.read_bytes()),'nginxFullStdoutSHA256':sha(run(['nginx','-T'])),'publicTLSHealth':200,'anonymousAdmin':401,'originalContainersUnchanged':len(original),'modelCalls':0,'centralSupervisorAcceptance':False}
   else:
    expected=(record/'nginx.after').read_bytes();assert before==expected,'ROLLBACK_GATEWAY_DRIFT';restored=(record/'nginx.before').read_bytes();atomic(GATE,restored,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);check_original(original)
    report={'status':'INGRESS_ROLLBACK_PASS','restoredGatewaySHA256':sha(restored),'persistentDataPreserved':True,'modelsServiceRetained':True,'originalContainersUnchanged':len(original)}
