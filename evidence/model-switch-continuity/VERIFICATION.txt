@@ -1,0 +1,36 @@
+Model switch continuity investigation
+Baseline: 2b965aa941d343a665f3c2b3bc4eaa79ea214422
+Branch: codex/model-switch-continuity-20261125
+Changed branch/field: diagnostic runner gains ordinary-custom/account-managed test modes; product runtime, prompts, models, users and source sessions UNCHANGED.
+Evidence limitation: the screenshot belongs to another user. Their actual client version, Session, compression history and request payload are unavailable. The reported defect is NOT reproduced or claimed fixed.
+Four paths after ordinary integration:
+E:/Workspace/naumi-desktop/evidence/model-switch-continuity/MODIFIED_FILE.zip
+E:/Workspace/naumi-desktop/evidence/model-switch-continuity/DIFF_FILE.patch
+E:/Workspace/naumi-desktop/evidence/model-switch-continuity/VERIFICATION.txt
+E:/Workspace/naumi-desktop/evidence/model-switch-continuity/ROLLBACK.sh
+BASELINE
+Command: node scripts/verify-model-switch-continuity.mjs
+Input: unmodified product engine, isolated native Host and synthetic A->B->A conversation, three protocol HTTP fixtures, independent second Session, restart.
+Literal output: CONTINUITY_MATRIX_PASS mode=ordinary-custom checks=10 fixtureRequests=8 realSupplierRequests=0 reportedUserSession=not_available
+Exit status: 0
+MODIFIED (diagnostic mode only, not a product fix)
+Command: node scripts/verify-model-switch-continuity.mjs --managed
+Input: same isolated native engine with original account-managed adapter and opaque fixture lease; no production account or gateway.
+Literal output: CONTINUITY_MATRIX_PASS mode=account-managed checks=10 fixtureRequests=8 realSupplierRequests=0 reportedUserSession=not_available
+Exit status: 0
+Actual HTTP payloads in both modes include B latest user task and B assistant reply after switching back to A; the independent Session is not merged. Restart retains the same history. Deterministic provider replies only prove transport, not actual model understanding.
+Command: node --test tests/account-models.test.mjs tests/naumi-bot-task-continuity.test.mjs
+Literal result: ℹ tests 28 / ℹ pass 28 / ℹ fail 0
+Exit status: 0
+ROLLBACK
+Command: D:/DEV/Git/bin/bash.exe -c 'evidence/model-switch-continuity/ROLLBACK.sh E:/Workspace/naumi-model-switch-continuity/runtime/continuity-rollback-copy'
+Input: marked disposable source copy, two added diagnostic/doc paths with exact SHA256.
+Literal output: CONTINUITY_ROLLBACK_PASS removed=2 productChanged=false
+Exit status: 0
+Command (cwd disposable copy): node --test tests/account-models.test.mjs tests/naumi-bot-task-continuity.test.mjs
+Literal result: ℹ tests 28 / ℹ pass 28 / ℹ fail 0
+Exit status: 0
+Restored behavior/status: only the added diagnostic runner/doc are removed in the disposable copy. Product behavior remains the original baseline before/after; the actual task source retains the runner and evidence.
+Initial fixture failure is retained: /v1/messages?beta=true was incorrectly classified by endsWith, so mock replied with the wrong SSE protocol and B did not settle. Correcting the mock pathname made this matrix pass; this is not evidence of fixing the user's product.
+Image: continuity-check.png generated with Pillow and opened/visually checked; rendered report of this matrix, not a screenshot of the user's client.
+Release/install/restart: none. Real supplier requests=0. Shared service writes=0.

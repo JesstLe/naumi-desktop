@@ -1,0 +1,105 @@
+{
+  "status": "PASS",
+  "mode": "account-managed",
+  "checks": [
+    "A_first_request_has_initial_task",
+    "B_receives_A_history_and_new_task",
+    "A_return_receives_B_latest_task",
+    "A_return_receives_B_reply",
+    "A_return_uses_same_native_session",
+    "Responses_receives_latest_task",
+    "different_session_does_not_receive_BETA",
+    "restart_makes_no_provider_request",
+    "restart_and_model_switch_preserve_latest_task",
+    "other_session_not_merged_on_restart"
+  ],
+  "boots": 2,
+  "fixtureRequests": 8,
+  "realSupplierRequests": 0,
+  "sharedServiceWrites": 0,
+  "actualAffectedUserSession": false,
+  "tier": "real isolated native Harness/AgentLoop/PiAiAdapter/HTTP/JSONL; synthetic conversation; not reproduction of the reported user session",
+  "finding": "No per-model history rollback or missing B-task was reproduced in this matrix.",
+  "requests": [
+    {
+      "path": "/api/desktop-models/v1/gateway/route-a/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "INITIAL_TASK_ALPHA",
+      "bytes": 92129,
+      "containsAlpha": true,
+      "containsBeta": false,
+      "containsDelta": false,
+      "bodySHA256": "dc39d523ed9404fb3bf972fb311ce7ad6f3489344ec3e22684230dc6e5f4712e"
+    },
+    {
+      "path": "/api/desktop-models/v1/gateway/route-a/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "INITIAL_TASK_ALPHA",
+      "bytes": 840,
+      "containsAlpha": true,
+      "containsBeta": false,
+      "containsDelta": false,
+      "bodySHA256": "d54d80a7b3ee4640964d3a7ad81b7e991026bce5089083af95c33309c1e9e2a4"
+    },
+    {
+      "path": "/api/desktop-models/v1/gateway/route-b/v1/messages?beta=true",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 96188,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "016e0136c5de9bf220c44dfa95fa7005e2fec6ef053e32c9bb9ddc73db928558"
+    },
+    {
+      "path": "/api/desktop-models/v1/gateway/route-a/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 96685,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "f98748d2f6eeafad4c26fd8aa691d62f2adb4111426664a8e8dbfadf70601b20"
+    },
+    {
+      "path": "/api/desktop-models/v1/gateway/route-c/responses",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 96531,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "e0d8e576220cfd7166172b49d2dfc1837d8717c2663346f454b243756e87685b"
+    },
+    {
+      "path": "/api/desktop-models/v1/gateway/route-a/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "OTHER_SESSION_DELTA",
+      "bytes": 59242,
+      "containsAlpha": false,
+      "containsBeta": false,
+      "containsDelta": true,
+      "bodySHA256": "2f08dfa9c56bbcb441be50e40a7cfcbb40e6e80026e7cef40ff0dd7481738f96"
+    },
+    {
+      "path": "/api/desktop-models/v1/gateway/route-a/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "OTHER_SESSION_DELTA",
+      "bytes": 844,
+      "containsAlpha": false,
+      "containsBeta": false,
+      "containsDelta": true,
+      "bodySHA256": "76fececd38749843c441f817c8320d49b0968a131f88764d163081b14fce1383"
+    },
+    {
+      "path": "/api/desktop-models/v1/gateway/route-a/chat/completions",
+      "model": "continuity-fixture",
+      "latest": "CURRENT_TASK_BETA",
+      "bytes": 93614,
+      "containsAlpha": true,
+      "containsBeta": true,
+      "containsDelta": false,
+      "bodySHA256": "8bf92df635f39e6206c1dc2a1f9d37cfc96dc61aaa0a84200b5c9b4bb819b1ec"
+    }
+  ]
+}

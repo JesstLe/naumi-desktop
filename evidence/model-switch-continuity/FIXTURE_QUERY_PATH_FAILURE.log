@@ -1,0 +1,20 @@
+CONTINUITY_PASS A_first_request_has_initial_task
+CONTINUITY_PASS B_receives_A_history_and_new_task
+CONTINUITY_PASS A_return_receives_B_latest_task
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: A_return_receives_B_reply
+    at check (file:///E:/Workspace/naumi-model-switch-continuity/scripts/verify-model-switch-continuity.mjs:22:24)
+    at file:///E:/Workspace/naumi-model-switch-continuity/scripts/verify-model-switch-continuity.mjs:28:175
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
