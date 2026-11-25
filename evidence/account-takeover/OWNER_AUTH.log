@@ -1,0 +1,27 @@
+✔ prepare re-derives exact public source, provider IDs and config digest before any remote transfer (10.4082ms)
+✔ remote preparation uses bounded writes, whole nginx closure and original container identity without changing ingress (0.6631ms)
+✔ dedicated owner authority requires exact pinned native subject and fixed enterprise owner, never role/admin flag (16.7968ms)
+✔ ordinary account bootstrap remains independent of administrator ownership; missing cookie/policy fails closed (0.4239ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (17.0113ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.4579ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (282.843ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (454.4478ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (74.8827ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (29.1756ms)
+✔ first login also fails closed on missing service; cross-account late response is discarded (1.8547ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (12.3191ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.5099ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (18.4925ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (32.0574ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (186.2085ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (8.0449ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (45.7546ms)
+✔ opaque catalog model IDs are rewritten only at the server, and upstream never receives the display alias (21.6298ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1621.537

@@ -29,3 +29,10 @@
 - 所有远端证据、源代码整合、固定包发布和回滚证明在本记录后续更新；未经观察不标完成。
 
 功能迭代：本切片 2 模块，尚未发布；同步 origin/main 保持基线。
+
+## 正式 dedicated 管理认证补验
+- 真实现存 native 会话在独立 Chromium 副本读取：session200、主体与原来源账号一致、固定 enterprise 一致、actor.owner=true；2026-11-25T04:32:45Z，无Cookie/成员明文输出。
+- 正式 `/api/admin/login` 为404，是 dedicated 产品隔离，不是缺文件。因此正式模式改用明确部署allowlist：同一已有Cookie，fresh `/api/auth/session` + 固定 `/api/enterprise?enterpriseId=...`，同时要求精确来源主体、固定企业、`actor.owner===true`。普通用户bootstrap不要求owner。不修改中央模式/角色，不伪造nv_admin。
+- 原平台密码模式保留给非dedicated受支持部署/原契约测试，正式requireRO模式必须提供native-owner配置。
+- 认证/原通道集中19项通过：覆盖错主体、错企业、非owner、仅admin/管理标志、缺字段、字符串true、404/非JSON/超时/超大正文，均不授管理。
+- 运行服务目录需因本认证修订重新固定；客户端3b1b05ca产物不包含该服务源码，原模型选择器升级矩阵继续独立验收。

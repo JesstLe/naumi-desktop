@@ -70,14 +70,15 @@ def main():
    manifest=json.loads((release/'DEPLOYMENT_PIN.json').read_text());assert manifest['source']==a.source
    for f in manifest['files']:assert sha((release/f['path']).read_bytes())==f['sha256'],'RELEASE_FILE_DRIFT'
    info=json.loads(run(['docker','inspect','naumi47-web-layer-export-20261120-r1']))[0];assert info['Image']==IMAGE,'RUNTIME_IMAGE_CHANGED'
-   env=dict(x.split('=',1) for x in info['Config']['Env'] if '=' in x);assert env.get('DATABASE_URL') and len(env.get('SETTINGS_SECRET',''))>=32
+   env=dict(x.split('=',1) for x in info['Config']['Env'] if '=' in x);assert env.get('NAUMI_ENTERPRISE_DEPLOYMENT_MODE')=='dedicated','DEDICATED_AUTHORITY_REQUIRED';assert env.get('DATABASE_URL') and len(env.get('SETTINGS_SECRET',''))>=32
    private=BASE/'private';private.mkdir(mode=0o700,exist_ok=True);os.chmod(private,0o700);operator_env=private/'operator.env'
    atomic(operator_env,('DATABASE_URL='+env['DATABASE_URL']+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IMPORT_SQL_TRACE=shape\n').encode())
    try:
     # Secret payload arrives only through pinned SSH stdin, never the archive.
     payload=sys.stdin.buffer.read(2*1024*1024+1);assert len(payload)<=2*1024*1024
-    req=json.loads(payload);allow=json.loads((release/'IMPORT_ALLOWLIST.json').read_text());assert req['schemaVersion']==1 and req['sourceId']==allow['sourceId'] and req['operationId']==allow['operationId'] and req['configDigest']==allow['configDigest'],'IMPORT_PIN_CHANGED';assert set(req)=={'schemaVersion','sourceId','operationId','configDigest','connections'},'IMPORT_FIELDS_CHANGED'
+    envelope=json.loads(payload);req=envelope['request'];policy=envelope['adminPolicy'];assert policy['mode']=='native-owner' and len(policy['subject'])<255 and re.fullmatch(r'[^@\s]+@[^@\s]+',policy['subject']),'ADMIN_SUBJECT_INVALID';payload=json.dumps(req).encode();allow=json.loads((release/'IMPORT_ALLOWLIST.json').read_text());assert req['schemaVersion']==1 and req['sourceId']==allow['sourceId'] and req['operationId']==allow['operationId'] and req['configDigest']==allow['configDigest'],'IMPORT_PIN_CHANGED';assert set(req)=={'schemaVersion','sourceId','operationId','configDigest','connections'},'IMPORT_FIELDS_CHANGED'
     assert [{k:v for k,v in c.items() if k!='key'} for c in req['connections']]==allow['connections'],'IMPORT_CONFIG_DRIFT'
+    assert env.get('NAUMI_ENTERPRISE_ALLOWED_IDS')==policy['enterpriseId'],'ADMIN_ENTERPRISE_BINDING_CHANGED'
     exclude=[c['providerId'] for c in allow['connections']];snapinput=json.dumps({'excludeProviders':exclude}).encode();prior=jsonnode(release,operator_env,'operator.mjs',['snapshot'],input=snapinput)
     admission();state['import']='PENDING';checkpoint()
     imported=json.loads(node(release,operator_env,'import.cjs',['apply','--existing-schema'],input=payload));(record/'import.json').write_text(json.dumps(imported,indent=2)+'\n');state['import']=imported['status'];checkpoint();assert imported['status']=='PASS',imported['status']
@@ -88,7 +89,7 @@ def main():
     from urllib.parse import urlsplit,urlunsplit,quote
     u=urlsplit(env['DATABASE_URL']);netloc=role['role']+':'+quote(password,safe='')+'@'+u.hostname+(':'+str(u.port) if u.port else '')
     database_url=urlunsplit((u.scheme,netloc,u.path,u.query,u.fragment))
-    service_env=('DATABASE_URL='+database_url+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IDENTITY_ORIGIN='+ORIGIN+'\nNAUMI_AUTH_INTERNAL_ORIGIN='+ORIGIN+'\nNAUMI_ACCOUNT_MODEL_REQUIRE_RO=1\nNAUMI_ACCOUNT_MODEL_CATALOG=/app/account-models/catalog.json\nNAUMI_ACCOUNT_MODEL_DATA=/data\nNAUMI_ACCOUNT_MODEL_ASSETS=/app/account-models\nHOST=0.0.0.0\nPORT=3192\nNODE_OPTIONS=\n')
+    service_env=('DATABASE_URL='+database_url+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IDENTITY_ORIGIN='+ORIGIN+'\nNAUMI_AUTH_INTERNAL_ORIGIN='+ORIGIN+'\nNAUMI_ACCOUNT_MODEL_ADMIN_ENTERPRISE='+policy['enterpriseId']+'\nNAUMI_ACCOUNT_MODEL_ADMIN_SUBJECT='+policy['subject']+'\nNAUMI_ACCOUNT_MODEL_REQUIRE_RO=1\nNAUMI_ACCOUNT_MODEL_CATALOG=/app/account-models/catalog.json\nNAUMI_ACCOUNT_MODEL_DATA=/data\nNAUMI_ACCOUNT_MODEL_ASSETS=/app/account-models\nHOST=0.0.0.0\nPORT=3192\nNODE_OPTIONS=\n')
     atomic(private/'service.env',service_env.encode());(record/'role.json').write_text(json.dumps(role,indent=2)+'\n')
    finally:operator_env.unlink(missing_ok=True)
    data=BASE/'data';data.mkdir(mode=0o700);os.chown(data,1001,1001)
