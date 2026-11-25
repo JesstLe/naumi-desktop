@@ -118,15 +118,21 @@ def main():
   if a.phase=='ingress':
    text=before.decode();assert text.count(anchor)==1 and marker not in text,'NGINX_ANCHOR_CHANGED';after=text.replace(anchor,anchor+'\n'+marker).encode()
    atomic(record/'nginx.before',before);atomic(record/'nginx.after',after)
+   assert all(sha(pathlib.Path(f).read_bytes())==v for f,v in protected.items()),'NGINX_INCLUDED_FILE_CHANGED';admission()
    try:
-    atomic(GATE,after,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx'])
+    atomic(GATE,after,0o644)
+    for label,cmd in [('nginx-test',['nginx','-t']),('nginx-reload',['systemctl','reload','nginx'])]:
+     assert datetime.datetime.now(datetime.timezone.utc)<deadline,'WINDOW_EXPIRED'
+     result=subprocess.run(cmd,capture_output=True,timeout=30);atomic(record/(label+'.log'),result.stdout+result.stderr);assert result.returncode==0,'INGRESS_COMMAND_FAILED'
+    after_dump=run(['nginx','-T']);atomic(record/'nginx-T.after-ingress',after_dump)
+    assert all(sha(pathlib.Path(f).read_bytes())==(sha(after) if os.path.realpath(f)==str(GATE) else v) for f,v in protected.items()),'NGINX_INCLUDED_FILE_CHANGED'
     assert request(ORIGIN+'/api/desktop-models/health')[0]==200,'PUBLIC_HEALTH_FAILED'
     assert request(ORIGIN+'/admin/desktop-models')[0]==401,'ADMIN_ANONYMOUS_NOT_DENIED'
     assert request(ORIGIN+'/api/desktop-models/v1/admin/catalog')[0]==401,'ADMIN_API_ANONYMOUS_NOT_DENIED'
     assert request(ORIGIN+'/api/auth/session')==(200,{'user':None}),'AUTH_REGRESSION'
     check_original(original)
    except Exception:
-    assert GATE.read_bytes()==after,'ROLLBACK_GATEWAY_DRIFT';atomic(GATE,before,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);raise
+    assert GATE.read_bytes()==after,'ROLLBACK_GATEWAY_DRIFT';atomic(GATE,before,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);restored=run(['nginx','-T']);atomic(record/'nginx-T.after-failed-ingress-rollback',restored);assert restored==dump,'NGINX_ROLLBACK_CLOSURE_DRIFT';atomic(record/'FAILED_INGRESS_ROLLBACK.json',(json.dumps({'status':'CAS_RESTORED','gatewaySHA256':sha(before),'nginxFullStdoutSHA256':sha(restored),'persistentDataPreserved':True})+'\n').encode());raise
    report={'status':'INGRESS_PASS','source':a.source,'gatewayBefore':sha(before),'gatewayAfter':sha(after),'snippetSHA256':sha(snippet.read_bytes()),'nginxFullStdoutSHA256':sha(run(['nginx','-T'])),'publicTLSHealth':200,'anonymousAdmin':401,'originalContainersUnchanged':len(original),'modelCalls':0,'centralSupervisorAcceptance':False}
   else:
    expected=(record/'nginx.after').read_bytes();assert before==expected,'ROLLBACK_GATEWAY_DRIFT';restored=(record/'nginx.before').read_bytes();atomic(GATE,restored,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);check_original(original)
