@@ -1,0 +1,832 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 5af2bb6..03c4cbf 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,10 @@
+ # Naumi 桌面端更新日志
+ 
++## 0.4.14 - 2026-11-25
++
++- 模型配置统一由账号管理后台同步。
++- 完善旧版本升级后的配置迁移与连接状态提示。
++
+ ## 0.4.13 - 2026-11-24
+ 
+ - 修复桌面端拖入文件夹时的识别问题。
+diff --git a/desktop/app/account-model-retirement.cjs b/desktop/app/account-model-retirement.cjs
+new file mode 100644
+index 0000000..0045ca8
+--- /dev/null
++++ b/desktop/app/account-model-retirement.cjs
+@@ -0,0 +1,45 @@
++'use strict';
++// Forward-only retirement: never create another backup containing distributed keys.
++// Non-owned personal references and all business/session data remain untouched.
++const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
++const {createHash,randomUUID}=require('node:crypto'),{createRequire}=require('node:module');
++const {atomic:metadata}=require('./profile.cjs');
++const sha=b=>createHash('sha256').update(b).digest('hex');
++const owned=r=>/^NAUMI_EMBEDDED_TEST_[A-F0-9]{24}$/.test(r);
++function plain(file){for(let p=file;;p=path.dirname(p)){assert(!fs.existsSync(p)||!fs.lstatSync(p).isSymbolicLink(),'ACCOUNT_MODEL_RETIREMENT_LINK');if(p===path.dirname(p))break;}return file;}
++function write(file,bytes){plain(file);const temp=file+'.'+randomUUID()+'.tmp';try{const fd=fs.openSync(temp,'wx',0o600);try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temp,file);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}}
++function retireEmbedded(settings,{fault=()=>{}}={}){
++ if(!settings.accountModels)throw Error('ACCOUNT_MODEL_RETIREMENT_REQUIRES_AUTHORITY');
++ const home=path.resolve(settings.home),journal=plain(path.join(home,'account-models-retirement.json'));
++ require('./embedded-models.cjs').recover(home);
++ const yaml=createRequire(path.join(settings.releaseRoot??settings.root,'package.json'))('yaml');
++ let j=fs.existsSync(journal)?JSON.parse(fs.readFileSync(journal)):null;
++ if(j){assert(j.version===1&&j.home===home&&Array.isArray(j.files),'ACCOUNT_MODEL_RETIREMENT_INVALID');}
++ if(!j||j.phase==='ready'){
++  const files=[];
++  const sanitize=(relative,kind)=>{
++   const file=plain(path.join(home,relative));if(!fs.existsSync(file))return;
++   const before=fs.readFileSync(file);assert(before.length<=8*1024*1024,'ACCOUNT_MODEL_RETIREMENT_TOO_LARGE');
++   const doc=yaml.parseDocument(before.toString());assert(!doc.errors.length,'ACCOUNT_MODEL_RETIREMENT_YAML');let changed=false;
++   if(kind==='credentials'){for(const ref of Object.keys(doc.toJS()?.refs??{}))if(owned(ref)){doc.deleteIn(['refs',ref]);changed=true;}}
++   else {const rows=doc.toJS();assert(Array.isArray(rows),'ACCOUNT_MODEL_RETIREMENT_YAML');for(let i=0;i<rows.length;i++)if(rows[i].id==='llm-pi-ai')for(const[id,p]of Object.entries(rows[i].config?.providers??{}))if(owned(p.apiKeyEnv)){doc.deleteIn([i,'config','providers',id]);changed=true;}}
++   if(changed){const content=doc.toString();files.push({relative,before:sha(before),after:sha(content),content});}
++  };
++  sanitize('.credentials.yaml','credentials');sanitize('profiles/web/cordis.patch.yml','config');
++  const backups=plain(path.join(home,'embedded-model-backups'));
++  if(fs.existsSync(backups))for(const entry of fs.readdirSync(backups,{withFileTypes:true})){
++   assert(entry.isDirectory()&&!entry.isSymbolicLink()&&/^[a-f0-9-]{36}$/.test(entry.name),'ACCOUNT_MODEL_RETIREMENT_BACKUP_INVALID');
++   sanitize('embedded-model-backups/'+entry.name+'/.credentials.yaml','credentials');
++   sanitize('embedded-model-backups/'+entry.name+'/profiles/web/cordis.patch.yml','config');
++  }
++  if(!files.length&&j?.phase==='ready')return {changed:false,retired:true};
++  j={version:1,home,phase:'applying',files};metadata(journal,j);fault('prepared');
++ }
++ // A durable sanitized candidate permits crash recovery without retaining old keys.
++ for(const r of j.files){assert(/^(?:\.credentials\.yaml|profiles\/web\/cordis\.patch\.yml|embedded-model-backups\/[a-f0-9-]{36}\/(?:\.credentials\.yaml|profiles\/web\/cordis\.patch\.yml))$/.test(r.relative)&&sha(r.content)===r.after,'ACCOUNT_MODEL_RETIREMENT_INVALID');const file=plain(path.join(home,r.relative)),actual=sha(fs.readFileSync(file));assert(actual===r.before||actual===r.after,'ACCOUNT_MODEL_RETIREMENT_DRIFT');}
++ for(const r of j.files){const file=path.join(home,r.relative);if(sha(fs.readFileSync(file))!==r.after)write(file,r.content);fault(r.relative);}
++ const receipt=path.join(home,'desktop-embedded-models.json');if(fs.existsSync(receipt))metadata(receipt,{version:1,phase:'ready',revision:'retired-to-account-models',ownedRefs:[],providerIds:[],retired:true});
++ metadata(journal,{...j,phase:'ready',files:j.files.map(({content,...r})=>r)});
++ return {changed:true,retired:true,files:j.files.length};
++}
++module.exports={retireEmbedded};
+diff --git a/desktop/app/account-models.cjs b/desktop/app/account-models.cjs
+index 6e56a7c..5294fea 100644
+--- a/desktop/app/account-models.cjs
++++ b/desktop/app/account-models.cjs
+@@ -15,9 +15,8 @@ class AccountModelsSession{
+  const promise=(async()=>{this.running++;try{
+  const response=await runtime.client.session.fetch(active.origin+'/api/desktop-models/v1/bootstrap',{method:'POST',credentials:'include',redirect:'error',cache:'no-store',headers:{Accept:'application/json','Content-Type':'application/json','x-naumi-account-models':'1',Origin:active.origin},body:JSON.stringify({deviceId}),signal:AbortSignal.timeout(10000)});
+  if(this.identity()!==runtime||runtime.active!==active)throw Error('ACCOUNT_MODEL_ACCOUNT_CHANGED');
+- // Unprovisioned servers preserve the existing explicit test edition. After first enrollment,
+- // 404/outage/revocation can NEVER silently reopen embedded or personally configured routes.
+- if(response.status===404&&!fs.existsSync(marker)){await response.body?.cancel();this.value=null;return null;}
++ // All distributed accounts require the central authority, including first login.
++ if(response.status===404){await response.body?.cancel();this.value=null;throw Error('ACCOUNT_MODEL_SERVICE_REQUIRED');}
+  if(!response.headers.get('content-type')?.includes('application/json'))throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');let n=0,chunks=[];for await(const c of response.body){n+=c.length;if(n>524288)throw Error('ACCOUNT_MODEL_RESPONSE_TOO_LARGE');chunks.push(Buffer.from(c));}let v;try{v=JSON.parse(Buffer.concat(chunks));}catch{throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');}
+  if(!response.ok){this.value=null;throw Error(/^ACCOUNT_MODEL_[A-Z_]+$/.test(v.error)?v.error:'ACCOUNT_MODEL_UNAVAILABLE');}
+  // Permit up to 60s of issuer/device clock skew; the gateway still enforces its exact 5m TTL.
+diff --git a/desktop/app/backend.cjs b/desktop/app/backend.cjs
+index 3f5b1ee..82a1f18 100644
+--- a/desktop/app/backend.cjs
++++ b/desktop/app/backend.cjs
+@@ -91,6 +91,7 @@ function backendEnvironment(settings,source=process.env){
+  return env;
+ }
+ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs=350,portRetries=2}={}){
++ if(settings.isolated||settings.linkedService){const f=path.join(settings.releaseRoot??settings.root,'runtime-manifest.json');if(fs.existsSync(f)&&JSON.parse(fs.readFileSync(f)).accountModels?.required&&!settings.accountModels)throw Error('ACCOUNT_MODEL_SERVICE_REQUIRED');}
+  if(settings.accountModels&&!settings.isolated&&!settings.linkedService)throw Error('ACCOUNT_MODEL_MANAGED_BACKEND_REQUIRED');
+  if(settings.linkedService&&!settings.serviceLease){const release=require('./linked-service.cjs').acquire(settings.root,'desktop-linked-update');settings.serviceLease=true;try{return await ensureBackend(settings,{fetcher,startTimeoutMs,pollMs,portRetries});}finally{delete settings.serviceLease;release();}}
+  if(settings.isolated||settings.linkedService){
+@@ -116,7 +117,8 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
+    settings.url='http://127.0.0.1:'+await freePort();
+   }
+   if(settings.linkedService)require('./linked-service.cjs').synchronize(settings);else profile.prepareProfile(settings);
+-  if(!settings.accountModels)require('./embedded-models.cjs').apply(settings);
++  if(settings.accountModels)require('./account-model-retirement.cjs').retireEmbedded(settings);
++  else require('./embedded-models.cjs').apply(settings);
+   settings.workspace??=path.join(settings.home,'workspace');
+   if(profile.exists(settings.workspace)&&(!fs.lstatSync(settings.workspace).isDirectory()||fs.lstatSync(settings.workspace).isSymbolicLink()))throw Error('PROFILE_WORKSPACE_UNMANAGED');
+   if(!settings.linkedService)await require(path.join(settings.root,'plugins/naumi-enterprise/managed-workspace.cjs')).createManagedWorkspace(settings.workspace,{parent:settings.home});
+diff --git a/desktop/app/startup.js b/desktop/app/startup.js
+index 10b1d3c..e4d331d 100644
+--- a/desktop/app/startup.js
++++ b/desktop/app/startup.js
+@@ -1,5 +1,5 @@
+ const error=new URLSearchParams(location.search).get('error');
+-if(error){document.querySelector('#spinner').hidden=true;document.querySelector('#error').textContent=({ACCOUNT_MODEL_NOT_AUTHORIZED:'当前账号尚未获得模型授权。',ACCOUNT_MODEL_UNAVAILABLE:'模型配置服务暂不可用，请稍后重试。',ACCOUNT_MODEL_RESTART_REQUIRED:'请先结束本地任务并正常退出 Naumi，再重新打开以启用账号模型。',ACCOUNT_MODEL_REVISION_ROLLBACK:'模型配置版本不一致，请联系管理员。',ACCOUNT_MODEL_REGISTRY_CHANGED:'模型配置已更新，请重新连接。',INSTALL_RUNNING_TASKS:'本地服务正在工作，任务结束后重试即可同步更新。',LINKED_SERVICE_REQUIRES_STOP:'旧本地服务仍在运行，请结束旧服务后重试同步。',SERVICE_VERSION_MISMATCH:'客户端与本地服务尚未同步，请重试完成更新。',SERVICE_ACTIVE_CODE_DRIFT:'本地服务代码发生变化，请结束当前工作后重新启动。',ENTERPRISE_EXISTING_DEVICE_REQUIRES_MIGRATION:'原企业设备仍有关联，请先完成企业迁移。',ENTERPRISE_BACKEND_STATE_UNKNOWN:'原企业服务状态待确认，请正常退出后重试。'})[error]??error;document.querySelector('#retry').hidden=false;}
++if(error){document.querySelector('#spinner').hidden=true;document.querySelector('#error').textContent=({ACCOUNT_MODEL_SERVICE_REQUIRED:'账号模型服务尚未就绪，请稍后重新连接。',ACCOUNT_MODEL_NOT_AUTHORIZED:'当前账号尚未获得模型授权。',ACCOUNT_MODEL_UNAVAILABLE:'模型配置服务暂不可用，请稍后重试。',ACCOUNT_MODEL_RESTART_REQUIRED:'请先结束本地任务并正常退出 Naumi，再重新打开以启用账号模型。',ACCOUNT_MODEL_REVISION_ROLLBACK:'模型配置版本不一致，请联系管理员。',ACCOUNT_MODEL_REGISTRY_CHANGED:'模型配置已更新，请重新连接。',INSTALL_RUNNING_TASKS:'本地服务正在工作，任务结束后重试即可同步更新。',LINKED_SERVICE_REQUIRES_STOP:'旧本地服务仍在运行，请结束旧服务后重试同步。',SERVICE_VERSION_MISMATCH:'客户端与本地服务尚未同步，请重试完成更新。',SERVICE_ACTIVE_CODE_DRIFT:'本地服务代码发生变化，请结束当前工作后重新启动。',ENTERPRISE_EXISTING_DEVICE_REQUIRES_MIGRATION:'原企业设备仍有关联，请先完成企业迁移。',ENTERPRISE_BACKEND_STATE_UNKNOWN:'原企业服务状态待确认，请正常退出后重试。'})[error]??error;document.querySelector('#retry').hidden=false;}
+ if(error)window.naumiDesktop.connectionState().then(state=>{document.querySelector('#settings').hidden=!state.available;}).catch(()=>{});
+ document.querySelector('#settings').addEventListener('click',()=>window.naumiDesktop.connectionSettings());
+ document.querySelector('#retry').addEventListener('click',()=>{document.querySelector('#retry').hidden=true;document.querySelector('#error').textContent='';document.querySelector('#spinner').hidden=false;window.naumiDesktop.retry();});
+diff --git a/desktop/package-lock.json b/desktop/package-lock.json
+index b81581f..3069dcf 100644
+--- a/desktop/package-lock.json
++++ b/desktop/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "naumi-desktop",
+-  "version": "0.4.13",
++  "version": "0.4.14",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "naumi-desktop",
+-      "version": "0.4.13",
++      "version": "0.4.14",
+       "license": "UNLICENSED",
+       "dependencies": {
+         "electron-updater": "^6.6.2"
+diff --git a/desktop/package.json b/desktop/package.json
+index 78bef71..a853503 100644
+--- a/desktop/package.json
++++ b/desktop/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "naumi-desktop",
+-  "version": "0.4.13",
++  "version": "0.4.14",
+   "private": true,
+   "description": "Naumi 企业协作桌面端",
+   "author": "Naumi",
+diff --git a/desktop/scripts/prepare-runtime.mjs b/desktop/scripts/prepare-runtime.mjs
+index 4936c3b..cdd275c 100644
+--- a/desktop/scripts/prepare-runtime.mjs
++++ b/desktop/scripts/prepare-runtime.mjs
+@@ -74,6 +74,7 @@ export async function prepareRuntime({root=project,target=path.join(root,'runtim
+     const inventory=runtimeInventory(staged),scan=scanRuntimeInventory(inventory);
+     fs.writeFileSync(path.join(staged,'runtime-files.json'),JSON.stringify(inventory,null,2)+'\n');
+     const manifest={product:'Naumi',...trial?{edition:'internal-trial',trial}:{},...embeddedModels?{edition:'embedded-test',embeddedModels}:{},schemaVersion:2,desktop:{profileVersion:1,identityProtocol:2,maintenanceProtocol:1,workspaceProtocol:1},version:JSON.parse(fs.readFileSync(path.join(root,'desktop/package.json'))).version,node:process.versions.node,harness:'0.2.2-rc.1',desktopEngine:'cua',cuaDriver:'0.54.0',dingtalk,personalCredentials:!!trial||!!embeddedModels,browserProfiles:false,bootstrap:'offline',nodeSHA256:sha(path.join(staged,'node.exe')),inventorySHA256:sha(path.join(staged,'runtime-files.json')),closure,scan};
++    if(!trial&&!embeddedModels)manifest.accountModels={protocol:1,required:true};
+     if(modelPolicy)manifest.modelPolicy=modelPolicy;
+     manifest.modelPicker=MODEL_PICKER_POLICY;
+     fs.writeFileSync(path.join(staged,'runtime-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+diff --git a/docs/changes/2026-11-25-account-model-takeover.md b/docs/changes/2026-11-25-account-model-takeover.md
+new file mode 100644
+index 0000000..70a02a0
+--- /dev/null
++++ b/docs/changes/2026-11-25-account-model-takeover.md
+@@ -0,0 +1,31 @@
++# 47 全账号模型接管
++
++## 模块与职责
++- 本线程负责 Desktop/账号模型服务及发布；基线 `6471c6d974c9ddf232afec7e870cb66284d27366`，独立 `codex/account-models-takeover-20261125`。
++- 文件范围：`services/account-models`、Desktop bootstrap/backend/升级迁移、打包/发布门禁、对应测试和操作脚本。中央 Web/Worker/原 UNKNOWN/监督生命周期继续归原 owner。
++
++## 公共接口、依赖方向、数据/状态/事务归属
++- 原 Canvas `/api/auth/session` 与 `/api/admin/login` 仍是认证权威。正式服务使用 `https://47.105.59.142`，保持默认 TLS 校验，不固定旧 Web 容器端口。
++- PG 原 credential owner 负责校验、加密、写入和解密；服务使用单独只读 LOGIN，仅 SELECT 四表指定列。它不是 provider 行隔离；共享 SETTINGS_SECRET 的访问面必须如实保留，不能称新建独立密钥库。
++- 独立 SQLite 拥有全账号默认、账号覆盖、授权审计、短凭证 hash、请求 UUID 与 UNKNOWN。新请求逐次校验当前策略，已有流不伪称中途撤销。现有账户停用在下一次续签生效，旧 token 最长五分钟。
++- `CatalogRegistry` 用固定目录映射来源；客户端仅收到不透明模型 ID、显示名称、声明参数和本站网关地址。原协议和真正 wire ID 在网关边界才选择；别名不是底层型号/性能认证。
++
++## 本次实现与迁移状态
++1. 第一次登录也必须 bootstrap；404 不再返回 null。标准分发 manifest 标记账号服务必需，backend 再次校验；公开发布拒绝内嵌或试用凭据包。
++2. 旧测试包自有 `NAUMI_EMBEDDED_TEST_*` 引用从活动配置和 `embedded-model-backups` 内定点退役。使用前向、持久、脱敏候选日志恢复中断，不新建带旧密钥的备份；个人 refs、其他配置和会话不动。失败/漂移阻止启动，不能回退内嵌。
++3. 原 importer 的短命 operator 增加 `--existing-schema`：明确只校验 import 所需的对象/类型/约束，不修改整个模型 schema owner 的 readiness 缓存。仅该编译入口把原 credentials 的 schema-readiness 依赖薄适配为 import-only 只读预检，原密钥校验/加密/INSERT/reader 不变。其他模式仍走原初始化。
++4. 四表导入 COMMIT 后 readback 失败记 `COMMITTED_VERIFY_PENDING`，保留 operation，仅进行只读 verify，不以异常等同未写入。
++5. 供应商端旧 Key 的吊销不包含在 Nginx 入口事务中。旧包可提取的旧 Key 并不会因新包上线自动失效；升级接管与上游吊销是两件事。
++
++## 验证命令、结果及证据层级
++- 基线 `node --test --test-concurrency=2 tests/account-models.test.mjs desktop/tests/embedded-models.test.cjs`：23/23。
++- 修改后定向（含原 importer 校验）：34/34。三协议、默认继承、单账号覆盖/撤销、断连 UNKNOWN/UUID 禁重放、无供应商抬头 DTO、别名服务端改写、升级退役和中断恢复均使用本地 fixture。
++- `node scripts/verify-account-model-takeover-pg.mjs`：13 项真实隔离 PG 通过，0 生产写入/0 模型调用。原加密 importer、缺列/错类型/缺唯一约束、冲突零新增、幂等、提交后验证失败/verify、只读角色与精确自有行回滚。
++- 独立 bundle 实际进程 health=200、未登录 admin=401。首次全仓缺少独立树的已固定 CUA 构建缓存，原样保留 `FULL_FIRST_MISSING_CACHE.log`；补入同 hash 缓存后集中复测：1145/1145 PASS。
++
++## 未完成项与下一步
++- 中央 owner 尚未开放远端准备/共享入口窗口；在固定制品、资源预算、精确 DB 和 Nginx allowlist 完成后分阶段申请。
++- 正式 PG 导入/专用角色、后台默认启用、实际账号回执、HTTPS 接管、新包真实升级矩阵及更新源发布均待完成。不得把本地测试记为所有已分发客户端已接管。
++- 所有远端证据、源代码整合、固定包发布和回滚证明在本记录后续更新；未经观察不标完成。
++
++功能迭代：本切片 2 模块，尚未发布；同步 origin/main 保持基线。
+diff --git a/plugins/naumi-enterprise/product-version.js b/plugins/naumi-enterprise/product-version.js
+index 838c634..ce78f85 100644
+--- a/plugins/naumi-enterprise/product-version.js
++++ b/plugins/naumi-enterprise/product-version.js
+@@ -1 +1 @@
+-export const PRODUCT_VERSION="0.4.13";
++export const PRODUCT_VERSION="0.4.14";
+diff --git a/scripts/account-models-operator.mjs b/scripts/account-models-operator.mjs
+new file mode 100644
+index 0000000..0bb4cfa
+--- /dev/null
++++ b/scripts/account-models-operator.mjs
+@@ -0,0 +1,24 @@
++// Short-lived operator; never used as the serving process.
++import fs from 'node:fs';import path from 'node:path';import pg from 'pg';import {randomUUID} from 'node:crypto';
++import {provisionReadonly,readonlyPrivileges} from '../services/account-models/readonly-role.mjs';
++import {ImportedRegistry,CatalogRegistry} from '../services/account-models/registry.mjs';
++import {AccountModelStore} from '../services/account-models/store.mjs';
++import {createCredentialReader} from 'naumi-credentials-owner';
++const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:2});
++try{const action=process.argv[2];
++ if(action==='role'){const chunks=[];for await(const b of process.stdin)chunks.push(b);const input=JSON.parse(Buffer.concat(chunks));console.log(JSON.stringify({status:'PASS',...await provisionReadonly(pool,input.password)}));}
++ else if(action==='check-role')console.log(JSON.stringify({status:'PASS',...await readonlyPrivileges(pool)}));
++ else if(action==='snapshot'){
++  const tx=await pool.connect();try{await tx.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');const chunks=[];for await(const b of process.stdin)chunks.push(b);const {excludeProviders=[]}=JSON.parse(Buffer.concat(chunks));
++   const state=(await tx.query(`SELECT 'sources' AS kind,md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY provider_id,kind,content_hash)::text,'')) AS digest FROM app_supplier_source_snapshots t WHERE NOT(provider_id=ANY($1)) UNION ALL SELECT 'metadata',md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) FROM app_supplier_model_metadata t WHERE NOT(provider_id=ANY($1)) UNION ALL SELECT 'credentials',md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'')) FROM app_model_credentials t WHERE NOT(provider_id=ANY($1)) UNION ALL SELECT 'active',md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY singleton)::text,'')) FROM app_model_config_state t UNION ALL SELECT 'billing',md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY version)::text,'')) FROM app_billing_config_versions t`,[excludeProviders])).rows;await tx.query('ROLLBACK');console.log(JSON.stringify({status:'PASS',state,modelCalls:0}));
++  }catch(e){await tx.query('ROLLBACK').catch(()=>{});throw e;}finally{tx.release();}
++ }
++ else if(action==='catalog'){
++  const registry=new CatalogRegistry(new ImportedRegistry({pool,credentials:createCredentialReader(pool)}),JSON.parse(fs.readFileSync(process.env.NAUMI_ACCOUNT_MODEL_CATALOG))),routes=await registry.list();let credentials=0;for(const r of routes){if(!await registry.secret(r))throw Error('CREDENTIAL_UNAVAILABLE');credentials++;}
++  console.log(JSON.stringify({status:'PASS',models:routes.map(r=>({id:r.id,name:r.model.name,contextWindow:r.model.contextWindow,maxTokens:r.model.maxTokens,input:r.model.input})),credentialsVerified:credentials,modelCalls:0}));
++ }else if(action==='defaults'){
++  // Bootstrap the authorized all-user default exactly once; never overwrite later admin edits.
++  const catalog=JSON.parse(fs.readFileSync(process.env.NAUMI_ACCOUNT_MODEL_CATALOG)),store=new AccountModelStore(path.join(process.env.NAUMI_ACCOUNT_MODEL_DATA,'account-models.sqlite'));
++  try{if(store.defaults().revision!==0)throw Error('ACCOUNT_MODEL_DEFAULTS_ALREADY_CONFIGURED');const result=store.save('operator:all-users-20261125',{expectedRevision:0,enabled:true,routes:catalog.models.map(m=>m.id),operationId:randomUUID()},catalog.models.map(m=>m.id),{defaults:true});console.log(JSON.stringify({status:'PASS',defaultPolicy:result,modelCalls:0}));}finally{store.close();}
++ }else throw Error('ACCOUNT_MODEL_OPERATOR_ACTION_INVALID');
++}catch(e){console.log(JSON.stringify({status:'FAIL',error:/^[A-Z_]+$/.test(e.message)?e.message:'ACCOUNT_MODEL_OPERATOR_FAILED',code:/^[A-Z0-9]{5}$/.test(e.code??'')?e.code:undefined}));process.exitCode=1;}finally{await pool.end();}
+diff --git a/scripts/deploy-account-models47.mjs b/scripts/deploy-account-models47.mjs
+new file mode 100644
+index 0000000..0de2d1e
+--- /dev/null
++++ b/scripts/deploy-account-models47.mjs
+@@ -0,0 +1,20 @@
++// Explicit operator transport; preparation requires central owner's released phase.
++import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {spawnSync,execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';
++import {takeoverInput} from './lib/account-model-takeover-input.mjs';
++const phase=process.argv[2],arg=k=>process.argv.find(x=>x.startsWith('--'+k+'='))?.slice(k.length+3),source=arg('source'),gateway=arg('gateway-sha'),archive=arg('archive');
++assert(['prepare','ingress','rollback-ingress'].includes(phase)&&/^[a-f0-9]{40}$/.test(source)&&/^[a-f0-9]{64}$/.test(gateway),'DEPLOYMENT_EXACT_PINS_REQUIRED');
++assert.equal(execFileSync('git',['branch','--show-current'],{encoding:'utf8'}).trim(),'main','FIXED_MAIN_ONLY');assert.equal(execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),source,'FIXED_SOURCE_CHANGED');
++const config='E:/Workspace/naumi/output/server-connections/47.105.59.142/connection.json',c=JSON.parse(fs.readFileSync(config));assert(c.host==='47.105.59.142'&&c.username==='root');
++const common=['-i',path.join(process.env.LOCALAPPDATA,'Naumi/operator-47-import/operator.pem'),'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+path.join(path.dirname(config),'known_hosts')],exe=n=>path.join(process.env.SystemRoot,'System32/OpenSSH/'+n+'.exe'),dest='root@'+c.host,out='evidence/account-takeover',remote='/opt/naumi-desktop-models/incoming/'+source+'.tar';
++fs.mkdirSync(out,{recursive:true});const sync=(name,args,input)=>{const r=spawnSync(exe(name),args,{input,encoding:'utf8',windowsHide:true,timeout:180000});if(r.status!==0)throw Error('PINNED_TRANSPORT_FAILED');return r.stdout;};
++let request=null,hash;
++if(phase==='prepare'){
++ assert(archive&&fs.statSync(archive).size<8*1024*1024,'SMALL_PUBLIC_ARCHIVE_REQUIRED');hash=createHash('sha256').update(fs.readFileSync(archive)).digest('hex');request=takeoverInput(arg('input')??'D:/NaumiReleases/0.4.13/win-unpacked/resources/backend/defaults/embedded-models.json');
++ sync('ssh',['-T',...common,dest,'umask 077; mkdir -p /opt/naumi-desktop-models/incoming']);sync('scp',[...common,archive,dest+':'+remote]);
++}
++// Script is passed through a separate fixed public file; payload stdin remains secret-only.
++const script='scripts/deploy-account-models47.py',bytes=fs.readFileSync(script),scriptHash=createHash('sha256').update(bytes).digest('hex'),scriptRemote='/opt/naumi-desktop-models/incoming/deploy-'+scriptHash+'.py';
++sync('scp',[...common,script,dest+':'+scriptRemote]);
++const cmd=`test "$(sha256sum ${scriptRemote} | cut -d ' ' -f 1)" = ${scriptHash} && python3 -B ${scriptRemote} ${phase} --source ${source} --gateway-sha ${gateway}`+(phase==='prepare'?` --archive ${remote} --archive-sha ${hash}`:'');
++const r=spawnSync(exe('ssh'),['-T',...common,dest,cmd],{input:request?JSON.stringify(request):'',encoding:'utf8',windowsHide:true,timeout:240000});
++fs.writeFileSync(path.join(out,'REMOTE_'+phase+'.log'),r.stdout+r.stderr);let v;try{v=JSON.parse(r.stdout);}catch{throw Error('REMOTE_RECEIPT_MISSING');}fs.writeFileSync(path.join(out,'REMOTE_'+phase+'.json'),JSON.stringify({source,exit:r.status,...v},null,2)+'\n');console.log(JSON.stringify(v));process.exitCode=r.status??1;
+diff --git a/scripts/deploy-account-models47.py b/scripts/deploy-account-models47.py
+new file mode 100644
+index 0000000..7dfcd97
+--- /dev/null
++++ b/scripts/deploy-account-models47.py
+@@ -0,0 +1,119 @@
++"""Phased account-model deployment; additive ingress only, no central slot control.
++Preparation and ingress each require the central owner's explicitly released window.
++No passwords, credential ciphertext or cookie values are emitted.
++"""
++import argparse,contextlib,fcntl,hashlib,json,os,pathlib,secrets,shutil,socket,sqlite3,subprocess,sys,tarfile,time,urllib.request,urllib.error
++BASE=pathlib.Path('/opt/naumi-desktop-models')
++GATE=pathlib.Path('/etc/nginx/sites-available/reference-workbench')
++IMAGE='sha256:35a8ace40abc8f74ac41432d0901c24a6c8b8991789e4e30cfc88cc866f59f31'
++ORIGIN='https://47.105.59.142'
++sha=lambda b:hashlib.sha256(b).hexdigest()
++def run(args,*,input=None,timeout=90,check=True):
++ r=subprocess.run(args,input=input,capture_output=True,timeout=timeout)
++ if check and r.returncode:raise RuntimeError('COMMAND_FAILED_'+args[0])
++ return r.stdout
++def atomic(file,data,mode=0o600):
++ temp=file.with_name(file.name+'.account-models-temp');fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL,mode)
++ try:
++  with os.fdopen(fd,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
++  os.replace(temp,file)
++ finally:
++  if temp.exists():temp.unlink()
++def request(url):
++ try:
++  with urllib.request.urlopen(url,timeout=15) as r:return r.status,json.loads(r.read())
++ except urllib.error.HTTPError as e:return e.code,json.loads(e.read())
++def inventory():return {r['Name']:r['State']['StartedAt'] for r in json.loads(run(['docker','inspect',*run(['docker','ps','-q']).decode().split()]))}
++def locks(stack):
++ for f in ['/opt/naumi-staging/releases/deploy.lock','/opt/naumi-reverse-hub/releases/deploy.lock','/opt/reference-workbench/deploy.lock',str(BASE/'deploy.lock')]:
++  h=stack.enter_context(open(f,'a'));fcntl.flock(h,fcntl.LOCK_EX|fcntl.LOCK_NB)
++def node(release,env,entry,args=[],input=None):
++ return run(['docker','run','--rm','-i','--network','naumi47_staging','--read-only','--tmpfs','/tmp:rw,nosuid,noexec,size=16m','--cap-drop','ALL','--security-opt','no-new-privileges','--memory','256m','--env-file',str(env),'-e','NODE_OPTIONS=','-e','NODE_PATH=/app/node_modules','-v',str(release)+':/app/account-models:ro','--workdir','/app/account-models','--entrypoint','node',IMAGE,entry,*args],input=input,check=False)
++def jsonnode(*args,**kw):
++ v=json.loads(node(*args,**kw));assert v.get('status')=='PASS',v.get('status','INVALID_OPERATOR_RECEIPT');return v
++def check_original(before):
++ now=inventory();assert all(now.get(n)==v for n,v in before.items()),'ORIGINAL_CONTAINER_CHANGED'
++def main():
++ p=argparse.ArgumentParser();p.add_argument('phase',choices=['prepare','ingress','rollback-ingress']);p.add_argument('--source',required=True);p.add_argument('--archive');p.add_argument('--archive-sha');p.add_argument('--gateway-sha',required=True);a=p.parse_args()
++ assert len(a.source)==40 and all(c in 'abcdef0123456789' for c in a.source),'SOURCE_PIN_REQUIRED'
++ BASE.mkdir(mode=0o700,exist_ok=True)
++ with contextlib.ExitStack() as stack:
++  locks(stack);before=GATE.read_bytes();assert sha(before)==a.gateway_sha,'NGINX_CAS_CHANGED';original=inventory()
++  assert request(ORIGIN+'/api/auth/session')==(200,{'user':None}),'AUTH_PREFLIGHT_FAILED'
++  release=BASE/'releases'/a.source;record=BASE/'evidence'/a.source;record.mkdir(parents=True,mode=0o700,exist_ok=True)
++  container='naumi-desktop-models-'+a.source[:12];snippet=release/'nginx-location.conf'
++  if a.phase=='prepare':
++   assert not release.exists(),'OWN_RELEASE_EXISTS';assert not (BASE/'private/service.env').exists(),'OWN_SERVICE_EXISTS'
++   archive=pathlib.Path(a.archive);assert sha(archive.read_bytes())==a.archive_sha,'ARCHIVE_PIN_CHANGED'
++   free=shutil.disk_usage('/').free;mem=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024
++   # Includes archive/expanded bundle, 512MiB DB, WAL, consistent backup and logs/growth.
++   disk_peak=1200*1024**2;assert free>=10*1024**3+disk_peak,'ROOT_SPACE_ADMISSION';assert mem>=768*1024**2,'MEMORY_ADMISSION'
++   with socket.socket() as s:s.bind(('127.0.0.1',3192))
++   release.mkdir(parents=True)
++   with tarfile.open(archive) as tar:
++    assert all(m.isfile() and not m.name.startswith('/') and '..' not in pathlib.PurePosixPath(m.name).parts for m in tar.getmembers()),'UNSAFE_ARCHIVE'
++    tar.extractall(release,filter='data')
++   manifest=json.loads((release/'DEPLOYMENT_PIN.json').read_text());assert manifest['source']==a.source
++   for f in manifest['files']:assert sha((release/f['path']).read_bytes())==f['sha256'],'RELEASE_FILE_DRIFT'
++   info=json.loads(run(['docker','inspect','naumi47-web-layer-export-20261120-r1']))[0];assert info['Image']==IMAGE,'RUNTIME_IMAGE_CHANGED'
++   env=dict(x.split('=',1) for x in info['Config']['Env'] if '=' in x);assert env.get('DATABASE_URL') and len(env.get('SETTINGS_SECRET',''))>=32
++   private=BASE/'private';private.mkdir(mode=0o700,exist_ok=True);os.chmod(private,0o700);operator_env=private/'operator.env'
++   atomic(operator_env,('DATABASE_URL='+env['DATABASE_URL']+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IMPORT_SQL_TRACE=shape\n').encode())
++   try:
++    # Secret payload arrives only through pinned SSH stdin, never the archive.
++    payload=sys.stdin.buffer.read(2*1024*1024+1);assert len(payload)<=2*1024*1024
++    req=json.loads(payload);allow=json.loads((release/'IMPORT_ALLOWLIST.json').read_text());assert req['operationId']==allow['operationId'] and req['configDigest']==allow['configDigest'],'IMPORT_PIN_CHANGED'
++    assert [{k:v for k,v in c.items() if k!='key'} for c in req['connections']]==allow['connections'],'IMPORT_CONFIG_DRIFT'
++    exclude=[c['providerId'] for c in allow['connections']];snapinput=json.dumps({'excludeProviders':exclude}).encode();prior=jsonnode(release,operator_env,'operator.mjs',['snapshot'],input=snapinput)
++    imported=json.loads(node(release,operator_env,'import.cjs',['apply','--existing-schema'],input=payload));(record/'import.json').write_text(json.dumps(imported,indent=2)+'\n');assert imported['status']=='PASS',imported['status']
++    after=jsonnode(release,operator_env,'operator.mjs',['snapshot'],input=snapinput)
++    (record/'existing-data-digests.json').write_text(json.dumps({'before':prior,'after':after},indent=2)+'\n');assert prior==after,'EXISTING_DATABASE_DRIFT'
++    password=secrets.token_urlsafe(32);role=jsonnode(release,operator_env,'operator.mjs',['role'],input=json.dumps({'password':password}).encode())
++    from urllib.parse import urlsplit,urlunsplit,quote
++    u=urlsplit(env['DATABASE_URL']);netloc=role['role']+':'+quote(password,safe='')+'@'+u.hostname+(':'+str(u.port) if u.port else '')
++    database_url=urlunsplit((u.scheme,netloc,u.path,u.query,u.fragment))
++    service_env=('DATABASE_URL='+database_url+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IDENTITY_ORIGIN='+ORIGIN+'\nNAUMI_AUTH_INTERNAL_ORIGIN='+ORIGIN+'\nNAUMI_ACCOUNT_MODEL_REQUIRE_RO=1\nNAUMI_ACCOUNT_MODEL_CATALOG=/app/account-models/catalog.json\nNAUMI_ACCOUNT_MODEL_DATA=/data\nNAUMI_ACCOUNT_MODEL_ASSETS=/app/account-models\nHOST=0.0.0.0\nPORT=3192\nNODE_OPTIONS=\n')
++    atomic(private/'service.env',service_env.encode());(record/'role.json').write_text(json.dumps(role,indent=2)+'\n')
++   finally:operator_env.unlink(missing_ok=True)
++   data=BASE/'data';data.mkdir(mode=0o700);os.chown(data,1001,1001)
++   run(['docker','create','--name',container,'--user','1001:1001','--network','naumi47_staging','-p','127.0.0.1:3192:3192','--restart','unless-stopped','--read-only','--tmpfs','/tmp:rw,nosuid,noexec,size=16m','--cap-drop','ALL','--security-opt','no-new-privileges','--memory','384m','--cpus','1','--pids-limit','100','--log-opt','max-size=5m','--log-opt','max-file=3','--env-file',str(private/'service.env'),'-v',str(release)+':/app/account-models:ro','-v',str(data)+':/data','--workdir','/app/account-models','--entrypoint','node',IMAGE,'server.mjs'])
++   run(['docker','network','connect','naumi47_public_egress',container]);run(['docker','start',container])
++   for i in range(60):
++    try:
++     if request('http://127.0.0.1:3192/api/desktop-models/health')[0]==200:break
++    except Exception:pass
++    time.sleep(.25)
++   assert request('http://127.0.0.1:3192/api/desktop-models/health')[0]==200,'SIDECAR_HEALTH_FAILED'
++   # Verify the SAME runtime with default TLS trust and exact original auth authority.
++   tls=json.loads(run(['docker','exec',container,'node','--input-type=module','-e',"const r=await fetch('https://47.105.59.142/api/auth/session');console.log(JSON.stringify({status:r.status,user:(await r.json()).user}));"]))
++   assert tls=={'status':200,'user':None},'TLS_AUTH_FAILED'
++   catalog=json.loads(run(['docker','exec',container,'node','operator.mjs','catalog']));assert catalog['status']=='PASS' and len(catalog['models'])==4,'READONLY_CATALOG_FAILED'
++   defaults=json.loads(run(['docker','exec',container,'node','operator.mjs','defaults']));assert defaults['status']=='PASS','DEFAULT_GRANT_FAILED'
++   with sqlite3.connect('file:'+str(data/'account-models.sqlite')+'?mode=ro',uri=True) as src,sqlite3.connect(record/'initial.sqlite') as dest:src.backup(dest)
++   assert sqlite3.connect(record/'initial.sqlite').execute('PRAGMA integrity_check').fetchone()[0]=='ok','INITIAL_BACKUP_INVALID'
++   check_original(original);assert GATE.read_bytes()==before,'NGINX_CHANGED_DURING_PREPARE'
++   report={'status':'READY_FOR_INGRESS','source':a.source,'image':IMAGE,'archiveSHA256':a.archive_sha,'rootFreeBefore':free,'memAvailableBefore':mem,'diskRemainingPeakBudget':disk_peak,'container':container,'tls':tls,'catalog':catalog,'defaults':defaults,'originalContainersUnchanged':len(original),'gatewayUnchanged':True,'modelCalls':0}
++   atomic(record/'PREPARED.json',(json.dumps(report,indent=2)+'\n').encode());print(json.dumps(report));return
++  assert (record/'PREPARED.json').exists(),'PREPARATION_REQUIRED'
++  marker=' include '+str(snippet)+';';anchor=' listen 443 ssl; server_name 47.105.59.142;'
++  if a.phase=='ingress':
++   text=before.decode();assert text.count(anchor)==1 and marker not in text,'NGINX_ANCHOR_CHANGED';after=text.replace(anchor,anchor+'\n'+marker).encode()
++   atomic(record/'nginx.before',before);atomic(record/'nginx.after',after)
++   try:
++    atomic(GATE,after,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx'])
++    assert request(ORIGIN+'/api/desktop-models/health')[0]==200,'PUBLIC_HEALTH_FAILED'
++    assert request(ORIGIN+'/admin/desktop-models')[0]==401,'ADMIN_ANONYMOUS_NOT_DENIED'
++    assert request(ORIGIN+'/api/desktop-models/v1/admin/catalog')[0]==401,'ADMIN_API_ANONYMOUS_NOT_DENIED'
++    assert request(ORIGIN+'/api/auth/session')==(200,{'user':None}),'AUTH_REGRESSION'
++    check_original(original)
++   except Exception:
++    assert GATE.read_bytes()==after,'ROLLBACK_GATEWAY_DRIFT';atomic(GATE,before,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);raise
++   report={'status':'INGRESS_PASS','source':a.source,'gatewayBefore':sha(before),'gatewayAfter':sha(after),'snippetSHA256':sha(snippet.read_bytes()),'nginxFullStdoutSHA256':sha(run(['nginx','-T'])),'publicTLSHealth':200,'anonymousAdmin':401,'originalContainersUnchanged':len(original),'modelCalls':0,'centralSupervisorAcceptance':False}
++  else:
++   expected=(record/'nginx.after').read_bytes();assert before==expected,'ROLLBACK_GATEWAY_DRIFT';restored=(record/'nginx.before').read_bytes();atomic(GATE,restored,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);check_original(original)
++   report={'status':'INGRESS_ROLLBACK_PASS','restoredGatewaySHA256':sha(restored),'persistentDataPreserved':True,'modelsServiceRetained':True,'originalContainersUnchanged':len(original)}
++  atomic(record/(a.phase+'.json'),(json.dumps(report,indent=2)+'\n').encode());print(json.dumps(report))
++if __name__=='__main__':
++ try:main()
++ except BlockingIOError:print(json.dumps({'status':'DEFERRED','error':'DEPLOYMENT_LOCK_BUSY'}));sys.exit(75)
++ except Exception as e:print(json.dumps({'status':'FAIL','error':str(e) if str(e).replace('_','').isalnum() and len(str(e))<100 else 'DEPLOYMENT_STAGE_FAILED','noAutomaticDatabaseRollback':True}));sys.exit(1)
+diff --git a/scripts/desktop-model-import47-cli.mjs b/scripts/desktop-model-import47-cli.mjs
+index bbce4f9..6c50d4d 100644
+--- a/scripts/desktop-model-import47-cli.mjs
++++ b/scripts/desktop-model-import47-cli.mjs
+@@ -8,6 +8,7 @@ import {runImportFixture} from './lib/desktop-model-import-fixture.mjs';
+ 
+ async function main(){
+ const mode=process.argv[2];
++const trace={};if(process.env.NAUMI_IMPORT_SQL_TRACE==='shape'){const original=pg.Client.prototype.query;pg.Client.prototype.query=function(q,...args){const sql=typeof q==='string'?q:q?.text??'';const verb=(sql.trim().match(/^[A-Za-z]+/)?.[0]??'OTHER').toUpperCase();trace[verb]=(trace[verb]??0)+1;return original.call(this,q,...args);};}
+ const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:4,connectionTimeoutMillis:5000,query_timeout:20000});
+ let code=0;
+ try{
+@@ -21,14 +22,15 @@ try{
+   const chunks=[];let bytes=0;for await(const c of process.stdin){bytes+=c.length;assert(bytes<=2*1024*1024,'INPUT_LIMIT');chunks.push(c);}
+   const request=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+   // Reuse existing schema/credential ownership, only on this explicit operator path.
+-  if(mode==='apply')await contracts.ensureModelSchema(pool);
++  if(mode==='apply'&&process.argv.includes('--existing-schema'))await contracts.ensureImportSchema(pool);
++  else if(mode==='apply')await contracts.ensureModelSchema(pool);
+   const result=await importDesktopModels({pool,contracts,request,mode});
+   console.log(JSON.stringify(result));
+  }
+ }catch(e){
+  const message=typeof e.message==='string'&&/^[A-Z][A-Z0-9_]{2,80}$/.test(e.message)?e.message:'IMPORT_FAILED';
+- console.log(JSON.stringify({status:'FAIL',mode,error:message,code:/^[A-Z0-9]{5}$/.test(e.code??'')?e.code:undefined}));code=1;
+-}finally{await pool.end();}
++ console.log(JSON.stringify({status:e.committed?'COMMITTED_VERIFY_PENDING':'FAIL',mode,operationId:e.operationId,error:message,code:/^[A-Z0-9]{5}$/.test(e.code??'')?e.code:undefined}));code=1;
++}finally{await pool.end();if(process.env.NAUMI_IMPORT_SQL_TRACE==='shape')console.error('IMPORT_SQL_SHAPES '+JSON.stringify(trace));}
+ process.exitCode=code;
+ }
+ main().catch(()=>{console.log(JSON.stringify({status:'FAIL',error:'CLI_FAILED'}));process.exitCode=1;});
+diff --git a/scripts/lib/account-model-takeover-input.mjs b/scripts/lib/account-model-takeover-input.mjs
+new file mode 100644
+index 0000000..deddb65
+--- /dev/null
++++ b/scripts/lib/account-model-takeover-input.mjs
+@@ -0,0 +1,11 @@
++import fs from 'node:fs';import {createHash} from 'node:crypto';import {prepareDesktopImport} from './desktop-model-import.mjs';
++export function takeoverInput(file){
++ const v=JSON.parse(fs.readFileSync(file));
++ // Preserve the installed native adapter's effective configured budgets, not official limits.
++ for(const p of Object.values(v.providers))for(const m of p.models){m.contextWindow??=p.defaultContextWindow??1000000;m.maxTokens??=p.defaultMaxTokens??128000;}
++ return prepareDesktopImport({providers:v.providers,refs:v.refs,sourceId:'desktop-central-20261125',operationId:'8ad47265-5fbc-489d-b977-e1680dc84753'});
++}
++export function takeoverCatalog(request){
++ const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex'),names=['claude fable5.2','gpt6.1sol','gpt6.1terra','claude opus5.5'];
++ return {version:1,models:request.connections.map(c=>({id:'m-'+digest(c.models[0].name).slice(0,24),name:c.models[0].name,sourceRoute:'r-'+digest([c.providerId,c.models[0].id]).slice(0,32)})).sort((a,b)=>names.indexOf(a.name)-names.indexOf(b.name))};
++}
+diff --git a/scripts/lib/desktop-model-import-ready.mjs b/scripts/lib/desktop-model-import-ready.mjs
+new file mode 100644
+index 0000000..680bfa3
+--- /dev/null
++++ b/scripts/lib/desktop-model-import-ready.mjs
+@@ -0,0 +1,25 @@
++// Bounded no-DDL readiness port for the original credential importer.
++// Never marks the broader Canvas model-schema owner's cache as ready.
++import assert from 'node:assert/strict';
++const columns={
++ app_model_credentials:{id:['uuid'],provider_id:['text'],key_enc:['text'],created_by:['text']},
++ app_supplier_source_snapshots:{provider_id:['text'],kind:['text'],source_url:['text'],content_hash:['text'],source_data:['jsonb']},
++ app_supplier_model_metadata:{id:['uuid'],provider_id:['text'],provider_name:['text'],model_id:['text'],label:['text'],catalog_owner:['text'],family:['text'],brand:['text'],modality:['text'],capability_state:['text'],metadata:['jsonb'],revision:['int4','int8'],updated_by:['text']},
++ app_supplier_model_metadata_versions:{model_id:['uuid'],revision:['int4','int8'],actor:['text'],metadata:['jsonb']},
++ app_model_config_state:{singleton:['bool']},app_model_config_versions:{version:['int4','int8'],config:['jsonb']},
++ app_billing_config_versions:{version:['int4','int8']},app_model_providers:{credential_ref:['uuid']},app_supplier_model_price_points:{model_id:['uuid']}
++};
++const constraints={app_model_credentials:['id'],app_supplier_source_snapshots:['provider_id','kind','content_hash'],app_supplier_model_metadata:['id'],app_supplier_model_metadata_versions:['model_id','revision']};
++export async function ensureImportSchema(pool){
++ const tx=await pool.connect();try{
++  await tx.query('BEGIN READ ONLY');await tx.query("SET LOCAL search_path=public,pg_catalog");
++  const rows=(await tx.query(`SELECT c.relname,a.attname,t.typname,a.attnotnull FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid JOIN pg_type t ON t.oid=a.atttypid WHERE n.nspname='public' AND c.relname=ANY($1) AND a.attnum>0 AND NOT a.attisdropped`,[Object.keys(columns)])).rows;
++  for(const[table,fields]of Object.entries(columns))for(const[name,types]of Object.entries(fields)){const r=rows.find(x=>x.relname===table&&x.attname===name);assert(r&&types.includes(r.typname),'IMPORT_SCHEMA_COLUMN_MISMATCH');}
++  const keys=(await tx.query(`SELECT c.relname,k.contype,array_agg(a.attname::text ORDER BY u.ord) AS columns FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL unnest(k.conkey) WITH ORDINALITY u(num,ord) JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum=u.num WHERE n.nspname='public' AND c.relname=ANY($1) AND k.contype IN ('p','u') GROUP BY c.relname,k.oid,k.contype`,[Object.keys(constraints)])).rows;
++  for(const[table,key]of Object.entries(constraints))assert(keys.some(x=>x.relname===table&&x.contype==='p'&&JSON.stringify(x.columns)===JSON.stringify(key)),'IMPORT_SCHEMA_CONSTRAINT_MISMATCH');
++  assert(keys.some(x=>x.relname==='app_supplier_model_metadata'&&['u','p'].includes(x.contype)&&JSON.stringify(x.columns)===JSON.stringify(['provider_id','model_id'])),'IMPORT_SCHEMA_CONSTRAINT_MISMATCH');
++  await tx.query('ROLLBACK');
++ }catch(e){await tx.query('ROLLBACK').catch(()=>{});throw e;}finally{tx.release();}
++}
++export const ensureModelSchema=ensureImportSchema;
++
+diff --git a/scripts/lib/desktop-model-import-store.mjs b/scripts/lib/desktop-model-import-store.mjs
+index a3f5e77..fa04cba 100644
+--- a/scripts/lib/desktop-model-import-store.mjs
++++ b/scripts/lib/desktop-model-import-store.mjs
+@@ -30,7 +30,7 @@ export async function importDesktopModels({pool,contracts,request,mode='apply',f
+  // Revalidate the finite transfer contract, including every original protocol/key.
+  request=prepareDesktopImport({providers:Object.fromEntries(request.connections.map(c=>[c.sourceProviderId,{...c.configuration,models:c.models,apiKeyEnv:c.sourceProviderId}])),refs:Object.fromEntries(request.connections.map(c=>[c.sourceProviderId,c.key])),sourceId:request.sourceId,operationId:request.operationId});
+  assert(['apply','verify'].includes(mode),'IMPORT_MODE_INVALID');
+- const credentials=mode==='verify'?contracts.createCredentialReader(pool):contracts.createCredentialStore(pool),tx=await pool.connect();
++ let committed=false;const credentials=mode==='verify'?contracts.createCredentialReader(pool):contracts.createCredentialStore(pool),tx=await pool.connect();
+  try{
+   await tx.query(mode==='verify'?'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY':'BEGIN');await tx.query("SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='20s'");
+   await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['desktop-model-import:'+request.sourceId]);
+@@ -59,9 +59,9 @@ export async function importDesktopModels({pool,contracts,request,mode='apply',f
+   // Read keys through the same transaction; public credential reads use another connection.
+   const rows=await existing(tx,request.operationId);assert.equal(rows.length,request.connections.length);
+   await tx.query('COMMIT');
+-  const verified=await importDesktopModels({pool,contracts,request,mode:'verify'});
++  committed=true;fault('committed');const verified=await importDesktopModels({pool,contracts,request,mode:'verify'});
+   return {...verified,mode:'apply',replayed:false};
+- }catch(e){await tx.query('ROLLBACK').catch(()=>{});throw e;}finally{tx.release();}
++ }catch(e){if(committed){e.committed=true;e.operationId=request.operationId;}else await tx.query('ROLLBACK').catch(()=>{});throw e;}finally{tx.release();}
+ }
+ export async function rollbackDesktopModels({pool,operationId}){
+  assert(/^[a-f0-9-]{36}$/i.test(operationId),'OPERATION_ID_INVALID');const tx=await pool.connect();
+diff --git a/scripts/native-model-picker-extension.mjs b/scripts/native-model-picker-extension.mjs
+index a7cb7ab..f3dc7a9 100644
+--- a/scripts/native-model-picker-extension.mjs
++++ b/scripts/native-model-picker-extension.mjs
+@@ -13,4 +13,4 @@ export function modelPickerOriginal(code){let original=code;for(const[a,b]of [..
+ export function extendNativeModelPicker(code){const original=modelPickerOriginal(code);let result=original;for(const[a,b]of edits){if(result.split(a).length!==2)throw Error('MODEL_PICKER_ANCHOR_CHANGED');result=result.replace(a,b);}if(code!==original&&code!==result)throw Error('MODEL_PICKER_EXTENSION_DRIFT');return result;}
+ export function installNativeModelPicker(file){const before=fs.readFileSync(file,'utf8'),after=extendNativeModelPicker(before);if(before===after)return {changed:false,sha256:sha(after)};const backup=file+'.naumi-original';if(fs.existsSync(backup)&&sha(fs.readFileSync(backup))!==MODEL_PICKER_UPSTREAM_SHA)throw Error('MODEL_PICKER_BACKUP_CHANGED');if(!fs.existsSync(backup))fs.writeFileSync(backup,before,{flag:'wx'});const temp=file+'.'+randomUUID()+'.tmp';try{fs.writeFileSync(temp,after,{flag:'wx'});fs.renameSync(temp,file);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}return{changed:true,originalSHA256:sha(before),sha256:sha(after)};}
+ export function assertModelPickerBundle(backend){const manifest=JSON.parse(fs.readFileSync(path.join(backend,'runtime-manifest.json'))),file=path.join(backend,'node_modules/@deepseek-ai/dsh-client-ui-model-selection/lib/client.js'),code=fs.readFileSync(file,'utf8');if(manifest.modelPicker!==MODEL_PICKER_POLICY||code!==extendNativeModelPicker(code)||!code.includes(afterSeat)||!code.includes(afterSlash))throw Error('MODEL_PICKER_DISTRIBUTION_REQUIRED');return {policy:MODEL_PICKER_POLICY,sha256:sha(code)};}
+-export function assertModelPickerRelease(release,expectedVersion){const bundle=assertModelPickerBundle(path.join(release,'win-unpacked/resources/backend')),manifest=JSON.parse(fs.readFileSync(path.join(release,'win-unpacked/resources/backend/runtime-manifest.json'))),receipt=JSON.parse(fs.readFileSync(path.join(release,'MODEL_PICKER_GATE.json'))),installer=path.join(release,'Naumi-Setup-'+manifest.version+'-x64.exe');if(manifest.embeddedModels&&!(receipt.embeddedConfigVerified===true&&receipt.embeddedModels===4&&receipt.embeddedWireVerified===true&&receipt.embeddedConfigSHA256===manifest.embeddedModels.sha256))throw Error('EMBEDDED_MODEL_GATE_REQUIRED');if(expectedVersion!==undefined&&manifest.version!==expectedVersion||receipt.payloadVerified!==true||receipt.status!=='PASS'||receipt.version!==manifest.version||receipt.nativeSHA256!==bundle.sha256||receipt.installerSHA256!==sha(fs.readFileSync(installer))||JSON.stringify(receipt.cases?.map(c=>c.name).sort())!==JSON.stringify(['fresh','legacy-first','legacy-r2','linked-legacy'])||!receipt.cases.every(c=>c.modelsOnly&&c.folderDrop===true&&c.dingtalkCli===true&&c.dingtalkSkill===true&&c.settingsModelsOnly===true&&c.settingsPayloadClean===true&&c.switchAndReload&&(c.name!=='linked-legacy'||c.linkedUpgrade===true&&c.activeNativeSHA256===bundle.sha256)&&(c.name==='fresh'||c.cachedUpgrade===true)&&JSON.stringify(c.scenes)===JSON.stringify(['bot','ordinary','group'])))throw Error('MODEL_PICKER_RELEASE_GATE_REQUIRED');return receipt;}
++export function assertModelPickerRelease(release,expectedVersion){const bundle=assertModelPickerBundle(path.join(release,'win-unpacked/resources/backend')),manifest=JSON.parse(fs.readFileSync(path.join(release,'win-unpacked/resources/backend/runtime-manifest.json'))),receipt=JSON.parse(fs.readFileSync(path.join(release,'MODEL_PICKER_GATE.json'))),installer=path.join(release,'Naumi-Setup-'+manifest.version+'-x64.exe');if(manifest.accountModels?.required&&!(receipt.cloudCatalogVerified===true&&receipt.credentialsIncluded===false))throw Error('CLOUD_MODEL_GATE_REQUIRED');if(manifest.embeddedModels&&!(receipt.embeddedConfigVerified===true&&receipt.embeddedModels===4&&receipt.embeddedWireVerified===true&&receipt.embeddedConfigSHA256===manifest.embeddedModels.sha256))throw Error('EMBEDDED_MODEL_GATE_REQUIRED');if(expectedVersion!==undefined&&manifest.version!==expectedVersion||receipt.payloadVerified!==true||receipt.status!=='PASS'||receipt.version!==manifest.version||receipt.nativeSHA256!==bundle.sha256||receipt.installerSHA256!==sha(fs.readFileSync(installer))||JSON.stringify(receipt.cases?.map(c=>c.name).sort())!==JSON.stringify(['fresh','legacy-first','legacy-r2','linked-legacy'])||!receipt.cases.every(c=>c.modelsOnly&&c.folderDrop===true&&c.dingtalkCli===true&&c.dingtalkSkill===true&&c.settingsModelsOnly===true&&c.settingsPayloadClean===true&&c.switchAndReload&&(c.name!=='linked-legacy'||c.linkedUpgrade===true&&c.activeNativeSHA256===bundle.sha256)&&(c.name==='fresh'||c.cachedUpgrade===true)&&JSON.stringify(c.scenes)===JSON.stringify(['bot','ordinary','group'])))throw Error('MODEL_PICKER_RELEASE_GATE_REQUIRED');return receipt;}
+diff --git a/scripts/prepare-account-models.mjs b/scripts/prepare-account-models.mjs
+index e2e4c02..6a00a0c 100644
+--- a/scripts/prepare-account-models.mjs
++++ b/scripts/prepare-account-models.mjs
+@@ -1,7 +1,7 @@
+ import fs from 'node:fs';import path from 'node:path';import {createRequire,isBuiltin} from 'node:module';import {createHash} from 'node:crypto';import {execFileSync} from 'node:child_process';
+ const source=path.resolve(process.argv[2]??'E:/Workspace/naumi-central-identity-20261118'),require=createRequire(path.join(source,'package.json')),esbuild=require('esbuild'),out=path.resolve('runtime/account-models-service');fs.mkdirSync(out,{recursive:true});
+ const entry=path.join(source,'src/lib/model-config/credential-reader.ts');if(!fs.existsSync(entry))throw Error('ORIGINAL_CREDENTIAL_READER_REQUIRED');
+-const live=process.argv[3]==='live';
+-const result=await esbuild.build({entryPoints:[live?'scripts/account-models-live-host.mjs':process.argv[3]==='inspect'?'services/account-models/inspect.mjs':'services/account-models/main.mjs'],bundle:true,write:false,platform:'node',format:'esm',banner:{js:"import { createRequire as __createRequire } from 'node:module';const require=__createRequire(import.meta.url);"},packages:'external',tsconfig:path.join(source,'tsconfig.json'),plugins:[{name:'original-credential-owner',setup(b){b.onResolve({filter:/^naumi-credentials-owner$/},()=>({path:entry}));b.onResolve({filter:/^naumi-password-owner$/},()=>({path:path.join(source,'src/lib/pw.ts')}));b.onResolve({filter:/^server-only$/},()=>({path:'server-only',namespace:'empty'}));b.onLoad({filter:/.*/,namespace:'empty'},()=>({contents:'',loader:'js'}));b.onResolve({filter:/^(?:pg|pg-connection-string|pg-pool|pg-protocol|pg-types|pg-int8|postgres-array|postgres-bytea|postgres-date|postgres-interval|xtend|pgpass|split2|https-proxy-agent|agent-base|debug|ms|supports-color|has-flag)(?:\/.*)?$/},args=>{let resolved;try{resolved=createRequire(args.importer||path.join(source,'package.json')).resolve(args.path);}catch{resolved=require.resolve(args.path);}return {path:resolved,external:false};});}}]});
+-const bytes=result.outputFiles[0].contents;fs.writeFileSync(path.join(out,live?'live-host.mjs':process.argv[3]==='inspect'?'inspect.mjs':'server.mjs'),bytes);for(const f of ['admin.html','admin.js','package.json','nginx-location.conf','Dockerfile'])fs.copyFileSync('services/account-models/'+f,path.join(out,f));
+-const pin={sourceSHA:execFileSync('git',['rev-parse','HEAD'],{cwd:source,encoding:'utf8'}).trim(),readerSHA256:createHash('sha256').update(fs.readFileSync(entry)).digest('hex'),bundleSHA256:createHash('sha256').update(bytes).digest('hex'),credentialsIncluded:false};fs.writeFileSync(path.join(out,live?'LIVE_PIN.json':process.argv[3]==='inspect'?'INSPECT_PIN.json':'CONTRACT_PIN.json'),JSON.stringify(pin,null,2)+'\n');console.log('ACCOUNT_MODEL_SERVICE_BUNDLE credentialsIncluded=false source='+pin.sourceSHA+' bytes='+bytes.length);
++const live=process.argv[3]==='live',operator=process.argv[3]==='operator';
++const result=await esbuild.build({entryPoints:[operator?'scripts/account-models-operator.mjs':live?'scripts/account-models-live-host.mjs':process.argv[3]==='inspect'?'services/account-models/inspect.mjs':'services/account-models/main.mjs'],bundle:true,write:false,platform:'node',format:'esm',banner:{js:"import { createRequire as __createRequire } from 'node:module';const require=__createRequire(import.meta.url);"},packages:'external',tsconfig:path.join(source,'tsconfig.json'),plugins:[{name:'original-credential-owner',setup(b){b.onResolve({filter:/^naumi-credentials-owner$/},()=>({path:entry}));b.onResolve({filter:/^naumi-password-owner$/},()=>({path:path.join(source,'src/lib/pw.ts')}));b.onResolve({filter:/^server-only$/},()=>({path:'server-only',namespace:'empty'}));b.onLoad({filter:/.*/,namespace:'empty'},()=>({contents:'',loader:'js'}));b.onResolve({filter:/^(?:pg|pg-connection-string|pg-pool|pg-protocol|pg-types|pg-int8|postgres-array|postgres-bytea|postgres-date|postgres-interval|xtend|pgpass|split2|https-proxy-agent|agent-base|debug|ms|supports-color|has-flag)(?:\/.*)?$/},args=>{let resolved;try{resolved=createRequire(args.importer||path.join(source,'package.json')).resolve(args.path);}catch{resolved=require.resolve(args.path);}return {path:resolved,external:false};});}}]});
++const bytes=result.outputFiles[0].contents;fs.writeFileSync(path.join(out,operator?'operator.mjs':live?'live-host.mjs':process.argv[3]==='inspect'?'inspect.mjs':'server.mjs'),bytes);for(const f of ['admin.html','admin.js','package.json','nginx-location.conf','Dockerfile'])fs.copyFileSync('services/account-models/'+f,path.join(out,f));
++const pin={sourceSHA:execFileSync('git',['rev-parse','HEAD'],{cwd:source,encoding:'utf8'}).trim(),readerSHA256:createHash('sha256').update(fs.readFileSync(entry)).digest('hex'),bundleSHA256:createHash('sha256').update(bytes).digest('hex'),credentialsIncluded:false};fs.writeFileSync(path.join(out,operator?'OPERATOR_PIN.json':live?'LIVE_PIN.json':process.argv[3]==='inspect'?'INSPECT_PIN.json':'CONTRACT_PIN.json'),JSON.stringify(pin,null,2)+'\n');console.log('ACCOUNT_MODEL_SERVICE_BUNDLE credentialsIncluded=false source='+pin.sourceSHA+' bytes='+bytes.length);
+diff --git a/scripts/prepare-desktop-model-import47.mjs b/scripts/prepare-desktop-model-import47.mjs
+index da7891a..4bea0bc 100644
+--- a/scripts/prepare-desktop-model-import47.mjs
++++ b/scripts/prepare-desktop-model-import47.mjs
+@@ -7,18 +7,21 @@ import {createHash} from 'node:crypto';
+ const source=path.resolve(process.argv[2]??'E:/Workspace/naumi-central-identity-20261118');
+ const require=createRequire(path.join(source,'package.json')),esbuild=require('esbuild');
+ const out=path.resolve('runtime/desktop-model-import47');fs.mkdirSync(out,{recursive:true});
+-const result=await esbuild.build({entryPoints:['scripts/desktop-model-import47-cli.mjs'],bundle:true,write:false,platform:'node',format:'cjs',packages:'external',treeShaking:true,tsconfig:path.join(source,'tsconfig.json'),plugins:[{
++const contractOnly=process.argv[3]==='contracts';
++const result=await esbuild.build({...contractOnly?{stdin:{contents:"export * from 'naumi-admin-contracts';",resolveDir:process.cwd(),sourcefile:'import-contracts.mjs'}}:{entryPoints:['scripts/desktop-model-import47-cli.mjs']},bundle:true,write:false,platform:'node',format:'cjs',packages:'external',treeShaking:true,tsconfig:path.join(source,'tsconfig.json'),plugins:[{
+  name:'operator-public-contracts',setup(b){
++  b.onResolve({filter:/^@\/lib\/model-config\/storage-schema$/},args=>args.importer.replaceAll('\\','/').endsWith('/src/lib/model-config/credentials.ts')?{path:'credential-readiness',namespace:'no-ddl-ready'}:undefined);
++  b.onLoad({filter:/.*/,namespace:'no-ddl-ready'},()=>({contents:`import {ensureImportSchema} from ${JSON.stringify(path.resolve('scripts/lib/desktop-model-import-ready.mjs').replaceAll('\\','/'))};import {ensureModelSchema as original} from ${JSON.stringify(source+'/src/lib/model-config/storage-schema.ts')};export const ensureModelSchema=pool=>process.argv.includes('--existing-schema')?ensureImportSchema(pool):original(pool);`,resolveDir:source,loader:'js'}));
+   b.onResolve({filter:/^(?:https-proxy-agent|agent-base|debug|ms|supports-color|has-flag|lucide-react|react(?:\/.*)?)$/},args=>({path:require.resolve(args.path),external:false}));
+   b.onResolve({filter:/^naumi-admin-contracts$/},()=>({path:'contracts',namespace:'operator-contracts'}));
+-  b.onLoad({filter:/.*/,namespace:'operator-contracts'},()=>({contents:`export {createCredentialStore} from ${JSON.stringify(source+'/src/lib/model-config/credentials.ts')};export {createCredentialReader} from ${JSON.stringify(source+'/src/lib/model-config/credential-reader.ts')};export {ensureModelSchema} from ${JSON.stringify(source+'/src/lib/model-config/storage-schema.ts')};export {supplierMetadataSchema,unknownSupplierMetadata} from ${JSON.stringify(source+'/src/lib/supplier-models/types.ts')};export {listSupplierModelsFrom} from ${JSON.stringify(source+'/src/lib/supplier-models/repository.ts')};`,resolveDir:source,loader:'ts'}));
++  b.onLoad({filter:/.*/,namespace:'operator-contracts'},()=>({contents:`export {ensureImportSchema} from ${JSON.stringify(path.resolve('scripts/lib/desktop-model-import-ready.mjs').replaceAll('\\','/'))};export {createCredentialStore} from ${JSON.stringify(source+'/src/lib/model-config/credentials.ts')};export {createCredentialReader} from ${JSON.stringify(source+'/src/lib/model-config/credential-reader.ts')};export {ensureModelSchema} from ${JSON.stringify(source+'/src/lib/model-config/storage-schema.ts')};export {supplierMetadataSchema,unknownSupplierMetadata} from ${JSON.stringify(source+'/src/lib/supplier-models/types.ts')};export {listSupplierModelsFrom} from ${JSON.stringify(source+'/src/lib/supplier-models/repository.ts')};`,resolveDir:source,loader:'ts'}));
+   b.onResolve({filter:/^server-only$/},()=>({path:'server-only',namespace:'operator-cli'}));
+   b.onLoad({filter:/.*/,namespace:'operator-cli'},()=>({contents:'',loader:'js'}));
+  }
+ }]});
+-const bytes=result.outputFiles[0].contents;fs.writeFileSync(path.join(out,'operator.cjs'),bytes);
++const bytes=result.outputFiles[0].contents;fs.writeFileSync(path.join(out,contractOnly?'contracts.cjs':'operator.cjs'),bytes);
+ const files=['src/lib/model-config/credentials.ts','src/lib/model-config/credential-reader.ts','src/lib/model-config/storage-schema.ts','src/lib/settings.ts','src/lib/settings-secret.ts','src/lib/supplier-models/types.ts','src/lib/supplier-models/repository.ts'];
+ const sha=b=>createHash('sha256').update(b).digest('hex');
+ const pin={sourceMain:execFileSync('git',['rev-parse','HEAD'],{cwd:source,encoding:'utf8'}).trim(),bundleSHA256:sha(bytes),files:files.map(file=>({file,sha256:sha(fs.readFileSync(path.join(source,file)))}))};
+ assert(!bytes.toString().includes('E:/Workspace/naumi-desktop/.dsh'));
+-fs.writeFileSync(path.join(out,'CONTRACT_PIN.json'),JSON.stringify(pin,null,2)+'\n');console.log('DESKTOP_MODEL_IMPORT_BUNDLE '+JSON.stringify({sourceMain:pin.sourceMain,bundleSHA256:pin.bundleSHA256,bytes:bytes.length,credentialsIncluded:false}));
++fs.writeFileSync(path.join(out,contractOnly?'CONTRACT_TEST_PIN.json':'CONTRACT_PIN.json'),JSON.stringify(pin,null,2)+'\n');console.log('DESKTOP_MODEL_IMPORT_BUNDLE '+JSON.stringify({sourceMain:pin.sourceMain,bundleSHA256:pin.bundleSHA256,bytes:bytes.length,credentialsIncluded:false}));
+diff --git a/scripts/publish-desktop-update.mjs b/scripts/publish-desktop-update.mjs
+index 99ba897..c268943 100644
+--- a/scripts/publish-desktop-update.mjs
++++ b/scripts/publish-desktop-update.mjs
+@@ -70,6 +70,8 @@ function capture(command, args) {
+ 
+ export function assertEmbeddedPublication(manifest,ack=false){if(manifest.edition==='embedded-test'){if(!ack||manifest.personalCredentials!==true||manifest.embeddedModels?.distribution!=='two-user-test'||manifest.embeddedModels?.models!==4||!(/^[a-f0-9]{64}$/).test(manifest.embeddedModels?.sha256))throw Error('EMBEDDED_TEST_PUBLICATION_ACK_REQUIRED');}else if(manifest.personalCredentials)throw Error('PERSONAL_CREDENTIAL_PUBLICATION_FORBIDDEN');}
+ 
++export function assertAccountModelsPublication(resource){if(resource.personalCredentials||resource.embeddedModels||resource.trial||resource.accountModels?.required!==true||resource.accountModels?.protocol!==1)throw Error('ACCOUNT_MODEL_CLOUD_DISTRIBUTION_REQUIRED');}
++
+ function main() {
+   const args = process.argv.slice(2);
+   const desktop = path.join(root, 'desktop');
+@@ -83,6 +85,7 @@ function main() {
+   if (fs.existsSync(stagedManifest) && JSON.parse(fs.readFileSync(stagedManifest)).edition === 'internal-trial') throw Error('INTERNAL_TRIAL_PUBLICATION_FORBIDDEN');
+   const resource=JSON.parse(fs.readFileSync(stagedManifest));
+   assertEmbeddedPublication(resource,args.includes('--ack-embedded-test'));
++  assertAccountModelsPublication(resource);
+   const manifest = path.join(output, 'latest.yml');
+   const installer = path.join(output, `Naumi-Setup-${version}-x64.exe`);
+   assertModelPickerRelease(output, version);
+diff --git a/scripts/verify-account-model-service.mjs b/scripts/verify-account-model-service.mjs
+index 0874c84..9428e9f 100644
+--- a/scripts/verify-account-model-service.mjs
++++ b/scripts/verify-account-model-service.mjs
+@@ -1,2 +1,2 @@
+ import{spawn}from'node:child_process';import fs from'node:fs';import os from'node:os';import path from'node:path';import assert from'node:assert/strict';
+-const dir=fs.mkdtempSync(path.join(os.tmpdir(),'naumi-model-service-')),child=spawn(process.execPath,['runtime/account-models-service/server.mjs'],{windowsHide:true,env:{...process.env,NAUMI_IDENTITY_ORIGIN:'http://127.0.0.1:1',NAUMI_ACCOUNT_MODEL_DATA:dir,NAUMI_ACCOUNT_MODEL_ASSETS:path.resolve('runtime/account-models-service'),PORT:'0'}}),exited=new Promise(resolve=>child.once('exit',resolve));let output='',error='';child.stderr.on('data',b=>error+=b);try{const url=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('SERVICE_START_TIMEOUT '+error)),10000);exited.then(c=>{clearTimeout(t);reject(Error('SERVICE_EXIT '+c+' '+error));});child.stdout.on('data',b=>{output+=b;const m=output.match(/READY protocol=1 port=(\d+)/);if(m){clearTimeout(t);resolve('http://127.0.0.1:'+m[1]);}});});assert.equal((await fetch(url+'/api/desktop-models/health')).status,200);assert.equal((await fetch(url+'/admin/desktop-models')).status,401);console.log('ACCOUNT_MODEL_BUNDLE process=PASS HTTP=200 admin_without_login=401 credentials=NONE modelCalls=0');}finally{child.kill();await exited;fs.rmSync(dir,{recursive:true,force:true});}
++const dir=fs.mkdtempSync(path.join(os.tmpdir(),'naumi-model-service-')),catalog=path.join(dir,'catalog.json');fs.writeFileSync(catalog,JSON.stringify({version:1,models:[{id:'m-'+'a'.repeat(24),sourceRoute:'r-'+'b'.repeat(32),name:'Fixture'}]}));const child=spawn(process.execPath,['runtime/account-models-service/server.mjs'],{windowsHide:true,env:{...process.env,NAUMI_IDENTITY_ORIGIN:'http://127.0.0.1:1',NAUMI_ACCOUNT_MODEL_DATA:dir,NAUMI_ACCOUNT_MODEL_CATALOG:catalog,NAUMI_ACCOUNT_MODEL_ASSETS:path.resolve('runtime/account-models-service'),PORT:'0'}}),exited=new Promise(resolve=>child.once('exit',resolve));let output='',error='';child.stderr.on('data',b=>error+=b);try{const url=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('SERVICE_START_TIMEOUT '+error)),10000);exited.then(c=>{clearTimeout(t);reject(Error('SERVICE_EXIT '+c+' '+error));});child.stdout.on('data',b=>{output+=b;const m=output.match(/READY protocol=1 port=(\d+)/);if(m){clearTimeout(t);resolve('http://127.0.0.1:'+m[1]);}});});assert.equal((await fetch(url+'/api/desktop-models/health')).status,200);assert.equal((await fetch(url+'/admin/desktop-models')).status,401);console.log('ACCOUNT_MODEL_BUNDLE process=PASS HTTP=200 admin_without_login=401 credentials=NONE modelCalls=0');}finally{child.kill();await exited;fs.rmSync(dir,{recursive:true,force:true});}
+diff --git a/scripts/verify-account-model-takeover-pg.mjs b/scripts/verify-account-model-takeover-pg.mjs
+new file mode 100644
+index 0000000..9e5f446
+--- /dev/null
++++ b/scripts/verify-account-model-takeover-pg.mjs
+@@ -0,0 +1,28 @@
++import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createRequire,Module} from 'node:module';import {randomUUID,randomBytes} from 'node:crypto';import {spawnSync,execFileSync} from 'node:child_process';
++import {importDesktopModels,rollbackDesktopModels} from './lib/desktop-model-import-store.mjs';import {prepareDesktopImport} from './lib/desktop-model-import.mjs';import {ensureImportSchema} from './lib/desktop-model-import-ready.mjs';import {provisionReadonly} from '../services/account-models/readonly-role.mjs';
++const root=process.cwd(),source='E:/Workspace/naumi-central-identity-20261118',require=createRequire(path.join(source,'package.json')),pg=require('pg');process.env.NODE_PATH=path.join(source,'node_modules');Module._initPaths();const ownRequire=createRequire(import.meta.url),contracts=ownRequire('../runtime/desktop-model-import47/contracts.cjs'),run=randomUUID(),container='naumi-model-takeover-'+run;
++const checks=[],trace=[],docker=(...a)=>execFileSync('docker',a,{encoding:'utf8',windowsHide:true});let pool;
++const ok=(name,v=true)=>{assert(v,name);checks.push(name);};
++try{
++ docker('run','-d','--name',container,'-e','POSTGRES_PASSWORD=isolated-fixture-only','--tmpfs','/var/lib/postgresql/data:rw,size=256m','-p','127.0.0.1::5432','postgres:16-alpine');const info=JSON.parse(docker('inspect',container))[0],port=info.NetworkSettings.Ports['5432/tcp'][0].HostPort,connectionString='postgresql://postgres:isolated-fixture-only@127.0.0.1:'+port+'/postgres';
++ pool=new pg.Pool({connectionString,max:6});for(let i=0;;i++)try{await pool.query('SELECT 1');break;}catch(e){if(i===30)throw e;await new Promise(r=>setTimeout(r,200));}
++ await contracts.ensureModelSchema(pool);const supplier=fs.readFileSync(path.join(source,'src/lib/supplier-models/schema.ts'),'utf8').match(/SUPPLIER_MODELS_SQL=`([\s\S]*?)`;/)[1];await pool.query(supplier);await pool.query("CREATE TABLE app_billing_config_versions(version bigint PRIMARY KEY,config jsonb);INSERT INTO app_billing_config_versions VALUES(1,'{}');CREATE TABLE app_users(email text PRIMARY KEY);INSERT INTO app_users VALUES('fixture@example.test')");
++ const input=()=>prepareDesktopImport({sourceId:'isolated-takeover',operationId:randomUUID(),providers:{example:{displayName:'Fixture',api:'anthropic-messages',baseURL:'https://fixture.invalid',apiKeyEnv:'FIXTURE',models:[{id:'fixture',name:'Fixture',maxTokens:64,contextWindow:4096,input:['text']}]}},refs:{FIXTURE:'isolated-upstream-only'}});
++ const env={...process.env,DATABASE_URL:connectionString,SETTINGS_SECRET:'isolated-fixture-settings-secret-not-production',NAUMI_IMPORT_SQL_TRACE:'shape'};process.env.SETTINGS_SECRET=env.SETTINGS_SECRET;
++ const invoke=(request,mode='apply')=>{const r=spawnSync(process.execPath,['runtime/desktop-model-import47/operator.cjs',mode,'--existing-schema'],{env,input:JSON.stringify(request),windowsHide:true,encoding:'utf8'});const v=JSON.parse(r.stdout);trace.push({mode,status:v.status,exit:r.status,shapes:r.stderr.split('\n').find(l=>l.startsWith('IMPORT_SQL_SHAPES '))});return {r,v};};
++ const count=async()=>Number((await pool.query('SELECT count(*) n FROM app_model_credentials')).rows[0].n);
++ const request=input(),first=invoke(request);if(first.v.status!=='PASS')console.log(JSON.stringify({first:first.v,stderr:first.r.stderr}));ok('real_pg_original_crypto_import',first.v.status==='PASS'&&first.v.models===1);ok('no_ddl_import_sql_trace',!/["'](?:CREATE|ALTER|DROP|GRANT)["']:/.test(first.r.stderr));
++ const repeated=invoke(request);ok('same_operation_idempotent',repeated.v.replayed===true&&await count()===1);
++ const conflict=invoke({...request,operationId:randomUUID()});ok('provider_conflict_zero_additional_rows',conflict.v.status==='FAIL'&&await count()===1);
++ await pool.query('ALTER TABLE app_supplier_source_snapshots RENAME COLUMN source_data TO source_wrong');const missing=invoke(input());ok('missing_column_rejects_before_write',missing.v.status==='FAIL'&&await count()===1);await pool.query('ALTER TABLE app_supplier_source_snapshots RENAME COLUMN source_wrong TO source_data');
++ await pool.query('ALTER TABLE app_supplier_source_snapshots ALTER COLUMN source_data TYPE text USING source_data::text');const wrongType=invoke(input());ok('wrong_type_rejects_before_write',wrongType.v.status==='FAIL'&&await count()===1);await pool.query('ALTER TABLE app_supplier_source_snapshots ALTER COLUMN source_data TYPE jsonb USING source_data::jsonb');
++ await pool.query('ALTER TABLE app_supplier_model_metadata DROP CONSTRAINT app_supplier_model_metadata_provider_id_model_id_key');await assert.rejects(ensureImportSchema(pool),/CONSTRAINT_MISMATCH/);ok('missing_unique_constraint_rejected');await pool.query('ALTER TABLE app_supplier_model_metadata ADD UNIQUE(provider_id,model_id)');
++ const pending={...input(),sourceId:'isolated-committed'};pending.connections[0].sourceProviderId='another';// rebuild namespaced provider before reuse
++ const committed=prepareDesktopImport({providers:{other:{displayName:'Fixture',api:'anthropic-messages',baseURL:'https://fixture.invalid',apiKeyEnv:'F',models:[{id:'fixture',maxTokens:64,contextWindow:4096,input:['text']}]}},refs:{F:'fixture-only'},sourceId:'isolated-committed',operationId:randomUUID()});
++ let committedError;try{await importDesktopModels({pool,contracts,request:committed,fault:s=>{if(s==='committed')throw Error('VERIFY_INTERRUPTED');}});}catch(e){committedError=e;}ok('commit_then_verify_failure_is_explicit',committedError?.committed===true&&committedError.operationId===committed.operationId&&await count()===2);
++ ok('committed_operation_read_only_verify',invoke(committed,'verify').v.status==='PASS');
++ const password=randomBytes(32).toString('base64url'),role=await provisionReadonly(pool,password);ok('separate_role_zero_business_writes',role.businessWrites===0&&role.memberships===0&&role.ownedObjects===0);
++ const ro=new pg.Pool({connectionString:connectionString.replace('postgres:isolated-fixture-only',role.role+':'+password)});try{await ro.query('SELECT provider_id,source_data FROM app_supplier_source_snapshots');await ro.query('SELECT id,provider_id,key_enc FROM app_model_credentials');ok('readonly_role_can_read_exact_contract');await ro.query('SET default_transaction_read_only=off');await assert.rejects(ro.query("UPDATE app_users SET email='changed@example.test'"),e=>e.code==='42501');ok('no_write_grants_even_if_read_only_default_disabled');await assert.rejects(ro.query('SELECT name FROM app_users'),e=>e.code==='42703');}finally{await ro.end();}
++ await rollbackDesktopModels({pool,operationId:committed.operationId});await rollbackDesktopModels({pool,operationId:request.operationId});ok('own_rows_rollback_preserves_unrelated_user',await count()===0&&(await pool.query('SELECT count(*) n FROM app_users')).rows[0].n==='1');
++ const result={status:'PASS',checks,trace,isolatedPG:true,productionWrites:0,modelCalls:0};fs.writeFileSync('evidence/account-takeover/PG.json',JSON.stringify(result,null,2)+'\n');console.log('ACCOUNT_TAKEOVER_PG_PASS checks='+checks.length+' productionWrites=0 modelCalls=0');
++}finally{await pool?.end();docker('rm','-f',container);}
+diff --git a/scripts/verify-model-picker-distribution.mjs b/scripts/verify-model-picker-distribution.mjs
+index 1d3219e..56782bb 100644
+--- a/scripts/verify-model-picker-distribution.mjs
++++ b/scripts/verify-model-picker-distribution.mjs
+@@ -12,15 +12,15 @@ export async function verifyModelPickerDistribution({root=process.cwd(),release=
+  const pickerRelative='node_modules/@deepseek-ai/dsh-client-ui-model-selection/lib/client.js';
+  const previousVersion=manifest.version.split('.').map(Number);previousVersion[2]--;const previousExecutable=process.env.NAUMI_PREVIOUS_EXE??'D:/NaumiReleases/'+previousVersion.join('.')+'/win-unpacked/Naumi.exe';if(!baseline)assert(fs.existsSync(previousExecutable),'MODEL_PICKER_PREVIOUS_PACKAGE_REQUIRED: set NAUMI_PREVIOUS_EXE');
+  const require=createRequire(path.join(root,'desktop/package.json')),{_electron}=require('playwright'),{accountRoot}=require(path.join(root,'desktop/app/identity.cjs'));
+- fs.mkdirSync(out,{recursive:true});const temp=fs.mkdtempSync(path.join(os.tmpdir(),'nmp-'));fs.writeFileSync(path.join(temp,'.naumi-model-picker-gate'),'models-only-v1');const owner={email:'distribution-gate@example.test',name:'Distribution fixture'},cases=[],checks=[],errors=[];let inference=0,app,worker,fixturePayload;const wireModels=[];
++ fs.mkdirSync(out,{recursive:true});const temp=fs.mkdtempSync(path.join(os.tmpdir(),'nmp-'));fs.writeFileSync(path.join(temp,'.naumi-model-picker-gate'),'models-only-v1');const owner={email:'distribution-gate@example.test',name:'Distribution fixture'},cases=[],checks=[],errors=[];let inference=0,app,worker,fixturePayload,usingCloud=false;const cloudModels=['claude fable5.2','gpt6.1sol','gpt6.1terra','claude opus5.5'].map((name,i)=>({id:'m-'+String(i+1).repeat(24),name,maxTokens:16384,contextWindow:128000,input:['text'],reasoning:false}));const wireModels=[];
+  const check=(name,ok)=>{assert(ok,name);checks.push(name);console.log('MODEL_PICKER_GATE_PASS '+name);};
+- const server=http.createServer(async(req,res)=>{const pathname=req.url.split('?')[0];res.setHeader('content-type','application/json');if(pathname==='/api/desktop-models/v1/bootstrap'){res.writeHead(404);return res.end('{}');}if(pathname==='/api/auth/session')return res.end(JSON.stringify({user:owner}));if(pathname.endsWith('/models'))return res.end(JSON.stringify({data:[{id:'gpt-6-luna'},{id:'deepseek-flash'}],has_more:false}));if(pathname.endsWith('/messages')){inference++;let raw='';for await(const c of req)raw+=c;const body=JSON.parse(raw);wireModels.push(body.model);res.writeHead(200,{'content-type':'text/event-stream'});const emit=(type,v)=>res.write('event: '+type+'\ndata: '+JSON.stringify({type,...v})+'\n\n');emit('message_start',{message:{id:'fixture-'+inference,type:'message',role:'assistant',content:[],model:body.model,usage:{input_tokens:5,output_tokens:0}}});emit('content_block_start',{index:0,content_block:{type:'text',text:''}});emit('content_block_delta',{index:0,delta:{type:'text_delta',text:'PICKER_OK'}});emit('content_block_stop',{index:0});emit('message_delta',{delta:{stop_reason:'end_turn',stop_sequence:null},usage:{output_tokens:3}});emit('message_stop',{});return res.end();}res.writeHead(401).end('{"code":"UNAUTHENTICATED"}');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
++ const server=http.createServer(async(req,res)=>{const pathname=req.url.split('?')[0];res.setHeader('content-type','application/json');if(pathname==='/api/desktop-models/v1/bootstrap'){if(!usingCloud){res.writeHead(404);return res.end('{}');}let raw='';for await(const c of req)raw+=c;const {deviceId}=JSON.parse(raw);return res.end(JSON.stringify({protocol:1,subject:owner.email,deviceId,revision:1,expiresAt:Date.now()+300000,token:'a'.repeat(43),routes:cloudModels.map(m=>({id:m.id,provider:'naumi-account-'+m.id,group:'Naumi',api:'anthropic-messages',baseURL:origin+'/api/desktop-models/v1/gateway/'+m.id,model:m}))}));}if(pathname==='/api/auth/session')return res.end(JSON.stringify({user:owner}));if(pathname.endsWith('/models'))return res.end(JSON.stringify({data:[{id:'gpt-6-luna'},{id:'deepseek-flash'}],has_more:false}));if(pathname.endsWith('/messages')){inference++;let raw='';for await(const c of req)raw+=c;const body=JSON.parse(raw);wireModels.push(body.model);res.writeHead(200,{'content-type':'text/event-stream'});const emit=(type,v)=>res.write('event: '+type+'\ndata: '+JSON.stringify({type,...v})+'\n\n');emit('message_start',{message:{id:'fixture-'+inference,type:'message',role:'assistant',content:[],model:body.model,usage:{input_tokens:5,output_tokens:0}}});emit('content_block_start',{index:0,content_block:{type:'text',text:''}});emit('content_block_delta',{index:0,delta:{type:'text_delta',text:'PICKER_OK'}});emit('content_block_stop',{index:0});emit('message_delta',{delta:{stop_reason:'end_turn',stop_sequence:null},usage:{output_tokens:3}});emit('message_stop',{});return res.end();}res.writeHead(401).end('{"code":"UNAUTHENTICATED"}');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
+  const socket=http.createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+socket.address().port;await new Promise(r=>socket.close(r));
+  const schemas=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/distributed-trial-models.json'))),fresh={luna:{displayName:'CC · Supplier A / Messages',api:'anthropic-messages',baseURL:origin,apiKeyEnv:'FIXTURE_LUNA',models:[{id:'gpt-6-luna'}]},flash:{displayName:'CC · Supplier B / Messages',api:'anthropic-messages',baseURL:origin,apiKeyEnv:'FIXTURE_FLASH',models:[{id:'deepseek-flash'}]}};
+  const rpc=(page,method,args)=>page.evaluate(async({method,args})=>{const r=await fetch('/api/'+method,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'client-request',rpcId:crypto.randomUUID(),method,payload:{args}})}),v=(await r.json()).result;if(!v?.ok)throw Error(v?.error?.code??method);return v.value;},{method,args});
+  const api=(page,url,body,header='x-naumi-bots')=>page.evaluate(async({url,body,header})=>{const r=await fetch(url,{...body?{method:'POST',headers:{'Content-Type':'application/json',[header]:'1'},body:JSON.stringify(body)}:{}}),v=await r.json();if(!r.ok)throw Error(v.error??'HTTP_'+r.status);return v;},{url,body,header});
+  async function close(){if(app){await app.close();app=null;}if(worker){let stopped=false;for(let i=0;i<100;i++){try{process.kill(worker,0);await new Promise(r=>setTimeout(r,100));}catch{stopped=true;break;}}assert(stopped,'OWN_FIXTURE_WORKER_REMAINS');worker=null;}}
+- async function boot(data,binary=path.join(release,'win-unpacked/Naumi.exe')){const env={...process.env,NAUMI_USER_DATA:data,LOCALAPPDATA:path.join(temp,'local'),NAUMI_IDENTITY_ORIGIN:origin,NAUMI_ENTERPRISE_ORIGIN:origin,NAUMI_UPDATE_URL:origin,NAUMI_HOST_URL:url,NAUMI_TEST:'1',NAUMI_TEST_HIDDEN:'1',...(fixturePayload?{NAUMI_EMBEDDED_TEST_FIXTURE:fixturePayload}:{})};for(const key of['ELECTRON_RUN_AS_NODE','NAUMI_ROOT','NAUMI_DSH_HOME','NAUMI_MODEL_POLICY','NAUMI_BUILD_MODEL_POLICY'])delete env[key];app=await _electron.launch({executablePath:binary,env,timeout:120000});const page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));await Promise.race([page.waitForURL(u=>u.origin===url,{timeout:120000}),page.waitForFunction(()=>location.protocol==='file:'&&new URLSearchParams(location.search).has('error'),null,{timeout:120000}).then(async()=>{throw Error('PACKAGED_STARTUP_'+await page.evaluate(()=>new URLSearchParams(location.search).get('error')));})]);await page.waitForFunction(()=>document.body.getAttribute('data-naumi')==='enterprise');const state=await app.evaluate(({app})=>({owned:__naumiTest.backend.owned,pid:__naumiTest.backend.child?.pid,version:app.getVersion(),linked:!!__naumiTest.settings.linkedService,root:__naumiTest.settings.root}));assert(state.owned);if(binary===path.join(release,'win-unpacked/Naumi.exe'))assert.equal(state.version,manifest.version);else assert.notEqual(state.version,manifest.version,'PREVIOUS_EXE_MUST_BE_OLDER');worker=state.pid;page.gateAppVersion=state.version;page.gateRuntime=state;return page;}
++ async function boot(data,binary=path.join(release,'win-unpacked/Naumi.exe')){usingCloud=!!manifest.accountModels?.required&&binary===path.join(release,'win-unpacked/Naumi.exe');const env={...process.env,NAUMI_USER_DATA:data,LOCALAPPDATA:path.join(temp,'local'),NAUMI_IDENTITY_ORIGIN:origin,NAUMI_ENTERPRISE_ORIGIN:origin,NAUMI_UPDATE_URL:origin,NAUMI_HOST_URL:url,NAUMI_TEST:'1',NAUMI_TEST_HIDDEN:'1',...(fixturePayload?{NAUMI_EMBEDDED_TEST_FIXTURE:fixturePayload}:{})};for(const key of['ELECTRON_RUN_AS_NODE','NAUMI_ROOT','NAUMI_DSH_HOME','NAUMI_MODEL_POLICY','NAUMI_BUILD_MODEL_POLICY'])delete env[key];app=await _electron.launch({executablePath:binary,env,timeout:120000});const page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));await Promise.race([page.waitForURL(u=>u.origin===url,{timeout:120000}),page.waitForFunction(()=>location.protocol==='file:'&&new URLSearchParams(location.search).has('error'),null,{timeout:120000}).then(async()=>{throw Error('PACKAGED_STARTUP_'+await page.evaluate(()=>new URLSearchParams(location.search).get('error')));})]);await page.waitForFunction(()=>document.body.getAttribute('data-naumi')==='enterprise');const state=await app.evaluate(({app})=>({owned:__naumiTest.backend.owned,pid:__naumiTest.backend.child?.pid,version:app.getVersion(),linked:!!__naumiTest.settings.linkedService,root:__naumiTest.settings.root}));assert(state.owned);if(binary===path.join(release,'win-unpacked/Naumi.exe')){assert.equal(state.version,manifest.version);if(manifest.accountModels?.required)assert(await app.evaluate(()=>!!__naumiTest.settings.accountModels),'CLOUD_BOOTSTRAP_REQUIRED');}else assert.notEqual(state.version,manifest.version,'PREVIOUS_EXE_MUST_BE_OLDER');worker=state.pid;page.gateAppVersion=state.version;page.gateRuntime=state;return page;}
+  async function openPicker(page){const trigger=page.getByRole('button',{name:/选择模型，当前/}).first();await trigger.waitFor();await trigger.click();const menu=page.getByRole('menu',{name:'模型',exact:true});if(!await menu.isVisible())await page.getByRole('menuitem',{name:/^模型/}).first().click();await menu.waitFor();await menu.getByRole('menuitemradio').first().waitFor();return {menu,trigger};}
+  async function verifySeat(page,label,capture){const {menu}=await openPicker(page),buttons=menu.getByRole('menuitemradio'),names=(await buttons.allTextContents()).map(s=>s.trim()),catalog=await rpc(page,'session/modelCatalog',{}),expected=catalog.groups.flatMap(g=>g.models.map(m=>m.name));assert(names.length>0);assert.deepEqual(names,expected);const text=(await menu.innerText()).split(/\r?\n/).map(s=>s.trim()).filter(Boolean);check(label+(baseline?'_baseline_has_provider_headings':'_models_only_no_headers'),baseline?text.length>names.length:JSON.stringify(text)===JSON.stringify(names));if(capture){const png=await app.evaluate(async({BrowserWindow})=>Array.from((await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG()));fs.writeFileSync(capture,Buffer.from(png));}let index=0;for(let i=0;i<names.length;i++)if(await buttons.nth(i).getAttribute('aria-checked')!=='true'){index=i;break;}await buttons.nth(index).click();await page.waitForFunction(name=>[...document.querySelectorAll('button')].some(b=>b.getAttribute('aria-label')?.includes('选择模型，当前 '+name)),names[index]);return {names,index};}
+  async function verifySettings(page,label,capture){
+@@ -50,7 +50,8 @@ export async function verifyModelPickerDistribution({root=process.cwd(),release=
+     fs.mkdirSync(data,{recursive:true});const {homeBinding}=require(path.join(root,'desktop/app/profile.cjs'));fs.writeFileSync(path.join(data,'backend-link.json'),JSON.stringify({version:2,root:linkedRoot,home,homeHash:homeBinding(home),serviceUpdates:'bundled'}));
+    }
+    fs.writeFileSync(path.join(profile,'cordis.patch.yml'),JSON.stringify([{id:'llm-pi-ai',config:{providers}},{id:'agent-default-model',config:{provider:Object.keys(providers)[0],model:Object.values(providers)[0].models[0].id}}]));fs.writeFileSync(path.join(home,'.credentials.yaml'),JSON.stringify({version:1,refs,records:{}}));
+-   if(manifest.embeddedModels){const v=JSON.parse(fs.readFileSync(path.join(backend,'defaults/embedded-models.json')));assert.equal(sha(fs.readFileSync(path.join(backend,'defaults/embedded-models.json'))),manifest.embeddedModels.sha256);const routes=new Map();for(const[id,p]of Object.entries(v.providers)){const key=JSON.stringify([p.api,p.baseURL,p.apiKeyEnv]);if(!routes.has(key))routes.set(key,origin+'/'+name+'/embedded/route-'+routes.size);p.baseURL=routes.get(key);delete p.headers;}for(const ref of Object.keys(v.refs))v.refs[ref]='fixture-embedded-only';fixturePayload=path.join(temp,name,'embedded-fixture.json');fs.writeFileSync(fixturePayload,JSON.stringify(v));}
++   const fixtureSource=manifest.embeddedModels?path.join(backend,'defaults/embedded-models.json'):path.join(path.dirname(previousExecutable),'resources/backend/defaults/embedded-models.json');
++   if(fs.existsSync(fixtureSource)){const v=JSON.parse(fs.readFileSync(fixtureSource));if(manifest.embeddedModels)assert.equal(sha(fs.readFileSync(fixtureSource)),manifest.embeddedModels.sha256);const routes=new Map();for(const[id,p]of Object.entries(v.providers)){const key=JSON.stringify([p.api,p.baseURL,p.apiKeyEnv]);if(!routes.has(key))routes.set(key,origin+'/'+name+'/embedded/route-'+routes.size);p.baseURL=routes.get(key);delete p.headers;}for(const ref of Object.keys(v.refs))v.refs[ref]='fixture-embedded-only';fixturePayload=path.join(temp,name,'embedded-fixture.json');fs.writeFileSync(fixturePayload,JSON.stringify(v));}
+    let warmWorkspace,previousAppVersion;if(!baseline&&name!=='fresh'){const old=await boot(data,previousExecutable);previousAppVersion=old.gateAppVersion;warmWorkspace=(await rpc(old,'workspace/create',{request:{path:work}})).workspace;const oldCatalog=await api(old,'/naumi/bots');await api(old,'/naumi/bots',{action:'create-primary',requestId:randomUUID(),expectedRevision:oldCatalog.revision,name:'分发主助手',workspaceId:warmWorkspace.workspaceId});await old.evaluate(()=>localStorage.setItem('naumi.navigationMode.v1','bot'));await old.reload();await old.getByRole('button',{name:/^分发主助手，/}).click();const oldPicker=await openPicker(old);if(linked){const oldText=(await oldPicker.menu.innerText()).split(/\r?\n/).filter(s=>s.trim());const count=await oldPicker.menu.getByRole('menuitemradio').count();if(previousAppVersion==='0.4.8'){assert(oldText.length>count,'LINKED_BASELINE_MUST_REPRODUCE_HEADINGS');check(name+'_old_linked_headings_reproduced',true);}else{assert.equal(oldText.length,count,'PREVIOUS_FIXED_LINKED_PICKER_REGRESSED');check(name+'_previous_fixed_linked_picker_retained',true);}assert(old.gateRuntime.linked);}if(name==='legacy-first'&&previousAppVersion==='0.4.12'){await old.keyboard.press('Escape');await old.keyboard.press('Escape');check(name+'_old_folder_drop_error_reproduced',await verifyNativeFolderDrop(old,{folder:path.join(work,'旧版 folder'),label:'baseline',baseline:true,capture:path.join(out,'FOLDER_DROP_BASELINE.png')}));}await close();check(name+'_previous_exe_and_cached_picker_warmed',true);}
+    const page=await boot(data),workspace=warmWorkspace??(await rpc(page,'workspace/create',{request:{path:work}})).workspace,catalog=await api(page,'/naumi/bots'),primary=catalog.bots.find(b=>b.id===catalog.primaryBotId)??await api(page,'/naumi/bots',{action:'create-primary',requestId:randomUUID(),expectedRevision:catalog.revision,name:'分发主助手',workspaceId:workspace.workspaceId});
+    if(linked){assert(page.gateRuntime.linked);assert.equal(path.resolve(page.gateRuntime.root),path.resolve(linkedRoot));assert.equal(sha(fs.readFileSync(path.join(linkedRoot,pickerRelative))),native.sha256);check(name+'_active_linked_ui_matches_package',true);}
+@@ -66,8 +67,9 @@ export async function verifyModelPickerDistribution({root=process.cwd(),release=
+    const room=await api(page,'/naumi/bot-groups',{action:'create',id:randomUUID(),name:'分发测试群',botIds:[primary.id,employee.id],defaultBotId:primary.id},'x-naumi-bot-groups');assert(room.id);await page.getByRole('button',{name:'Bot',exact:true}).click();await page.reload();await page.getByRole('button',{name:'分发测试群',exact:true}).click();await verifySeat(page,name+'_group');check(name+'_group_native_folder_and_file_drop',await verifyNativeFolderDrop(page,{folder,label:name+'_group'}));
+    await close();const credentials=parse(fs.readFileSync(path.join(home,'.credentials.yaml'),'utf8'));check(name+'_supplier_credentials_preserved',Object.entries(refs).every(([ref,value])=>credentials.refs[ref]===value));cases.push({name,folderDrop:true,...settings,...cli,dingtalkSkill:true,modelsOnly:!baseline,switchAndReload:true,cachedUpgrade:name!=='fresh',...(linked?{linkedUpgrade:true,activeNativeSHA256:sha(fs.readFileSync(path.join(linkedRoot,pickerRelative)))}:{}),...(previousAppVersion?{previousVersion:previousAppVersion}:{}),scenes:['bot','ordinary','group'],credentialRefsPreserved:true});
+   }
++  if(manifest.accountModels?.required)check('cloud_native_requests_use_catalog_only',wireModels.length>=4&&wireModels.every(id=>cloudModels.some(m=>m.id===id)));
+   if(manifest.embeddedModels)check('embedded_native_requests_use_exact_sonnet_wire_id',wireModels.filter(id=>id==='claude-sonnet-5-5').length>=4);
+-  check('no_real_supplier_or_page_errors',errors.length===0);const receipt={status:baseline?'BASELINE':'PASS',version:manifest.version,nativeSHA256:native.sha256,installerSHA256:sha(fs.readFileSync(installer)),payloadVerified:true,...(manifest.embeddedModels?{embeddedConfigVerified:true,embeddedModels:4,embeddedWireVerified:wireModels.includes('claude-sonnet-5-5'),embeddedConfigSHA256:manifest.embeddedModels.sha256}:{}),checks,cases,fixtureRoot:temp,inference,realSupplierInference:0,pageErrors:errors,productionWrites:0};fs.writeFileSync(path.join(out,baseline?'MODEL_PICKER_BASELINE.json':'MODEL_PICKER_GATE.json'),JSON.stringify(receipt,null,2));console.log('MODEL_PICKER_DISTRIBUTION_'+receipt.status+' version='+manifest.version+' cases='+cases.length+' scenes='+cases.reduce((n,c)=>n+c.scenes.length,0)+' local_inference='+inference+' real_supplier_inference=0');return receipt;
++  check('no_real_supplier_or_page_errors',errors.length===0);const receipt={status:baseline?'BASELINE':'PASS',version:manifest.version,nativeSHA256:native.sha256,installerSHA256:sha(fs.readFileSync(installer)),payloadVerified:true,...(manifest.accountModels?.required?{cloudCatalogVerified:true,credentialsIncluded:false}:{}),...(manifest.embeddedModels?{embeddedConfigVerified:true,embeddedModels:4,embeddedWireVerified:wireModels.includes('claude-sonnet-5-5'),embeddedConfigSHA256:manifest.embeddedModels.sha256}:{}),checks,cases,fixtureRoot:temp,inference,realSupplierInference:0,pageErrors:errors,productionWrites:0};fs.writeFileSync(path.join(out,baseline?'MODEL_PICKER_BASELINE.json':'MODEL_PICKER_GATE.json'),JSON.stringify(receipt,null,2));console.log('MODEL_PICKER_DISTRIBUTION_'+receipt.status+' version='+manifest.version+' cases='+cases.length+' scenes='+cases.reduce((n,c)=>n+c.scenes.length,0)+' local_inference='+inference+' real_supplier_inference=0');return receipt;
+  }catch(error){let debug;try{if(app){const p=await app.firstWindow();debug={url:p.url(),body:(await p.locator('body').innerText()).slice(0,6000),buttons:await p.locator('button').evaluateAll(bs=>bs.map(b=>({label:b.getAttribute('aria-label'),text:b.textContent}))),models:p.url().startsWith('http:')?await p.evaluate(()=>fetch('/naumi/model-connections').then(r=>r.json())):null};}}catch{}fs.writeFileSync(path.join(out,'MODEL_PICKER_FAILURE.json'),JSON.stringify({checks,cases,fixtureRoot:temp,error:error.message,debug},null,2));throw error;}finally{await close();server.closeAllConnections();await new Promise(r=>server.close(r));}
+ }
+ if(process.argv[1]&&pathToFileURL(path.resolve(process.argv[1])).href===import.meta.url){const arg=name=>process.argv.find(a=>a.startsWith('--'+name+'='))?.slice(name.length+3);await verifyModelPickerDistribution({release:arg('release'),out:arg('out'),baseline:process.argv.includes('--baseline')});}
+diff --git a/services/account-models/README.md b/services/account-models/README.md
+index d2c61cb..aef9524 100644
+--- a/services/account-models/README.md
++++ b/services/account-models/README.md
+@@ -1,7 +1,7 @@
+ # Naumi 账号模型配置
+ 
+ ## 产品行为
+-后台入口 `/admin/desktop-models`：默认模型配置一次保存，已登录的Naumi账号自动继承；指定账号可覆盖或禁用。默认策略初始关闭，不因为安装服务就授权所有用户。模型保留来源分组、真实协议和wire ID。
++后台入口 `/admin/desktop-models`：默认模型配置一次保存，已登录的Naumi账号自动继承；指定账号可覆盖或禁用。默认策略初始关闭，不因为安装服务就授权所有用户。正式目录使用后台显示名称和不透明ID，真实协议和wire ID在服务端保留。
+ 
+ 账号继续由Canvas原 `/api/auth/session` 验证；后台操作复用原 `/api/admin/login` 的localAuthed/nativeAdmin/passwordRequired判定，不创建第二套账号或管理员。管理员保存使用CAS revision和operationId幂等，默认与指定账号分别拥有版本；策略全局递增版本用于凭据防回退。
+ 
+@@ -22,9 +22,12 @@
+ 本轮没有执行上述生产写入或发新安装包。47现有入口只读核对为404；只读注册表验收36条参数完整候选/2条容量缺项，36次凭据解密核验，0模型调用/0授权变更/原容器不变。不是36条供应商付费调用可用性已确认。缺容量条目由原后台资料模块补全后再授权，本模块不猜预算；来源声明为text但无input时只继承text，不擅自开启image。
+ 
+ ## 客户端迁移与回退
+-新Desktop在原身份成功后、启动后台前bootstrap；服务尚未安装且从未加入受管的旧测试版本仅在404时保持原有行为。加入受管后禁止404/断网/撤销回落内嵌或个人密钥。已运行旧非受管backend拒绝静默复用，提示正常结束任务/退出再启动，不自动杀工作。旧0.4.10分发物尚不包含本功能；功能源码合并不能代替新包安装验收。
++新Desktop在原身份成功后、启动后台前bootstrap；新版首次登录也必须获得正式服务响应；404不再启用旧配置。旧分发物仍按其原逻辑运行，不能由新源码追溯改变。加入受管后禁止404/断网/撤销回落内嵌或个人密钥。已运行旧非受管backend拒绝静默复用，提示正常结束任务/退出再启动，不自动杀工作。旧0.4.10分发物尚不包含本功能；功能源码合并不能代替新包安装验收。
+ 
+ 源码回滚仅在标记副本执行证据ROLLBACK.sh；不能以源码回滚恢复旧的员工授权或覆盖当前SQLite/PG。服务回退须保留已接受授权/审计/UNKNOWN，取消入口只影响云模型，新本地文件仍保留。当前不删除或轮换已分发测试包中的旧Key；正式切换后应在原供应商后台明确轮换。
+ 
+ ## 2026-11-23 真实供应商补验
+ 详见 docs/changes/2026-11-23-account-models-real.md 与 evidence/account-models-real/SUMMARY.json。真实DeepSeek账号闭环、重复409及撤销403通过；GPT两次独立请求仍为UNKNOWN，不重放。客户端支持60秒签发方时钟偏差，云侧5分钟TTL不变；网关在完整协议终止帧收口，不再等socket EOF。1132项回归通过。测试部署是私有隔离服务，尚未执行正式服务/安装包发布。
++
++## 全账号接管切片
++见 [2026-11-25 实施记录](../../docs/changes/2026-11-25-account-model-takeover.md)。标准分发拒绝内嵌凭据，正式PG只读权限与上游旧Key吊销分开验收。
+diff --git a/services/account-models/main.mjs b/services/account-models/main.mjs
+index fcc9ce7..a9826ea 100644
+--- a/services/account-models/main.mjs
++++ b/services/account-models/main.mjs
+@@ -3,14 +3,18 @@ import path from 'node:path';
+ import {fileURLToPath} from 'node:url';
+ import pg from 'pg';
+ import {createCredentialReader} from 'naumi-credentials-owner';
+-import {ImportedRegistry} from './registry.mjs';
++import {ImportedRegistry,CatalogRegistry} from './registry.mjs';
+ import {AccountModelStore} from './store.mjs';
+ import {accountAuthentication} from './auth.mjs';
+ import {accountModelServer} from './server.mjs';
+ const origin=process.env.NAUMI_IDENTITY_ORIGIN;if(!origin||new URL(origin).origin!==origin)throw Error('ACCOUNT_MODEL_ORIGIN_REQUIRED');
+ const home=path.resolve(process.env.NAUMI_ACCOUNT_MODEL_DATA??'/data');fs.mkdirSync(home,{recursive:true,mode:0o700});
+ const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:4,connectionTimeoutMillis:5000,query_timeout:10000});
+-const registry=new ImportedRegistry({pool,credentials:createCredentialReader(pool)}),assets=process.env.NAUMI_ACCOUNT_MODEL_ASSETS??path.dirname(fileURLToPath(import.meta.url));
++const source=new ImportedRegistry({pool,credentials:createCredentialReader(pool)});
++const catalogFile=process.env.NAUMI_ACCOUNT_MODEL_CATALOG;
++if(!catalogFile)throw Error('ACCOUNT_MODEL_CATALOG_REQUIRED');
++const registry=new CatalogRegistry(source,JSON.parse(fs.readFileSync(catalogFile))),assets=process.env.NAUMI_ACCOUNT_MODEL_ASSETS??path.dirname(fileURLToPath(import.meta.url));
++if(process.env.NAUMI_ACCOUNT_MODEL_REQUIRE_RO==='1'){const {rows}=await pool.query("SELECT r.rolsuper,r.rolcreatedb,r.rolcreaterole,r.rolreplication,r.rolbypassrls,r.rolinherit FROM pg_roles r WHERE r.rolname=current_user");if(rows.length!==1||Object.values(rows[0]).some(Boolean))throw Error('ACCOUNT_MODEL_READONLY_ROLE_REQUIRED');await registry.list();}
+ registry.adminHTML=()=>fs.promises.readFile(path.join(assets,'admin.html'));registry.adminJS=()=>fs.promises.readFile(path.join(assets,'admin.js'));
+ const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin})});
+ server.listen(Number(process.env.PORT??3192),process.env.HOST??'127.0.0.1',()=>console.log('NAUMI_ACCOUNT_MODELS_READY protocol=1 port='+server.address().port));
+diff --git a/services/account-models/readonly-role.mjs b/services/account-models/readonly-role.mjs
+new file mode 100644
+index 0000000..c26882e
+--- /dev/null
++++ b/services/account-models/readonly-role.mjs
+@@ -0,0 +1,27 @@
++// Explicit operator provisioning, not imported by the serving process.
++import assert from 'node:assert/strict';
++export const ROLE='naumi_desktop_models_ro';
++export async function provisionReadonly(pool,password){
++ assert(/^[A-Za-z0-9_-]{43,100}$/.test(password),'ACCOUNT_MODEL_ROLE_PASSWORD_INVALID');
++ const tx=await pool.connect();try{
++  await tx.query('BEGIN');
++  assert(!(await tx.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[ROLE])).rowCount,'ACCOUNT_MODEL_ROLE_EXISTS');
++  const database=(await tx.query('SELECT current_database() AS name')).rows[0].name;
++  assert(/^[A-Za-z0-9_-]{1,63}$/.test(database),'ACCOUNT_MODEL_DATABASE_INVALID');
++  await tx.query(`CREATE ROLE ${ROLE} LOGIN PASSWORD '${password}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT CONNECTION LIMIT 6`);
++  await tx.query(`ALTER ROLE ${ROLE} SET default_transaction_read_only=on`);
++  await tx.query(`ALTER ROLE ${ROLE} SET search_path=public,pg_catalog`);
++  await tx.query(`GRANT CONNECT ON DATABASE "${database}" TO ${ROLE}`);
++  await tx.query(`GRANT USAGE ON SCHEMA public TO ${ROLE}`);
++  for(const [table,cols]of Object.entries({app_supplier_source_snapshots:'provider_id,source_data,kind',app_supplier_model_metadata:'provider_id,model_id,metadata',app_model_credentials:'id,provider_id,key_enc',app_users:'email'}))await tx.query(`GRANT SELECT (${cols}) ON public.${table} TO ${ROLE}`);
++  const result=await readonlyPrivileges(tx,ROLE);assert(result.businessWrites===0&&result.memberships===0&&result.ownedObjects===0&&!result.publicSchemaCreate,'ACCOUNT_MODEL_ROLE_PRIVILEGE_DRIFT');
++  await tx.query('COMMIT');return {role:ROLE,...result,created:true};
++ }catch(e){await tx.query('ROLLBACK').catch(()=>{});throw e;}finally{tx.release();}
++}
++export async function readonlyPrivileges(pool,role=ROLE){
++ const r=(await pool.query(`SELECT count(*)::int AS n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN ('r','p','v','m','f') AND (has_table_privilege($1,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR has_any_column_privilege($1,c.oid,'INSERT,UPDATE,REFERENCES'))`,[role])).rows[0];
++ const memberships=(await pool.query('SELECT count(*)::int AS n FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.member WHERE r.rolname=$1',[role])).rows[0].n;
++ const ownedObjects=(await pool.query('SELECT count(*)::int AS n FROM pg_class c JOIN pg_roles r ON r.oid=c.relowner WHERE r.rolname=$1',[role])).rows[0].n;
++ const publicSchemaCreate=(await pool.query("SELECT has_schema_privilege($1,'public','CREATE') AS yes",[role])).rows[0].yes;
++ return {businessWrites:r.n,memberships,ownedObjects,publicSchemaCreate};
++}
+diff --git a/services/account-models/registry.mjs b/services/account-models/registry.mjs
+index 36b86d2..0b1330b 100644
+--- a/services/account-models/registry.mjs
++++ b/services/account-models/registry.mjs
+@@ -23,4 +23,16 @@ export class ImportedRegistry{
+  async secret(route){return this.credentials.read(route.credentialRef,route.providerId);}
+  async userExists(subject){return !!(await this.pool.query('SELECT 1 FROM app_users WHERE lower(email)=$1',[email(subject)])).rows.length;}
+ }
+-export function publicRoute(r,origin){return {id:r.id,group:r.group,provider:'naumi-account-'+r.id,api:r.api,baseURL:origin+'/api/desktop-models/v1/gateway/'+r.id,model:r.model};}
++export function publicRoute(r,origin){return {id:r.id,group:r.group,provider:'naumi-account-'+r.id,api:r.api,baseURL:origin+'/api/desktop-models/v1/gateway/'+r.id,model:{...r.model,id:r.publicModelId??r.model.id}};}
++
++/** Server-owned aliases share the original source and credential reader. */
++export class CatalogRegistry {
++ constructor(source,config){
++  if(config?.version!==1||!Array.isArray(config.models)||!config.models.length||config.models.length>100)throw fault('ACCOUNT_MODEL_CATALOG_INVALID',503);
++  const ids=new Set();for(const m of config.models){if(Object.keys(m).some(k=>!['id','sourceRoute','name'].includes(k))||!/^m-[a-f0-9]{24}$/.test(m.id)||ids.has(m.id)||!/^r-[a-f0-9]{32}$/.test(m.sourceRoute)||typeof m.name!=='string'||!m.name.trim()||m.name.length>160)throw fault('ACCOUNT_MODEL_CATALOG_INVALID',503);ids.add(m.id);}
++  this.source=source;this.config=structuredClone(config);
++ }
++ async list(){const all=await this.source.list();const rows=this.config.models.map(m=>{const source=all.find(r=>r.id===m.sourceRoute);if(!source)throw fault('ACCOUNT_MODEL_CATALOG_SOURCE_MISSING',503);return {...source,id:m.id,publicModelId:m.id,group:'Naumi',model:{...source.model,name:m.name}};});this.unavailable=[];return rows;}
++ secret(route){return this.source.secret(route);}
++ userExists(subject){return this.source.userExists(subject);}
++}
+diff --git a/services/account-models/server.mjs b/services/account-models/server.mjs
+index 57f25d5..03be3d0 100644
+--- a/services/account-models/server.mjs
++++ b/services/account-models/server.mjs
+@@ -14,10 +14,10 @@ export function accountModelServer({store,registry,authenticate,origin,request=f
+  const gateway=url.pathname.match(/^\/api\/desktop-models\/v1\/gateway\/([a-zA-Z0-9_-]+)(\/.*)$/);
+  if(gateway){if(req.method!=='POST'||req.headers.origin)throw fault('ACCOUNT_MODEL_GATEWAY_FORBIDDEN',403);const routes=await registry.list(),actor=store.authenticate(req.headers.authorization?.replace(/^Bearer /,'')??req.headers['x-api-key'],req.headers['x-naumi-device'],routes),route=routes.find(r=>r.id===gateway[1]);if(!route||!actor.routes.includes(route.id))throw fault('ACCOUNT_MODEL_ROUTE_DENIED',403);
+  const suffix=route.api==='anthropic-messages'?'/v1/messages':route.api==='openai-responses'?'/responses':'/chat/completions';if(gateway[2]!==suffix)throw fault('ACCOUNT_MODEL_ENDPOINT_DENIED',403);
+- const value=await body(req);if(!value||value.model!==route.model.id||value.store===true||typeof value.stream!=='boolean'||(value.max_tokens??value.max_output_tokens??value.max_completion_tokens??route.model.maxTokens)>route.model.maxTokens)throw fault('ACCOUNT_MODEL_REQUEST_INVALID');
++ const value=await body(req);if(!value||value.model!==(route.publicModelId??route.model.id)||value.store===true||typeof value.stream!=='boolean'||(value.max_tokens??value.max_output_tokens??value.max_completion_tokens??route.model.maxTokens)>route.model.maxTokens)throw fault('ACCOUNT_MODEL_REQUEST_INVALID');
+  requestId=req.headers['x-naumi-request-id'];store.begin(actor,requestId,route.id);started=true;controller=new AbortController();controllers.add(controller);const gone=()=>{if(!res.writableEnded)controller.abort();};res.on('close',gone);
+  try{const key=await registry.secret(route);if(typeof key!=='string'||!key||/[\x00-\x1f\x7f]/.test(key))throw fault('ACCOUNT_MODEL_UPSTREAM_CREDENTIAL_INVALID',503);
+- const base=route.baseURL,suffixUp=route.api==='anthropic-messages'&&base.endsWith('/v1')?'/messages':suffix;const upstream=await request(base+suffixUp,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',...(route.api==='anthropic-messages'?{'x-api-key':key,'anthropic-version':'2023-06-01'}:{Authorization:'Bearer '+key})},body:JSON.stringify(route.api==='anthropic-messages'?Object.fromEntries(Object.entries(value).filter(([k])=>k!=='store')):{...value,store:false}),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(300000)])});
++ const base=route.baseURL,suffixUp=route.api==='anthropic-messages'&&base.endsWith('/v1')?'/messages':suffix;const upstream=await request(base+suffixUp,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',...(route.api==='anthropic-messages'?{'x-api-key':key,'anthropic-version':'2023-06-01'}:{Authorization:'Bearer '+key})},body:JSON.stringify(route.api==='anthropic-messages'?{...Object.fromEntries(Object.entries(value).filter(([k])=>k!=='store')),model:route.model.id}:{...value,model:route.model.id,store:false}),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(300000)])});
+  if(!upstream.ok){await upstream.body?.cancel();store.finish(requestId,[400,401,403,404,422,429].includes(upstream.status)?'rejected':'unknown');throw fault('ACCOUNT_MODEL_UPSTREAM_REJECTED',upstream.status===429?429:502);}
+  const type=upstream.headers.get('content-type')??'';if(!(value.stream?type.includes('text/event-stream'):type.includes('application/json')))throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);
+  if(!value.stream){const raw=await upstream.text();if(raw.length>32*1024*1024)throw fault('ACCOUNT_MODEL_RESPONSE_TOO_LARGE',502);let parsed;try{parsed=JSON.parse(raw);}catch{throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);}if(parsed.error)throw fault('ACCOUNT_MODEL_UPSTREAM_INVALID',502);store.finish(requestId,'stream_complete');send(200,parsed);return;}
+diff --git a/services/account-models/store.mjs b/services/account-models/store.mjs
+index d393167..fea4c51 100644
+--- a/services/account-models/store.mjs
++++ b/services/account-models/store.mjs
+@@ -3,7 +3,7 @@ import {randomBytes,createHash} from 'node:crypto';
+ import {email,digest,fault} from './registry.mjs';
+ const sha=x=>createHash('sha256').update(x).digest('hex');
+ export class AccountModelStore{
+- constructor(file,{clock=Date.now}={}){this.clock=clock;this.db=new DatabaseSync(file);this.db.exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;PRAGMA busy_timeout=5000;
++ constructor(file,{clock=Date.now}={}){this.clock=clock;this.db=new DatabaseSync(file);this.db.exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;PRAGMA busy_timeout=5000;PRAGMA max_page_count=65536;PRAGMA journal_size_limit=16777216;
+  CREATE TABLE IF NOT EXISTS grants(subject TEXT PRIMARY KEY,revision INTEGER NOT NULL,policy_revision INTEGER NOT NULL,enabled INTEGER NOT NULL,routes TEXT NOT NULL,updated_at INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS leases(token_hash TEXT PRIMARY KEY,subject TEXT NOT NULL,device TEXT NOT NULL,revision INTEGER NOT NULL,catalog_hash TEXT NOT NULL,expires INTEGER NOT NULL);
+diff --git a/tests/account-model-takeover.test.mjs b/tests/account-model-takeover.test.mjs
+new file mode 100644
+index 0000000..745b48a
+--- /dev/null
++++ b/tests/account-model-takeover.test.mjs
+@@ -0,0 +1,17 @@
++import test from 'node:test';import assert from 'node:assert/strict';
++import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {createRequire} from 'node:module';
++import {CatalogRegistry,publicRoute} from '../services/account-models/registry.mjs';
++const require=createRequire(import.meta.url),{retireEmbedded}=require('../desktop/app/account-model-retirement.cjs'),{apply}=require('../desktop/app/embedded-models.cjs');
++const sourceRoute='r-'+'a'.repeat(32),id='m-'+'b'.repeat(24),model={id:'wire-fixture',name:'Wire fixture',maxTokens:64,contextWindow:2048,input:['text']};
++test('server aliases are stable opaque IDs, preserve upstream protocol/capacity/secret ownership, reject lost sources',async()=>{
++ let rows=[{id:sourceRoute,group:'Private supplier',api:'anthropic-messages',baseURL:'https://supplier.test',credentialRef:'private-ref',providerId:'source',model}],read;
++ const source={list:async()=>rows,secret:async r=>{read=r;return 'fixture';},userExists:async()=>true},config={version:1,models:[{id,sourceRoute,name:'claude opus5.5'}]},catalog=new CatalogRegistry(source,config);
++ const [route]=await catalog.list(),view=publicRoute(route,'https://naumi.test');
++ assert.equal(view.model.id,id);assert.equal(view.model.name,'claude opus5.5');assert.equal(view.model.maxTokens,64);assert.equal(view.group,'Naumi');assert.equal(route.model.id,'wire-fixture');
++ assert(!/supplier|private|wire-fixture/i.test(JSON.stringify(view)));assert.equal(await catalog.secret(route),'fixture');assert.equal(read.credentialRef,'private-ref');
++ rows=[];await assert.rejects(catalog.list(),/SOURCE_MISSING/);assert.throws(()=>new CatalogRegistry(source,{...config,models:[...config.models,...config.models]}),/CATALOG_INVALID/);
++});
++function fixture(){const root=fs.mkdtempSync(path.join(os.tmpdir(),'nac-retire-')),home=path.join(root,'home'),release=path.join(root,'release');fs.mkdirSync(path.join(home,'profiles/web'),{recursive:true});fs.mkdirSync(path.join(release,'node_modules'),{recursive:true});fs.symlinkSync(path.dirname(require.resolve('yaml/package.json')),path.join(release,'node_modules/yaml'),'junction');fs.writeFileSync(path.join(release,'runtime-manifest.json'),'{}');fs.writeFileSync(path.join(home,'profiles/web/cordis.patch.yml'),'# original settings\n- id: ui-theme\n  config: {preference: light}\n- id: llm-pi-ai\n  config: {providers: {}}\n');fs.writeFileSync(path.join(home,'.credentials.yaml'),'version: 1\nrefs: {PERSONAL: personal-secret}\nrecords: {}\n');fs.writeFileSync(path.join(home,'session.keep'),'original-session');const providers={},refs={};for(const [i,wire,name]of [[0,'deepseek-flash','claude fable5.2'],[1,'gpt-6-luna','gpt6.1sol'],[2,'gpt-6-luna','gpt6.1terra'],[3,'claude-sonnet-5-5','claude opus5.5']]){const ref='NAUMI_EMBEDDED_TEST_'+String(i).repeat(24);refs[ref]='fixture-upstream-'+i;providers['fixture-'+i]={api:'anthropic-messages',baseURL:'https://fixture.test',apiKeyEnv:ref,models:[{id:wire,name}]};}const settings={home,root:release,releaseRoot:release,isolated:true,accountModels:{subject:'fixture@example.test'}};apply(settings,{payload:{version:1,mode:'embedded-test',revision:'fixture-r1',providers,refs}});apply(settings,{payload:{version:1,mode:'embedded-test',revision:'fixture-r2',providers,refs:{...refs,[Object.keys(refs)[0]]:'fixture-upstream-rotated'}}});return {home,settings,close(){fs.unlinkSync(path.join(release,'node_modules/yaml'));fs.rmSync(root,{recursive:true,force:true});}};}
++test('upgrade retires only owned embedded keys in active files and old backups, preserving personal keys and sessions',()=>{const f=fixture();try{const result=retireEmbedded(f.settings);assert(result.changed);const walk=d=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);if(e.isDirectory())walk(p);else assert(!fs.readFileSync(p).toString().includes('fixture-upstream'),p);}};walk(f.home);const yaml=require('yaml'),v=yaml.parse(fs.readFileSync(path.join(f.home,'.credentials.yaml'),'utf8'));assert.deepEqual(v.refs,{PERSONAL:'personal-secret'});assert.equal(fs.readFileSync(path.join(f.home,'session.keep'),'utf8'),'original-session');assert.equal(retireEmbedded(f.settings).changed,false);}finally{f.close();}});
++test('forward-only sanitized journal recovers interrupted retirement, never resurrecting owned secrets',()=>{for(const step of ['prepared','.credentials.yaml','profiles/web/cordis.patch.yml']){const f=fixture();try{assert.throws(()=>retireEmbedded(f.settings,{fault:s=>{if(s===step)throw Error('interrupted');}}),/interrupted/);const j=JSON.parse(fs.readFileSync(path.join(f.home,'account-models-retirement.json')));assert.equal(j.phase,'applying');assert(!JSON.stringify(j).includes('fixture-upstream'));assert(retireEmbedded(f.settings).retired);assert(!fs.readFileSync(path.join(f.home,'.credentials.yaml'),'utf8').includes('fixture-upstream'));}finally{f.close();}}});
++test('foreign drift blocks retirement recovery; no authority or symlink cannot rewrite home',()=>{const f=fixture();try{assert.throws(()=>retireEmbedded({...f.settings,accountModels:null}),/AUTHORITY/);assert.throws(()=>retireEmbedded(f.settings,{fault:s=>{if(s==='prepared'){fs.writeFileSync(path.join(f.home,'.credentials.yaml'),'foreign edit');throw Error('interrupted');}}}),/interrupted/);assert.throws(()=>retireEmbedded(f.settings),/DRIFT/);assert.equal(fs.readFileSync(path.join(f.home,'.credentials.yaml'),'utf8'),'foreign edit');}finally{f.close();}});
+diff --git a/tests/account-models.test.mjs b/tests/account-models.test.mjs
+index fae4b12..3b8dc55 100644
+--- a/tests/account-models.test.mjs
++++ b/tests/account-models.test.mjs
+@@ -30,9 +30,9 @@ assert.equal(f.calls,3);assert.deepEqual(f.seen.map(s=>s.url),['/v1/chat/complet
+ 
+ test('gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors',async()=>{const f=await fixture();try{f.store.save('admin',grant(a,['route0']),['route0']);const {value}=await f.bootstrap(),id=randomUUID(),url=value.routes[0].baseURL+'/chat/completions',headers={authorization:'Bearer '+value.token,'x-naumi-device':device,'x-naumi-request-id':id,'Content-Type':'application/json'},body=JSON.stringify({model:model.id,stream:true,messages:[]});assert.equal((await fetch(url,{method:'POST',headers:{...headers,'x-naumi-device':'x'},body})).status,401);f.mode='disconnect';assert.equal((await fetch(url,{method:'POST',headers,body})).status,503);assert.equal(f.store.db.prepare('SELECT state FROM requests WHERE id=?').get(id).state,'unknown');assert.equal((await fetch(url,{method:'POST',headers,body})).status,409);assert.equal(f.calls,1);f.mode='reject';const res=await fetch(url,{method:'POST',headers:{...headers,'x-naumi-request-id':randomUUID()},body});assert.equal(res.status,502);assert(!(await res.text()).includes('UPSTREAM_PRIVATE_KEY'));f.store.save('admin',grant(a,[],1,false),['route0']);assert.equal((await fetch(url,{method:'POST',headers:{...headers,'x-naumi-request-id':randomUUID()},body})).status,403);assert.equal(f.calls,2);}finally{await f.close();}});
+ 
+-test('desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed',async()=>{const f=await fixture();try{f.store.save('admin',grant(a,['route0']),['route0']);const accountDir=path.join(f.dir,'account');fs.mkdirSync(accountDir);const active={origin:f.origin,profileId:device,root:accountDir,user:{email:a}},runtime={active,client:{session:{fetch:(url,opt)=>fetch(url,{...opt,headers:{...opt.headers,cookie:'user=alice'}})}}},client=new AccountModelsSession({identity:()=>runtime});const v=await client.bootstrap();assert.equal(v.subject,a);const disk=fs.readFileSync(path.join(accountDir,'account-models-managed.json'),'utf8');assert(!disk.includes(v.token));assert(!disk.includes('fixture-server-secret'));f.store.save('admin',grant(a,[],1,false),['route0']);await assert.rejects(client.bootstrap({force:true}),/NOT_AUTHORIZED/);assert.equal(client.value,null);runtime.client.session.fetch=async()=>Response.json({error:'NOT_FOUND'},{status:404});await assert.rejects(client.bootstrap({force:true}),/UNAVAILABLE/);assert.equal(fs.readdirSync(accountDir).length,1);}finally{await f.close();}});
++test('desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed',async()=>{const f=await fixture();try{f.store.save('admin',grant(a,['route0']),['route0']);const accountDir=path.join(f.dir,'account');fs.mkdirSync(accountDir);const active={origin:f.origin,profileId:device,root:accountDir,user:{email:a}},runtime={active,client:{session:{fetch:(url,opt)=>fetch(url,{...opt,headers:{...opt.headers,cookie:'user=alice'}})}}},client=new AccountModelsSession({identity:()=>runtime});const v=await client.bootstrap();assert.equal(v.subject,a);const disk=fs.readFileSync(path.join(accountDir,'account-models-managed.json'),'utf8');assert(!disk.includes(v.token));assert(!disk.includes('fixture-server-secret'));f.store.save('admin',grant(a,[],1,false),['route0']);await assert.rejects(client.bootstrap({force:true}),/NOT_AUTHORIZED/);assert.equal(client.value,null);runtime.client.session.fetch=async()=>Response.json({error:'NOT_FOUND'},{status:404});await assert.rejects(client.bootstrap({force:true}),/SERVICE_REQUIRED/);assert.equal(fs.readdirSync(accountDir).length,1);}finally{await f.close();}});
+ 
+-test('new unprovisioned server stays unchanged, enrollment prevents rollback, cross-account late response is discarded',async()=>{const dir=temp();try{let resolve,mode='missing';const active={origin:'https://identity.test',profileId:device,root:dir,user:{email:a}},runtime={active,client:{session:{fetch:async()=>{if(mode==='missing')return Response.json({}, {status:404});return new Promise(r=>{resolve=r;});}}}},client=new AccountModelsSession({identity:()=>runtime});assert.equal(await client.bootstrap(),null);assert.deepEqual(fs.readdirSync(dir),[]);mode='late';const flight=client.bootstrap();while(!resolve)await new Promise(r=>setImmediate(r));runtime.active={...active,user:{email:b}};resolve(Response.json({protocol:1,subject:a}));await assert.rejects(flight,/ACCOUNT_CHANGED/);assert.deepEqual(fs.readdirSync(dir),[]);}finally{fs.rmSync(dir,{recursive:true,force:true});}});
++test('first login also fails closed on missing service; cross-account late response is discarded',async()=>{const dir=temp();try{let resolve,mode='missing';const active={origin:'https://identity.test',profileId:device,root:dir,user:{email:a}},runtime={active,client:{session:{fetch:async()=>{if(mode==='missing')return Response.json({}, {status:404});return new Promise(r=>{resolve=r;});}}}},client=new AccountModelsSession({identity:()=>runtime});await assert.rejects(client.bootstrap(),/SERVICE_REQUIRED/);assert.deepEqual(fs.readdirSync(dir),[]);mode='late';const flight=client.bootstrap();while(!resolve)await new Promise(r=>setImmediate(r));runtime.active={...active,user:{email:b}};resolve(Response.json({protocol:1,subject:a}));await assert.rejects(flight,/ACCOUNT_CHANGED/);assert.deepEqual(fs.readdirSync(dir),[]);}finally{fs.rmSync(dir,{recursive:true,force:true});}});
+ 
+ test('bridge renews only authenticated local account, never exposes credential through browser origins',async()=>{const dir=temp(),fake={bootstrap:async()=>({token:'fixture-short-token'})},guests={selected:()=>null,entries:()=>[]};const bridge=await startBridge({home:dir,guests,window:{},accountModels:fake});try{const d=JSON.parse(fs.readFileSync(path.join(dir,'naumi-desktop-bridge.json'))),url=`http://127.0.0.1:${d.port}/models/bootstrap`;assert.equal((await fetch(url,{method:'POST'})).status,403);assert.equal((await fetch(url,{method:'POST',headers:{authorization:'Bearer '+d.token,origin:'https://bad.test'}})).status,403);const r=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+d.token}});assert.equal((await r.json()).data.token,'fixture-short-token');assert(!fs.readFileSync(path.join(dir,'naumi-desktop-bridge.json'),'utf8').includes('fixture-short-token'));}finally{await bridge.close();fs.rmSync(dir,{recursive:true,force:true});}});
+ 
+@@ -47,3 +47,5 @@ test('process restart retains request UNKNOWN and refuses a replay, not a paid a
+  test('desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry',async()=>{for(const skew of [4000,61000]){const dir=temp(),now=1700000000000,active={origin:'https://identity.test',root:dir,user:{email:a}},runtime={active,client:{session:{fetch:async(_url,input)=>Response.json({protocol:1,subject:a,deviceId:JSON.parse(input.body).deviceId,revision:1,expiresAt:now+300000+skew,token:'a'.repeat(43),routes:[{id:'route0',provider:'naumi-account-route0',baseURL:'https://identity.test/api/desktop-models/v1/gateway/route0',api:'openai-responses',model}]})}}},client=new AccountModelsSession({identity:()=>runtime,clock:()=>now});try{if(skew<60000)assert.equal((await client.bootstrap()).revision,1);else await assert.rejects(client.bootstrap(),/RESPONSE_INVALID/);}finally{fs.rmSync(dir,{recursive:true,force:true});}}});
+ 
+  test('all native protocols finish on terminal SSE while real upstream socket stays open, without retrying',async()=>{const f=await fixture();try{f.mode='keep-open';f.store.save('admin',grant(a,['route0','route1','route2']),f.routes.map(r=>r.id));const {value}=await f.bootstrap(),adapter=createAccountAdapter({get:()=>undefined},new AccountModels({initial:value,home:f.dir}));for(const r of value.routes){const chunks=[];for await(const c of adapter.stream({provider:r.provider,model:r.model.id,messages:[createUserMessage({source:{kind:'user'},content:[{type:'text',text:'terminal frame'}]})],signal:AbortSignal.timeout(3000)}))chunks.push(c);assert.equal(chunks.findLast(c=>c.type==='finish')?.reason.kind,'stop');}assert.equal(f.calls,3);assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM requests WHERE state='stream_complete'").get().n,3);}finally{await f.close();}});
++
++ test('opaque catalog model IDs are rewritten only at the server, and upstream never receives the display alias',async()=>{const f=await fixture();try{const id='m-'+'c'.repeat(24);f.routes=[{...f.routes[2],id,publicModelId:id,model:{...model,name:'Public alias'}}];f.store.save('admin',grant(a,[id]),[id]);const {value}=await f.bootstrap();assert.equal(value.routes[0].model.id,id);const adapter=createAccountAdapter({get:()=>undefined},new AccountModels({initial:value,home:f.dir}));for await(const chunk of adapter.stream({provider:value.routes[0].provider,model:id,messages:[createUserMessage({source:{kind:'user'},content:[{type:'text',text:'fixture alias'}]})]})){}assert.equal(f.calls,1);assert.equal(f.seen[0].body.model,'wire-model');assert.equal(f.seen[0].headers['x-api-key'],'fixture-server-secret');}finally{await f.close();}});

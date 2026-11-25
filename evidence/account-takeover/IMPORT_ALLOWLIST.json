@@ -1,0 +1,189 @@
+{
+  "operationId": "8ad47265-5fbc-489d-b977-e1680dc84753",
+  "sourceId": "desktop-central-20261125",
+  "configDigest": "3ecd6a7fce6f16066f6e6a4769ea94e5f45a56e9bac5ecca71f387eabba0fd3c",
+  "capacitySource": "existing native adapter configured defaults (not official supplier limits)",
+  "connections": [
+    {
+      "providerId": "desktop-4482c2464ba6003a9cf8ec47",
+      "sourceProviderId": "tdh-claude55",
+      "configuration": {
+        "displayName": "TDH",
+        "baseURL": "https://api.tdhcodex.com/cpa",
+        "api": "anthropic-messages"
+      },
+      "models": [
+        {
+          "id": "claude-sonnet-5-5",
+          "name": "claude opus5.5",
+          "input": [
+            "text"
+          ],
+          "contextWindow": 1000000,
+          "maxTokens": 128000
+        }
+      ]
+    },
+    {
+      "providerId": "desktop-3b0cc668438704075c58e46a",
+      "sourceProviderId": "ccs-deepseek-992333",
+      "configuration": {
+        "displayName": "CC · DeepSeek / Messages",
+        "api": "anthropic-messages",
+        "baseURL": "https://api.deepseek.com/anthropic",
+        "modelOverrides": {},
+        "compat": {
+          "chatTemplateKwargs": {},
+          "chatTemplateArgs": {}
+        },
+        "defaultContextWindow": 128000,
+        "defaultMaxTokens": 16384,
+        "defaultInput": [
+          "text"
+        ],
+        "headers": {},
+        "preserveReasoningDefault": true,
+        "thinkingBudgets": {},
+        "streamIdleTimeoutMs": 300000,
+        "maxRequestImageBytes": 20971520,
+        "maxRequestImages": 50,
+        "requestImagePixelBudget": 4194304,
+        "requestImageMaxBytes": 1048576
+      },
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "name": "claude fable5.2",
+          "contextWindow": 1000000,
+          "maxTokens": 16384,
+          "input": [
+            "text",
+            "image"
+          ],
+          "reasoningEfforts": {
+            "off": "none",
+            "low": "low",
+            "high": "high",
+            "max": "max"
+          },
+          "compat": {
+            "chatTemplateKwargs": {},
+            "chatTemplateArgs": {},
+            "forceAdaptiveThinking": true
+          }
+        }
+      ]
+    },
+    {
+      "providerId": "desktop-2119c588273428a31884dd0b",
+      "sourceProviderId": "ccs-provider-8c7ab447-51aed7",
+      "configuration": {
+        "displayName": "CC · 桦 / Messages",
+        "api": "anthropic-messages",
+        "baseURL": "https://api.tdhcodex.com",
+        "modelOverrides": {},
+        "compat": {
+          "chatTemplateKwargs": {},
+          "chatTemplateArgs": {}
+        },
+        "defaultContextWindow": 128000,
+        "defaultMaxTokens": 16384,
+        "defaultInput": [
+          "text"
+        ],
+        "headers": {},
+        "preserveReasoningDefault": true,
+        "thinkingBudgets": {},
+        "streamIdleTimeoutMs": 300000,
+        "maxRequestImageBytes": 20971520,
+        "maxRequestImages": 50,
+        "requestImagePixelBudget": 4194304,
+        "requestImageMaxBytes": 1048576
+      },
+      "models": [
+        {
+          "id": "gpt-6-luna",
+          "name": "gpt6.1sol",
+          "contextWindow": 938384,
+          "maxTokens": 16384,
+          "input": [
+            "text",
+            "image"
+          ],
+          "reasoningEfforts": {
+            "off": "none",
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": "xhigh",
+            "max": "max"
+          },
+          "compat": {
+            "chatTemplateKwargs": {},
+            "chatTemplateArgs": {},
+            "forceAdaptiveThinking": true
+          }
+        }
+      ]
+    },
+    {
+      "providerId": "desktop-759b0b5405d0340427a9790d",
+      "sourceProviderId": "naumi-luna-terra",
+      "configuration": {
+        "displayName": "GPT 6.1 Terra",
+        "api": "anthropic-messages",
+        "baseURL": "https://api.tdhcodex.com",
+        "modelOverrides": {},
+        "compat": {
+          "chatTemplateKwargs": {},
+          "chatTemplateArgs": {}
+        },
+        "defaultContextWindow": 128000,
+        "defaultMaxTokens": 16384,
+        "defaultInput": [
+          "text"
+        ],
+        "headers": {},
+        "preserveReasoningDefault": true,
+        "thinkingBudgets": {},
+        "streamIdleTimeoutMs": 300000,
+        "maxRequestImageBytes": 20971520,
+        "maxRequestImages": 50,
+        "requestImagePixelBudget": 4194304,
+        "requestImageMaxBytes": 1048576
+      },
+      "models": [
+        {
+          "id": "gpt-6-luna",
+          "name": "gpt6.1terra",
+          "contextWindow": 938384,
+          "maxTokens": 16384,
+          "input": [
+            "text",
+            "image"
+          ],
+          "reasoningEfforts": {
+            "off": "none",
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": "xhigh",
+            "max": "max"
+          },
+          "compat": {
+            "chatTemplateKwargs": {},
+            "chatTemplateArgs": {},
+            "forceAdaptiveThinking": true
+          }
+        }
+      ]
+    }
+  ],
+  "newRows": {
+    "app_supplier_source_snapshots": 4,
+    "app_supplier_model_metadata": 4,
+    "app_supplier_model_metadata_versions": 4,
+    "app_model_credentials": 4
+  },
+  "secretsIncluded": false
+}

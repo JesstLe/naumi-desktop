@@ -1,0 +1,31 @@
+✔ explicit four-model input validates exact wire IDs and references, never an arbitrary route overlay (1.758ms)
+✔ upgrade replaces model providers only, preserves other settings/comments and old credentials, then is idempotent (92.4077ms)
+✔ failure at every migration boundary restores exact old bytes and permits retry (134.6592ms)
+✔ foreign config drift is preserved and journal remains pending rather than overwriting later edits (19.4476ms)
+✔ a newer explicit revision replaces its own keys, leaving unrelated refs untouched (37.3863ms)
+✔ external backend is never rewritten, normal packages do not seed secrets (3.9871ms)
+✔ manifest data hash is required before consuming embedded credentials (7.7628ms)
+✔ fresh profile without any model node or credential file receives all four configured choices (16.8249ms)
+✔ embedded test edition is not mistaken for the legacy trial overlay (4.8533ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (14.0706ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.4618ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (275.1546ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (284.9744ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (75.7924ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (32.2726ms)
+✔ new unprovisioned server stays unchanged, enrollment prevents rollback, cross-account late response is discarded (1.2973ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (10.1036ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.482ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (12.3081ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (29.8665ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (159.2805ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (3.5534ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (31.227ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1232.5687

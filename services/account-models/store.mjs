@@ -3,7 +3,7 @@ import {randomBytes,createHash} from 'node:crypto';
 import {email,digest,fault} from './registry.mjs';
 const sha=x=>createHash('sha256').update(x).digest('hex');
 export class AccountModelStore{
- constructor(file,{clock=Date.now}={}){this.clock=clock;this.db=new DatabaseSync(file);this.db.exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;PRAGMA busy_timeout=5000;
+ constructor(file,{clock=Date.now}={}){this.clock=clock;this.db=new DatabaseSync(file);this.db.exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;PRAGMA busy_timeout=5000;PRAGMA max_page_count=65536;PRAGMA journal_size_limit=16777216;
  CREATE TABLE IF NOT EXISTS grants(subject TEXT PRIMARY KEY,revision INTEGER NOT NULL,policy_revision INTEGER NOT NULL,enabled INTEGER NOT NULL,routes TEXT NOT NULL,updated_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS leases(token_hash TEXT PRIMARY KEY,subject TEXT NOT NULL,device TEXT NOT NULL,revision INTEGER NOT NULL,catalog_hash TEXT NOT NULL,expires INTEGER NOT NULL);

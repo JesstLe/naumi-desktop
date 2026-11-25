@@ -15,9 +15,8 @@ class AccountModelsSession{
  const promise=(async()=>{this.running++;try{
  const response=await runtime.client.session.fetch(active.origin+'/api/desktop-models/v1/bootstrap',{method:'POST',credentials:'include',redirect:'error',cache:'no-store',headers:{Accept:'application/json','Content-Type':'application/json','x-naumi-account-models':'1',Origin:active.origin},body:JSON.stringify({deviceId}),signal:AbortSignal.timeout(10000)});
  if(this.identity()!==runtime||runtime.active!==active)throw Error('ACCOUNT_MODEL_ACCOUNT_CHANGED');
- // Unprovisioned servers preserve the existing explicit test edition. After first enrollment,
- // 404/outage/revocation can NEVER silently reopen embedded or personally configured routes.
- if(response.status===404&&!fs.existsSync(marker)){await response.body?.cancel();this.value=null;return null;}
+ // All distributed accounts require the central authority, including first login.
+ if(response.status===404){await response.body?.cancel();this.value=null;throw Error('ACCOUNT_MODEL_SERVICE_REQUIRED');}
  if(!response.headers.get('content-type')?.includes('application/json'))throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');let n=0,chunks=[];for await(const c of response.body){n+=c.length;if(n>524288)throw Error('ACCOUNT_MODEL_RESPONSE_TOO_LARGE');chunks.push(Buffer.from(c));}let v;try{v=JSON.parse(Buffer.concat(chunks));}catch{throw Error('ACCOUNT_MODEL_RESPONSE_INVALID');}
  if(!response.ok){this.value=null;throw Error(/^ACCOUNT_MODEL_[A-Z_]+$/.test(v.error)?v.error:'ACCOUNT_MODEL_UNAVAILABLE');}
  // Permit up to 60s of issuer/device clock skew; the gateway still enforces its exact 5m TTL.
