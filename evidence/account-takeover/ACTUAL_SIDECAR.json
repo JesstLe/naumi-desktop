@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "catalogStatus": 200,
+  "defaultsStatus": 200,
+  "bootstrapStatus": 200,
+  "anonymousAdmin": 401,
+  "models": [
+    "claude fable5.2",
+    "gpt6.1sol",
+    "gpt6.1terra",
+    "claude opus5.5"
+  ],
+  "defaultEnabled": true,
+  "defaultModelCount": 4,
+  "bootstrapModelCount": 4,
+  "publicCatalogClean": true,
+  "tokenPersisted": false,
+  "modelCalls": 0,
+  "originalSessionModified": false,
+  "transport": "pinned SSH loopback to production sidecar",
+  "observedAt": "2026-11-25T04:38:37.366Z"
+}

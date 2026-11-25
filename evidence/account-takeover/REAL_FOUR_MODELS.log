@@ -1,0 +1,5 @@
+REAL_MODEL claude fable5.2 state=UNCONFIRMED networkAttempts=1 elapsedMs=632
+REAL_MODEL gpt6.1sol state=PASS networkAttempts=1 elapsedMs=4035
+REAL_MODEL gpt6.1terra state=UNCONFIRMED networkAttempts=1 elapsedMs=10490
+REAL_MODEL claude opus5.5 state=PASS networkAttempts=1 elapsedMs=3234
+REAL_FOUR_MODELS_PARTIAL attempts=4

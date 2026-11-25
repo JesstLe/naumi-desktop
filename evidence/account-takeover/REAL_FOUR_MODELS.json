@@ -1,0 +1,138 @@
+{
+  "status": "PARTIAL",
+  "authorization": "user allowed four tiny real requests; at most64 output tokens each; no automatic retry",
+  "run": "c73ffac7-ad17-4485-a404-8eb32fd16702",
+  "publicAuthority": "https://47.105.59.142",
+  "startedAt": "2026-11-25T04:50:11.073Z",
+  "models": [
+    {
+      "name": "claude fable5.2",
+      "route": "m-b04c941c20fc992cff7f867f",
+      "marker": "TEST_f85c013d5361",
+      "attempts": 1,
+      "maxOutputTokens": 64,
+      "state": "UNCONFIRMED",
+      "startedAt": "2026-11-25T04:50:11.622Z",
+      "text": "",
+      "finish": "error",
+      "failure": "SERVER",
+      "elapsedMs": 632,
+      "observedRequests": [
+        {
+          "route": "m-b04c941c20fc992cff7f867f",
+          "requestId": "d6da1211-01bd-4683-b1bd-fc614a5f2a3f",
+          "maxTokens": 64,
+          "sentAt": "2026-11-25T04:50:11.760Z"
+        }
+      ],
+      "usage": [
+        {
+          "type": "usage",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        }
+      ],
+      "finishedAt": "2026-11-25T04:50:12.257Z"
+    },
+    {
+      "name": "gpt6.1sol",
+      "route": "m-2baf5dd4ce986f59fb47b2e3",
+      "marker": "TEST_a9baa06d61b3",
+      "attempts": 1,
+      "maxOutputTokens": 64,
+      "state": "PASS",
+      "startedAt": "2026-11-25T04:50:12.258Z",
+      "text": "TEST_a9baa06d61b3",
+      "finish": "stop",
+      "failure": null,
+      "elapsedMs": 4035,
+      "observedRequests": [
+        {
+          "route": "m-2baf5dd4ce986f59fb47b2e3",
+          "requestId": "246c6b54-31b9-4214-9b8e-1ba1a13665b9",
+          "maxTokens": 64,
+          "sentAt": "2026-11-25T04:50:12.259Z"
+        }
+      ],
+      "usage": [
+        {
+          "type": "usage",
+          "usage": {
+            "inputTokens": 18,
+            "outputTokens": 13,
+            "totalTokens": 31
+          }
+        }
+      ],
+      "finishedAt": "2026-11-25T04:50:16.295Z"
+    },
+    {
+      "name": "gpt6.1terra",
+      "route": "m-f044f1b212edc58e60450119",
+      "marker": "TEST_a8ed2f901a4c",
+      "attempts": 1,
+      "maxOutputTokens": 64,
+      "state": "UNCONFIRMED",
+      "startedAt": "2026-11-25T04:50:16.296Z",
+      "text": "",
+      "finish": "error",
+      "failure": "SERVER",
+      "elapsedMs": 10490,
+      "observedRequests": [
+        {
+          "route": "m-f044f1b212edc58e60450119",
+          "requestId": "df38c0f9-462b-4b5a-9385-d6ad2d23f727",
+          "maxTokens": 64,
+          "sentAt": "2026-11-25T04:50:16.298Z"
+        }
+      ],
+      "usage": [
+        {
+          "type": "usage",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        }
+      ],
+      "finishedAt": "2026-11-25T04:50:26.791Z"
+    },
+    {
+      "name": "claude opus5.5",
+      "route": "m-cf42291d9a1a39008ebffe49",
+      "marker": "TEST_ea9d15dbcee3",
+      "attempts": 1,
+      "maxOutputTokens": 64,
+      "state": "PASS",
+      "startedAt": "2026-11-25T04:50:26.793Z",
+      "text": "TEST_ea9d15dbcee3",
+      "finish": "stop",
+      "failure": null,
+      "elapsedMs": 3234,
+      "observedRequests": [
+        {
+          "route": "m-cf42291d9a1a39008ebffe49",
+          "requestId": "a16e54bc-d6b2-472e-a126-18a891d008cd",
+          "maxTokens": 64,
+          "sentAt": "2026-11-25T04:50:26.798Z"
+        }
+      ],
+      "usage": [
+        {
+          "type": "usage",
+          "usage": {
+            "inputTokens": 26,
+            "outputTokens": 16,
+            "totalTokens": 42
+          }
+        }
+      ],
+      "finishedAt": "2026-11-25T04:50:30.032Z"
+    }
+  ],
+  "finishedAt": "2026-11-25T04:50:30.032Z"
+}

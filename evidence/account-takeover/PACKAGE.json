@@ -1,0 +1,10 @@
+{
+  "version": "0.4.14",
+  "clientSource": "3b1b05ca2ea620a00189c8285ce9a49bb385c7a8",
+  "accountServiceSource": "37d34c691d2c40a0e3f78a17a73f89d01e6569e4",
+  "installerBytes": 504633255,
+  "installerSHA256": "4736150befcfd04efd305e89f937b59a0e8619bb48facfceca319162559f5de6",
+  "gate": "PASS",
+  "cloudCatalogVerified": true,
+  "credentialsIncluded": false
+}

@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "publicAuthority": "https://47.105.59.142",
+  "executable": "D:/NaumiReleases/0.4.14/win-unpacked/Naumi.exe",
+  "clientVersion": "0.4.14",
+  "serviceVersion": "0.4.14",
+  "accountManaged": true,
+  "models": [
+    "claude fable5.2",
+    "gpt6.1sol",
+    "gpt6.1terra",
+    "claude opus5.5"
+  ],
+  "settingsModelsOnly": true,
+  "localUpstreamCredentialFileExists": true,
+  "catalogNoCredentialOrLease": true,
+  "protectedOriginalProfileModified": false,
+  "modelCalls": 0,
+  "observedAt": "2026-11-25T04:46:44.792Z",
+  "localOldUpstreamKeyMatches": 0,
+  "nativeCredentialStoreHasNoModelRefs": true
+}

@@ -1,0 +1,24 @@
+{
+  "source": "37d34c691d2c40a0e3f78a17a73f89d01e6569e4",
+  "before": {
+    "path": "E:\\Workspace\\naumi-desktop\\runtime\\account-model-ingress\\nginx.before",
+    "bytes": 7705,
+    "sha256": "195d382de8e14a5f4d1b150319ff6853c1492043a645ec309d5da83f5a533f3d"
+  },
+  "after": {
+    "path": "E:\\Workspace\\naumi-desktop\\runtime\\account-model-ingress\\nginx.after",
+    "bytes": 7811,
+    "sha256": "05e4f8ecc665e6c162214d0917882570b8c77311386436e1001158f3f687f5d3"
+  },
+  "snippet": {
+    "path": "/opt/naumi-desktop-models/releases/37d34c691d2c40a0e3f78a17a73f89d01e6569e4/nginx-location.conf",
+    "bytes": 506,
+    "sha256": "b8ab35fdc1c3391f5de47df7825e8a1172fed1ec2197ca31cf83f46a6fd56839"
+  },
+  "include": " include /opt/naumi-desktop-models/releases/37d34c691d2c40a0e3f78a17a73f89d01e6569e4/nginx-location.conf;",
+  "scriptSHA256": "317e7fd50821a9bcd7df7adc69392a3ef545208ae59640fbd7c63abae4477bb2",
+  "copyRollback": {
+    "restored": true,
+    "liveGatewayModified": false
+  }
+}

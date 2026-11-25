@@ -1,0 +1,7 @@
+{
+  "source": "37d34c691d2c40a0e3f78a17a73f89d01e6569e4",
+  "exit": 1,
+  "status": "FAIL",
+  "error": "DEPLOYMENT_STAGE_FAILED",
+  "noAutomaticDatabaseRollback": true
+}
