@@ -1,0 +1,22 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'UND_ERR_INVALID_ARG'
+- 'UND_ERR_CONNECT_TIMEOUT'
+           ^
+
+    at file:///E:/Workspace/naumi-account-model-availability-20261125/scripts/verify-account-model-transport.mjs:9:124
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'UND_ERR_INVALID_ARG',
+  expected: 'UND_ERR_CONNECT_TIMEOUT',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

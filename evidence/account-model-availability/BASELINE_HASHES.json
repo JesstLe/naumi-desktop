@@ -1,0 +1,30 @@
+{
+  "baseline": "3d52c925e635a3851899f8ba8f24630ac24cbbde",
+  "files": [
+    {
+      "path": "services/account-models/server.mjs",
+      "before": "9ff880ad8fac8301817ceb164c5b1cfd4187f66afcddbd8a6b68dd7502efce0c",
+      "after": "62c5c291dbfd367263653f83f12d1d50071d3d2e7d340379f9156af8baef464a"
+    },
+    {
+      "path": "services/account-models/main.mjs",
+      "before": "3d32d0ec280d94354c714411dd0a412deb59bd0131dd7930339fcdf7f853ba15",
+      "after": "240fb015bdd60fc5be0b7daa70ef1ac0dc2b9c7d18703096ed91346380b19dbc"
+    },
+    {
+      "path": "services/account-models/package.json",
+      "before": "b63ea1aedc03a701347d62ca8aa75b087608f947b1b45ae2ce5408fef7fba5b0",
+      "after": "556beaa6bd1e6e37e562db9702668f1461f837c5819dcfe1b19b316b5c281385"
+    },
+    {
+      "path": "services/account-models/upstream.mjs",
+      "before": null,
+      "after": "280980e50a71713131094f2e0f0a6be86b1fefb07dbadfb70835c2bc14c67b95"
+    },
+    {
+      "path": "scripts/prepare-account-models.mjs",
+      "before": "81a95cd291def5bfb9f43a3f23cd84a5126dde20e8385b6b215c32d45d2d100c",
+      "after": "350d96a086d64aff5f1959b1b4da08463cf62c8b92cc45c73901032f790e0a1a"
+    }
+  ]
+}

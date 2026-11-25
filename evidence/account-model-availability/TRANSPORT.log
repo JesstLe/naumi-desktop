@@ -1,0 +1,2 @@
+{"status":"PASS","baseline":{"code":"UND_ERR_CONNECT_TIMEOUT","ms":10708},"modified":{"status":200,"ms":12042},"actualTLSVerified":true,"syntheticModelPosts":1,"realSupplierRequests":0,"retries":0}
+TRANSPORT_PASS baseline_connect_timeout=true modified_delayed_TLS=200 posts=1 retries=0 realSupplierRequests=0

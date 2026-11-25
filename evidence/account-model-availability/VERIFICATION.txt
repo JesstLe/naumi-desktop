@@ -1,0 +1,39 @@
+Current: account-model availability / LOCAL_FIX_VERIFIED / separate service deployment pending
+Baseline/source branch: 3d52c925e635a3851899f8ba8f24630ac24cbbde / codex/account-model-availability-20261125
+Changed branch/field: dedicated upstream connectTimeout 10000 default -> 30000; same-version undici Agent/fetch; per-service scope, TLS validation retained, no retries/global dispatcher/endpoint changes. Started-request generic catch -> typed timeout/TLS/connection code + original UUID and whitelist-only diagnostic. Request receipts/UNKNOWN/grants/catalog untouched.
+MODIFIED_FILE=E:/tmp/naumi-account-unavailable-20261125/MODIFIED_FILE.zip
+DIFF_FILE=E:/tmp/naumi-account-unavailable-20261125/DIFF_FILE.patch
+VERIFICATION=E:/tmp/naumi-account-unavailable-20261125/VERIFICATION.txt
+ROLLBACK=E:/tmp/naumi-account-unavailable-20261125/ROLLBACK.sh
+
+BASELINE exact command (PowerShell cwd independent worktree): node --test tests/account-models.test.mjs
+Input: original 3d52c92 service, isolated fixtures. Literal output: tests 15 / pass 15 / fail 0. Exit 0.
+Original disconnect behavior: generic HTTP503, original request UNKNOWN, same UUID409, one upstream dispatch.
+
+BASELINE/MODIFIED actual TLS command: node scripts/verify-account-model-transport.mjs
+Input: two independent same-version public undici Agents, local HTTPS with trusted temporary fixture CA, actual handshake delayed12000ms, POST body synthetic-only, no upstream credentials.
+Literal result: {"status":"PASS","baseline":{"code":"UND_ERR_CONNECT_TIMEOUT","ms":10708},"modified":{"status":200,"ms":12042},"actualTLSVerified":true,"syntheticModelPosts":1,"realSupplierRequests":0,"retries":0}
+Literal output: TRANSPORT_PASS baseline_connect_timeout=true modified_delayed_TLS=200 posts=1 retries=0 realSupplierRequests=0
+Exit 0. Only modified request reached the loopback HTTP handler; original timed out before model POST, not retried.
+
+MODIFIED exact command: node --test --test-concurrency=2 tests/account-models.test.mjs tests/account-model-availability.test.mjs tests/account-model-owner-auth.test.mjs tests/account-model-stream.test.mjs tests/account-model-takeover.test.mjs tests/account-model-deploy-guards.test.mjs
+Input: isolated store/HTTP/adapter/auth/stream fixtures; codes include nested connect timeout, certificate failure, reset, client abort, rejection, malformed stream, sink failure and duplicate UUID.
+Literal output: tests 31 / pass 31 / fail 0. Exit 0.
+Observed typed timeout HTTP504+same UUID; UNKNOWN remains; replay409; one dispatch. Known rejected request remains rejected.
+MODIFIED exact bundle command: node scripts/prepare-account-models.mjs E:/Workspace/naumi-refactor-main-close-20261105
+Literal output: ACCOUNT_MODEL_SERVICE_BUNDLE credentialsIncluded=false source=512b90001d74bbbc52b4438576d01efd4b255275 bytes=1354476. Exit0.
+BundleSHA256=51255cd0453950bfead0530cac8a2ad378c0f61b45dedec229c71e93e5892eea
+Original readerSHA256=fa9056b6a24122c3f309dac4b3b5582541bcf5daa43567e2c91a3ed60dc31b52 unchanged from existing service.
+MODIFIED exact bundle startup command: node scripts/verify-account-model-service.mjs
+Literal output: ACCOUNT_MODEL_BUNDLE process=PASS HTTP=200 admin_without_login=401 credentials=NONE modelCalls=0. Exit0.
+
+ROLLBACK exact command:
+& 'D:/DEV/Git/bin/bash.exe' 'E:/tmp/naumi-account-unavailable-20261125/ROLLBACK.sh' 'E:/tmp/naumi-account-unavailable-20261125/rollback-copy'
+Input: marked independent copy matching all 5 modified product/build hashes.
+Literal output: ROLLBACK_PASS files=5 baseline_hashes_restored=true modified_artifact_unchanged=true. Exit0.
+Restored behavior test command (cwd E:/tmp/naumi-account-unavailable-20261125/rollback-copy): node --test tests/account-models.test.mjs
+Literal output: tests 15 / pass 15 / fail 0. Exit0. Original generic503/UNKNOWN/409/one-dispatch behavior restored. Actual modified worktree and MODIFIED_FILE stay changed.
+
+Read-only production findings are supporting evidence, not the exact unavailable historical cause: same-minute bootstrap200, gateway503; original requests UNKNOWN. Health200/restarts0. Anonymous upstream HEAD/TLS intermittently timeout, IPv6 ENETUNREACH; longer TLS observation succeeded8699ms with default verification. No original task replay, paid calls, catalog/default writes, remote deployment/restart/ingress edits.
+Earlier fixture/code failures retained separately: leaf verification code classification omission, stream destroyed before client receives response headers, initial mixed undici8 Agent with Node built-in undici7 fetch. Final code uses matching public undici8 Agent+fetch.
+Production deployment remains pending independent fresh space/budget/closure and service candidate/ingress window. This is not a claim the old UNKNOWN or upstream network is now recovered.
