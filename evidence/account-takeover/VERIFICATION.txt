@@ -42,4 +42,49 @@ Input: restored baseline source; original isolated fixtures.
 Literal result: ℹ tests 14 / ℹ pass 14 / ℹ fail 0
 Exit status: 0
 Restored behavior/status: original pre-enrollment HTTP404=>null is restored in the disposable copy. Actual task worktree remains modified and bootstrap fails closed. No installed files, production grant, PG or SQLite restoration performed.
-Deployment/package publication: pending; source/local PASS is not production all-client takeover.
+Production/package publication: COMPLETE for the central control service and v0.4.14 release; individual remote devices are not claimed upgraded.
+Final source artifact expanded to include dedicated authentication and subsequent deployment guards: 36 files.
+FINAL ROLLBACK
+Command: D:/DEV/Git/bin/bash.exe -c 'evidence/account-takeover/ROLLBACK.sh E:/Workspace/naumi-desktop-account-takeover/runtime/account-takeover-final-rollback'
+Input: final marked disposable copy, 36 modified hashes verified before rollback.
+Literal output: ROLLBACK_PASS files=36 sourceCopyOnly=true
+Exit status: 0
+Command (cwd final rollback copy): node --test --test-concurrency=2 tests/account-models.test.mjs
+Literal result: ℹ tests 14 / ℹ pass 14 / ℹ fail 0
+Exit status: 0
+Restored behavior/status: baseline first-enrollment404=>null restored only in the disposable copy; modified live deployment remains changed and fail-closed.
+LIVE PREPARE
+Command: node scripts/deploy-account-models47.mjs prepare --source=37d34c691d2c40a0e3f78a17a73f89d01e6569e4 --archive=runtime/account-models-37d34c691d2c40a0e3f78a17a73f89d01e6569e4.tar --gateway-sha=195d382de8e14a5f4d1b150319ff6853c1492043a645ec309d5da83f5a533f3d --expected-dump-sha=d7cd4700a02f38a894f2d811975c5a0c0c399d326402b33a6a95b2e1c6ef6b14 --not-after=2026-11-25T04:46:40Z
+Input: fixed no-secret archive, existing authorized source configuration over pinned SSH stdin, owner-approved exact database allowlist.
+Literal result: status READY_FOR_INGRESS; import PASS; role CREATED; container STARTED; defaults ENABLED.
+Exit status: 0; no model calls.
+LIVE INGRESS
+First attempt exit1 DEPLOYMENT_STAGE_FAILED; actual after-include CAS rollback restored original target195d382d... and complete dumpd7cd4700...; original failure retained in REMOTE_ingress_FIRST_FAILED and central owner evidence.
+Final command: node scripts/deploy-account-models47.mjs ingress --source=37d34c691d2c40a0e3f78a17a73f89d01e6569e4 --gateway-sha=195d382de8e14a5f4d1b150319ff6853c1492043a645ec309d5da83f5a533f3d --expected-dump-sha=d7cd4700a02f38a894f2d811975c5a0c0c399d326402b33a6a95b2e1c6ef6b14 --not-after=2026-11-25T04:55:13Z
+Literal result: status INGRESS_PASS; publicTLSHealth200; anonymousAdmin401; originalContainersUnchanged16.
+Exit status: 0
+Full nginx stdout: 1d20f9acc3972b81ee99df134ec3f533f1082d53ab38541956ca84ce426d1f6d. Central owner independently rebound canonical2864->2865, restored timer; original worker UNKNOWN/HOLD remains, not whole central supervisor success.
+REAL OWNER / PACKAGED EXE / REVOKE
+ACTUAL_PUBLIC_OWNER.json: PASS; actual owner catalog/defaults/bootstrap200, real admin page four items, defaultTLS; 0 paid calls.
+ACTUAL_PACKAGED_PUBLIC.json: PASS; client/service0.4.14, accountManagedtrue, settingsModelsOnlytrue; original user installation not touched.
+LIVE_DEFAULT_REVOKE_RESTORE.json: PASS; oldCredentialDenied403, disabledBootstrap403, restoredRevision3, restoredModels4/enabledtrue; 0 paid calls.
+REAL MODEL TESTS (explicit separate user approval)
+Command: node runtime/verify-real-four-models.mjs
+Input: real owner session copy, public gateway, one random text marker per option, maxTokens64, one allowed fetch per route, no retries.
+Literal output:
+REAL_MODEL claude fable5.2 state=UNCONFIRMED networkAttempts=1 elapsedMs=632
+REAL_MODEL gpt6.1sol state=PASS networkAttempts=1 elapsedMs=4035
+REAL_MODEL gpt6.1terra state=UNCONFIRMED networkAttempts=1 elapsedMs=10490
+REAL_MODEL claude opus5.5 state=PASS networkAttempts=1 elapsedMs=3234
+REAL_FOUR_MODELS_PARTIAL attempts=4
+Exit status: 0 means script completed, NOT all models passed. Original server receipt states unknown/stream_complete/unknown/stream_complete, four distinct UUIDs. No automatic retry or replay. Initial preflight missing module made zero calls and is preserved separately.
+PUBLIC RELEASE
+Command: node scripts/publish-desktop-update.mjs --skip-build --version 0.4.14 --target 3b1b05ca2ea620a00189c8285ce9a49bb385c7a8
+Literal output: RELEASE v0.4.14 artifacts=Naumi-Setup-0.4.14-x64.exe(481.3MB)+latest.yml(with releaseNotes) feed=github:JesstLe/naumi-desktop
+Exit status: 0
+Package: D:/NaumiReleases/0.4.14/Naumi-Setup-0.4.14-x64.exe, 504633255 bytes, SHA2564736150befcfd04efd305e89f937b59a0e8619bb48facfceca319162559f5de6.
+Anonymous complete installer GET200 and bytes/hash match. Default direct latest.yml0.4.14; mirror429 preserved, actual previous0.4.13 default fallback downloaded/verified0.4.14 to ready. No install requested on user's machine.
+Package scan literal result: PASS, files45672, bytesScanned881758109, knownPreviousUpstreamSecrets3, matches0, personalCredentialsfalse, accountModelsRequiredtrue, embeddedModelsResourceExistsfalse.
+BOUNDARIES
+Old downloaded embedded keys are not revoked by software release. No shared upstream rotation performed. Pre-bootstrap old clients require upgrade. Existing active old sessions require normal restart/update; no claim that all remote installations were inspected or forcibly upgraded. Two real supplier requests remain UNKNOWN and were never replayed.
+

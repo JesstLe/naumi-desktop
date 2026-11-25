@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-11-25T04:53:12.518Z",
+  "release": "https://github.com/JesstLe/naumi-desktop/releases/tag/v0.4.14",
+  "feeds": [
+    {
+      "base": "https://gh.ddlc.top/https://github.com/JesstLe/naumi-desktop/releases/latest/download",
+      "status": 429,
+      "containsSupplierDetails": false,
+      "hasNotes": false,
+      "url": "https://gh.ddlc.top/https://github.com/JesstLe/naumi-desktop/releases/latest/download/latest.yml"
+    },
+    {
+      "base": "https://github.com/JesstLe/naumi-desktop/releases/latest/download",
+      "status": 200,
+      "version": "0.4.14",
+      "containsSupplierDetails": false,
+      "hasNotes": true,
+      "url": "https://release-assets.githubusercontent.com/github-production-release-asset/1454786564/2a8e3339-df24-435f-87ce-8bc552f94273"
+    }
+  ]
+}

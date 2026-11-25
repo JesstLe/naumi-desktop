@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "catalogStatus": 200,
+  "defaultsStatus": 200,
+  "bootstrapStatus": 200,
+  "models": [
+    "claude fable5.2",
+    "gpt6.1sol",
+    "gpt6.1terra",
+    "claude opus5.5"
+  ],
+  "defaultEnabled": true,
+  "modelCount": 4,
+  "publicCatalogClean": true,
+  "tokenPersisted": false,
+  "modelCalls": 0,
+  "originalSessionModified": false,
+  "transport": "public HTTPS default TLS",
+  "observedAt": "2026-11-25T04:46:07.841Z",
+  "realAdminPageLoaded": true,
+  "realAdminModelItems": [
+    "claude fable5.2",
+    "gpt6.1sol",
+    "gpt6.1terra",
+    "claude opus5.5"
+  ],
+  "realAdminDefaultEnabled": true
+}

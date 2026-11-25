@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "defaultBeforeRevision": 1,
+  "disabledRevision": 2,
+  "oldCredentialDenied": 403,
+  "disabledBootstrap": 403,
+  "restoredRevision": 3,
+  "restoredModels": 4,
+  "restoredEnabled": true,
+  "paidRequests": 0,
+  "automaticRetry": false,
+  "observedAt": "2026-11-25T04:51:42.147Z"
+}

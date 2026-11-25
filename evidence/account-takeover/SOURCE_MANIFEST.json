@@ -44,7 +44,7 @@
     {
       "path": "docs/changes/2026-11-25-account-model-takeover.md",
       "before": null,
-      "after": "b1e71da7f171842f67cfb4a972a5c35f077facb178631d41b0ad16e367176692"
+      "after": "0803bd5f2ce33a840f03eca0b02252a927b4770e49fa3e938f98bf3c00a732d5"
     },
     {
       "path": "plugins/naumi-enterprise/product-version.js",
@@ -59,12 +59,12 @@
     {
       "path": "scripts/deploy-account-models47.mjs",
       "before": null,
-      "after": "670f038b242539227e88b7592a3942e926d79978e2a550ea9ea2c3b174f95c1e"
+      "after": "5542fd340850755864a5228818911b6ddd158ff7a2a4e6ceb8705ca120eaf6a2"
     },
     {
       "path": "scripts/deploy-account-models47.py",
       "before": null,
-      "after": "616a09a5372ff6ad7fa46902bcd82508b878ba2bfaed9dba41f615dbb4e0671c"
+      "after": "32c4549ff60ca6d1b21f392a844f2c7f2fcf820546c5a0809785e737613c6496"
     },
     {
       "path": "scripts/desktop-model-import47-cli.mjs",
@@ -74,7 +74,7 @@
     {
       "path": "scripts/lib/account-model-takeover-input.mjs",
       "before": null,
-      "after": "65c43e2e5c2a96f525088a8f1264d08b84ba5f26e59c191dc7aeef0f13d4a5f9"
+      "after": "b4b112f42fa5ae497246439091b7857dd75bae13a7f6a3564fd1c88b483865df"
     },
     {
       "path": "scripts/lib/desktop-model-import-ready.mjs",
@@ -107,6 +107,11 @@
       "after": "ce783f4d35b9b92021761e428118ad11c892eeba769d85674a1e5846537c5eff"
     },
     {
+      "path": "scripts/verify-account-ingress-readiness.py",
+      "before": null,
+      "after": "5c48811e2549cfb4f9629f1a8b3c698f73326b759fc5688844a028ec58715bca"
+    },
+    {
       "path": "scripts/verify-account-model-service.mjs",
       "before": "a763023870dd950e7036524d73b82616b163434c4e55055e3dd3ac856b947827",
       "after": "b1db9f5a3dcdcf2fe6ab9313ee0fd86e49a8d0a75b023042dcc496d560e9d5d6"
@@ -127,9 +132,14 @@
       "after": "38fc073e7400b818abca7fdbab6c1fdf7e5dd1903e4cd2b623d2d2c58e5dbf31"
     },
     {
+      "path": "services/account-models/auth.mjs",
+      "before": "c0fea168e9aeeaadf23e85ca2a0e5d46b808f957401bd151918ff3b3d41931ea",
+      "after": "10c1cc28fb5ad6d0c581338f615f04292c1a7815fd7808edcdb182338bb47831"
+    },
+    {
       "path": "services/account-models/main.mjs",
       "before": "2960c577ef2ec19987cea700d7de590bbfa3d17c6aa96e21faf2b822039605ce",
-      "after": "c677dbfe6a626ffa5f05f7184ec1eab5931e2ec696b05ef2f8bbee5533976bf2"
+      "after": "e409f32b2b625869afc6ff5e1d4e840bb10a5b3ebe23ee9934b4adc08673ba1a"
     },
     {
       "path": "services/account-models/readonly-role.mjs",
@@ -150,6 +160,16 @@
       "path": "services/account-models/store.mjs",
       "before": "ddd24065648b011b95b697faa54cdca850cf8058b610a9d1807c1854cda8db5d",
       "after": "7d2c607721627554a6200fc5fd79db2d2ef66d5cfffc47053990162afdfdb502"
+    },
+    {
+      "path": "tests/account-model-deploy-guards.test.mjs",
+      "before": null,
+      "after": "c5778dbdfae197eaf001d180e66e9178f7aa7ed5f386bfc313916dd9a802feec"
+    },
+    {
+      "path": "tests/account-model-owner-auth.test.mjs",
+      "before": null,
+      "after": "b20cf14ac97f5e4d965eed4b7635760ce4d0f58b1db84952052ece356a981117"
     },
     {
       "path": "tests/account-model-takeover.test.mjs",

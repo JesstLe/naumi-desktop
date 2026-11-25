@@ -1,0 +1,63 @@
+{
+  "source": "37d34c691d2c40a0e3f78a17a73f89d01e6569e4",
+  "archive": "E:\\Workspace\\naumi-desktop\\runtime\\account-models-37d34c691d2c40a0e3f78a17a73f89d01e6569e4.tar",
+  "bytes": 1799168,
+  "sha256": "4b94bbefa7f069eab19371e0dca21bce5045e30518d04af95d32387358364fb0",
+  "files": [
+    {
+      "path": "admin.html",
+      "bytes": 2554,
+      "sha256": "2a6814dfe838e44f5466113e24df6627f49b7cb0b7ed1d6102152997beb9551c"
+    },
+    {
+      "path": "admin.js",
+      "bytes": 3391,
+      "sha256": "12473595b6ce1300ca91fe26087efda8d91dd32e89613a23606123e524fc319d"
+    },
+    {
+      "path": "catalog.json",
+      "bytes": 610,
+      "sha256": "618a02786487905f33f6ea57eac62ede5d288e91e31ca83a9e94e46ddafefd14"
+    },
+    {
+      "path": "CONTRACT_PIN.json",
+      "bytes": 266,
+      "sha256": "821489eaeca3efe581cf9ad18a56f9ae18a53a5a5839a1e1246a0916bc4a1ff2"
+    },
+    {
+      "path": "import.cjs",
+      "bytes": 1351977,
+      "sha256": "7cb11d3f223074096f0ced903ea5199f3e6e012ee6db85d088e7f5441abbfc8e"
+    },
+    {
+      "path": "IMPORT_ALLOWLIST.json",
+      "bytes": 5310,
+      "sha256": "f71df529e4d7ab76ac80812f9138e9f0d7e429d34deb8330a0f09282480a781a"
+    },
+    {
+      "path": "IMPORT_PIN.json",
+      "bytes": 1192,
+      "sha256": "1bd5952a5ac308baf38039e74144b87cfd5e52bd2cf76e3db9627b5ddbd3b5fa"
+    },
+    {
+      "path": "nginx-location.conf",
+      "bytes": 506,
+      "sha256": "b8ab35fdc1c3391f5de47df7825e8a1172fed1ec2197ca31cf83f46a6fd56839"
+    },
+    {
+      "path": "operator.mjs",
+      "bytes": 204055,
+      "sha256": "760a68d5181e1cb323dba186a5fbea00dda832724c535450fc038527f1e7aec7"
+    },
+    {
+      "path": "OPERATOR_PIN.json",
+      "bytes": 266,
+      "sha256": "976dae80907e9929a6910624e4715996ae55a0b0a03c80ac6d367f91fe842135"
+    },
+    {
+      "path": "server.mjs",
+      "bytes": 217151,
+      "sha256": "785b1b040f6cacb49973c7e0c70ace77f8a9f2bb12d310ade08f445c57d30504"
+    }
+  ]
+}

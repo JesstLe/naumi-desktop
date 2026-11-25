@@ -1,0 +1,27 @@
+{
+  "observedAt": "2026-11-25T04:32:45.838Z",
+  "session": 200,
+  "authenticated": true,
+  "subjectMatches": true,
+  "enterpriseStatus": 200,
+  "enterpriseMatches": true,
+  "owner": true,
+  "snapshotBytes": 116805,
+  "keys": [
+    "enterprise",
+    "members",
+    "roles",
+    "actor",
+    "ownerAvailable",
+    "entitlement"
+  ],
+  "actorKeys": [
+    "owner",
+    "canManageIdentity",
+    "manageMembers",
+    "viewRecords",
+    "level",
+    "scopeLabel"
+  ],
+  "privateValuesPrinted": 0
+}

@@ -158,10 +158,10 @@ index 4936c3b..cdd275c 100644
      fs.writeFileSync(path.join(staged,'runtime-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 diff --git a/docs/changes/2026-11-25-account-model-takeover.md b/docs/changes/2026-11-25-account-model-takeover.md
 new file mode 100644
-index 0000000..70a02a0
+index 0000000..5e77983
 --- /dev/null
 +++ b/docs/changes/2026-11-25-account-model-takeover.md
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,56 @@
 +# 47 全账号模型接管
 +
 +## 模块与职责
@@ -193,6 +193,31 @@ index 0000000..70a02a0
 +- 所有远端证据、源代码整合、固定包发布和回滚证明在本记录后续更新；未经观察不标完成。
 +
 +功能迭代：本切片 2 模块，尚未发布；同步 origin/main 保持基线。
++
++## 正式 dedicated 管理认证补验
++- 真实现存 native 会话在独立 Chromium 副本读取：session200、主体与原来源账号一致、固定 enterprise 一致、actor.owner=true；2026-11-25T04:32:45Z，无Cookie/成员明文输出。
++- 正式 `/api/admin/login` 为404，是 dedicated 产品隔离，不是缺文件。因此正式模式改用明确部署allowlist：同一已有Cookie，fresh `/api/auth/session` + 固定 `/api/enterprise?enterpriseId=...`，同时要求精确来源主体、固定企业、`actor.owner===true`。普通用户bootstrap不要求owner。不修改中央模式/角色，不伪造nv_admin。
++- 原平台密码模式保留给非dedicated受支持部署/原契约测试，正式requireRO模式必须提供native-owner配置。
++- 认证/原通道集中19项通过：覆盖错主体、错企业、非owner、仅admin/管理标志、缺字段、字符串true、404/非JSON/超时/超大正文，均不授管理。
++- 运行服务目录需因本认证修订重新固定；客户端3b1b05ca产物不包含该服务源码，原模型选择器升级矩阵继续独立验收。
++
++## 正式上线与更新源交付（已观察）
++- Desktop固定源 `3b1b05ca2ea620a00189c8285ce9a49bb385c7a8`；独立服务固定源 `37d34c691d2c40a0e3f78a17a73f89d01e6569e4`。后续提交仅部署guard/证据，不重写已固定制品。
++- 准备阶段真实exit0：原credential owner新增四表各4行；原数据digest一致。专用RO角色实际无业务写权限/成员身份/自有表/schemaCREATE；独立sidecar与四项默认启用。未改原Web/Worker启动身份。
++- 首轮ingress实际nginx-t/reload后读验收异常，原CAS回滚真实恢复完整旧闭包。保留FIRST_FAILED、中央独立封存以及原失败日志；不记首次发布成功。随后修正有限只读GET收敛与分阶段状态记录，第二窗口exit0，公网health200，匿名管理401。
++- 第二窗口完整闭包 `1d20f9acc3972b81ee99df134ec3f533f1082d53ab38541956ca84ce426d1f6d`，原vhost仅增加批准include。中央owner独立闭窗，gateway pin重绑canonical2864→2865并恢复timer；中央原UNKNOWN/HOLD继续保留，并非中央监督整体PASS。
++- 公网真实owner管理页面读取4项、目录/default/bootstrap200；真实0.4.14打包EXE使用原合法会话副本，客户端/服务均0.4.14、账号管理模式开启、设置DTO仅模型名/状态；0原用户配置写入/0重启原客户端。
++- 授权CAS真实撤销及恢复：默认revision1→2关闭，原token新请求403/新bootstrap403，revision3恢复，fresh bootstrap4项。没有额外模型调用。
++- 0.4.14实际安装器与EXE/ASAR/UI哈希绑定；4配置×12场景、真实旧0.4.13缓存升级及关联服务同步通过。本机fixture模型调用8，0真实供应商；此门禁不是原用户本机已安装。
++- 包扫描45,672文件/881,758,109B：已知3个旧上游密钥0命中，personalCredentials=false，embedded资源不存在，accountModels.required=true。
++- 更新源已公开发布 [v0.4.14](https://github.com/JesstLe/naumi-desktop/releases/tag/v0.4.14)，504,633,255B，SHA256 `4736150befcfd04efd305e89f937b59a0e8619bb48facfceca319162559f5de6`。匿名完整GET200且字节/hash一致。镜像当次429，原客户端默认GitHub回退实际成功；真实0.4.13检查更新到0.4.14并下载校验至ready，未点安装/未改原用户安装。
++- 四项实际供应商测试经用户另行授权，每项一次/64输出token：`gpt6.1sol`与`claude opus5.5` marker匹配+native stop+服务stream_complete；`claude fable5.2`与`gpt6.1terra` native SERVER/error、服务unknown。共4 UUID，无自动重试/回放；不声称四通道全通过，不把UNKNOWN改成成功/退款。
++
++## 最终保留边界
++- 所有登录本实例服务的账号继承后台默认；指定账号禁用/覆盖可由固定来源所有者管理。已有0.4.13真实副本在本轮也已领取后台目录；更旧未包含bootstrap的包仍需升级。
++- 已下载旧包中的上游密钥仍由原供应商决定失效。本轮未吊销/轮换共享上游凭据，不能宣称所有旧离线副本已失效；新包不再内嵌，升级会定点退役自有旧引用。
++- 新版未自动覆盖用户正在使用的安装或重启其程序。中央原Worker UNKNOWN、完整生产容量、两条未知供应商回执不在本次成功状态内。
++- 正式管理入口：`https://47.105.59.142/admin/desktop-models`，先使用原47所有者账号登录；不创建第二套管理员。
 diff --git a/plugins/naumi-enterprise/product-version.js b/plugins/naumi-enterprise/product-version.js
 index 838c634..ce78f85 100644
 --- a/plugins/naumi-enterprise/product-version.js
@@ -232,40 +257,44 @@ index 0000000..0bb4cfa
 +}catch(e){console.log(JSON.stringify({status:'FAIL',error:/^[A-Z_]+$/.test(e.message)?e.message:'ACCOUNT_MODEL_OPERATOR_FAILED',code:/^[A-Z0-9]{5}$/.test(e.code??'')?e.code:undefined}));process.exitCode=1;}finally{await pool.end();}
 diff --git a/scripts/deploy-account-models47.mjs b/scripts/deploy-account-models47.mjs
 new file mode 100644
-index 0000000..0de2d1e
+index 0000000..2379c6e
 --- /dev/null
 +++ b/scripts/deploy-account-models47.mjs
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,23 @@
 +// Explicit operator transport; preparation requires central owner's released phase.
 +import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {spawnSync,execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';
-+import {takeoverInput} from './lib/account-model-takeover-input.mjs';
++import {takeoverInput,validateTakeoverRequest} from './lib/account-model-takeover-input.mjs';
 +const phase=process.argv[2],arg=k=>process.argv.find(x=>x.startsWith('--'+k+'='))?.slice(k.length+3),source=arg('source'),gateway=arg('gateway-sha'),archive=arg('archive');
 +assert(['prepare','ingress','rollback-ingress'].includes(phase)&&/^[a-f0-9]{40}$/.test(source)&&/^[a-f0-9]{64}$/.test(gateway),'DEPLOYMENT_EXACT_PINS_REQUIRED');
-+assert.equal(execFileSync('git',['branch','--show-current'],{encoding:'utf8'}).trim(),'main','FIXED_MAIN_ONLY');assert.equal(execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),source,'FIXED_SOURCE_CHANGED');
++assert.equal(execFileSync('git',['branch','--show-current'],{encoding:'utf8'}).trim(),'main','FIXED_MAIN_ONLY');execFileSync('git',['merge-base','--is-ancestor',source,'HEAD']);assert(!execFileSync('git',['diff','--name-only',source,'HEAD','services/account-models','desktop/app','plugins/naumi-enterprise','scripts/desktop-model-import47-cli.mjs','scripts/prepare-desktop-model-import47.mjs','scripts/lib/desktop-model-import-store.mjs','scripts/lib/desktop-model-import-ready.mjs'],{encoding:'utf8'}).trim(),'FIXED_RUNTIME_CHANGED');
 +const config='E:/Workspace/naumi/output/server-connections/47.105.59.142/connection.json',c=JSON.parse(fs.readFileSync(config));assert(c.host==='47.105.59.142'&&c.username==='root');
 +const common=['-i',path.join(process.env.LOCALAPPDATA,'Naumi/operator-47-import/operator.pem'),'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+path.join(path.dirname(config),'known_hosts')],exe=n=>path.join(process.env.SystemRoot,'System32/OpenSSH/'+n+'.exe'),dest='root@'+c.host,out='evidence/account-takeover',remote='/opt/naumi-desktop-models/incoming/'+source+'.tar';
 +fs.mkdirSync(out,{recursive:true});const sync=(name,args,input)=>{const r=spawnSync(exe(name),args,{input,encoding:'utf8',windowsHide:true,timeout:180000});if(r.status!==0)throw Error('PINNED_TRANSPORT_FAILED');return r.stdout;};
 +let request=null,hash;
++const deadline=arg('not-after'),dumpSHA=arg('expected-dump-sha');assert(deadline&&/^[a-f0-9]{64}$/.test(dumpSHA)&&Date.parse(deadline)>Date.now()&&Date.parse(deadline)-Date.now()<=600000,'BOUNDED_WINDOW_REQUIRED');
++sync('ssh',['-T',...common,dest,`python3 -c "import shutil,pathlib,datetime;assert shutil.disk_usage('/').free>=10*1024**3+1200*1024**2;assert int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024>=768*1024**2;assert datetime.datetime.now(datetime.timezone.utc)<datetime.datetime.fromisoformat('${deadline}'.replace('Z','+00:00'));print('UPLOAD_ADMISSION_PASS')"`]);
 +if(phase==='prepare'){
 + assert(archive&&fs.statSync(archive).size<8*1024*1024,'SMALL_PUBLIC_ARCHIVE_REQUIRED');hash=createHash('sha256').update(fs.readFileSync(archive)).digest('hex');request=takeoverInput(arg('input')??'D:/NaumiReleases/0.4.13/win-unpacked/resources/backend/defaults/embedded-models.json');
++ validateTakeoverRequest(request,JSON.parse(fs.readFileSync('evidence/account-takeover/IMPORT_ALLOWLIST.json')));
 + sync('ssh',['-T',...common,dest,'umask 077; mkdir -p /opt/naumi-desktop-models/incoming']);sync('scp',[...common,archive,dest+':'+remote]);
 +}
 +// Script is passed through a separate fixed public file; payload stdin remains secret-only.
 +const script='scripts/deploy-account-models47.py',bytes=fs.readFileSync(script),scriptHash=createHash('sha256').update(bytes).digest('hex'),scriptRemote='/opt/naumi-desktop-models/incoming/deploy-'+scriptHash+'.py';
 +sync('scp',[...common,script,dest+':'+scriptRemote]);
-+const cmd=`test "$(sha256sum ${scriptRemote} | cut -d ' ' -f 1)" = ${scriptHash} && python3 -B ${scriptRemote} ${phase} --source ${source} --gateway-sha ${gateway}`+(phase==='prepare'?` --archive ${remote} --archive-sha ${hash}`:'');
-+const r=spawnSync(exe('ssh'),['-T',...common,dest,cmd],{input:request?JSON.stringify(request):'',encoding:'utf8',windowsHide:true,timeout:240000});
++const cmd=`test "$(sha256sum ${scriptRemote} | cut -d ' ' -f 1)" = ${scriptHash} && python3 -B ${scriptRemote} ${phase} --source ${source} --gateway-sha ${gateway} --expected-dump-sha ${dumpSHA} --not-after ${deadline}`+(phase==='prepare'?` --archive ${remote} --archive-sha ${hash}`:'');
++const r=spawnSync(exe('ssh'),['-T',...common,dest,cmd],{input:request?JSON.stringify({request,adminPolicy:{mode:'native-owner',enterpriseId:'1095114e-6b57-429e-a954-7d663907e0c9',subject:JSON.parse(fs.readFileSync('.dsh/naumi-legacy-owner.json')).subject.value.toLowerCase()}}):'',encoding:'utf8',windowsHide:true,timeout:240000});
 +fs.writeFileSync(path.join(out,'REMOTE_'+phase+'.log'),r.stdout+r.stderr);let v;try{v=JSON.parse(r.stdout);}catch{throw Error('REMOTE_RECEIPT_MISSING');}fs.writeFileSync(path.join(out,'REMOTE_'+phase+'.json'),JSON.stringify({source,exit:r.status,...v},null,2)+'\n');console.log(JSON.stringify(v));process.exitCode=r.status??1;
 diff --git a/scripts/deploy-account-models47.py b/scripts/deploy-account-models47.py
 new file mode 100644
-index 0000000..7dfcd97
+index 0000000..1754efa
 --- /dev/null
 +++ b/scripts/deploy-account-models47.py
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,159 @@
 +"""Phased account-model deployment; additive ingress only, no central slot control.
 +Preparation and ingress each require the central owner's explicitly released window.
 +No passwords, credential ciphertext or cookie values are emitted.
 +"""
++import datetime,re,atexit
 +import argparse,contextlib,fcntl,hashlib,json,os,pathlib,secrets,shutil,socket,sqlite3,subprocess,sys,tarfile,time,urllib.request,urllib.error
 +BASE=pathlib.Path('/opt/naumi-desktop-models')
 +GATE=pathlib.Path('/etc/nginx/sites-available/reference-workbench')
@@ -284,32 +313,59 @@ index 0000000..7dfcd97
 + finally:
 +  if temp.exists():temp.unlink()
 +def request(url):
++ def parsed(raw):
++  try:return json.loads(raw)
++  except (ValueError,UnicodeDecodeError):return {'invalidJSON':True}
 + try:
-+  with urllib.request.urlopen(url,timeout=15) as r:return r.status,json.loads(r.read())
-+ except urllib.error.HTTPError as e:return e.code,json.loads(e.read())
-+def inventory():return {r['Name']:r['State']['StartedAt'] for r in json.loads(run(['docker','inspect',*run(['docker','ps','-q']).decode().split()]))}
++  with urllib.request.urlopen(url,timeout=15) as r:return r.status,parsed(r.read())
++ except urllib.error.HTTPError as e:return e.code,parsed(e.read())
++def wait_public_health(url,record):
++ end=time.monotonic()+8;observations=[]
++ while True:
++  try:
++   status,value=request(url);observations.append({'status':status,'validJSON':not value.get('invalidJSON',False)})
++   if status==200 and value.get('product')=='Naumi Account Models':
++    atomic(record/'PUBLIC_HEALTH_READINESS.json',(json.dumps({'status':'PASS','observations':observations})+'\n').encode());return
++  except Exception as e:observations.append({'status':'READ_ERROR','type':type(e).__name__})
++  if time.monotonic()>=end:
++   atomic(record/'PUBLIC_HEALTH_READINESS.json',(json.dumps({'status':'FAIL','observations':observations})+'\n').encode());raise RuntimeError('PUBLIC_HEALTH_FAILED')
++  time.sleep(.5)
++def inventory():return {r['Name']:{'Id':r['Id'],'Image':r['Image'],'StartedAt':r['State']['StartedAt']} for r in json.loads(run(['docker','inspect',*run(['docker','ps','-q']).decode().split()]))}
 +def locks(stack):
 + for f in ['/opt/naumi-staging/releases/deploy.lock','/opt/naumi-reverse-hub/releases/deploy.lock','/opt/reference-workbench/deploy.lock',str(BASE/'deploy.lock')]:
 +  h=stack.enter_context(open(f,'a'));fcntl.flock(h,fcntl.LOCK_EX|fcntl.LOCK_NB)
++NODE_RECORDS=[]
 +def node(release,env,entry,args=[],input=None):
-+ return run(['docker','run','--rm','-i','--network','naumi47_staging','--read-only','--tmpfs','/tmp:rw,nosuid,noexec,size=16m','--cap-drop','ALL','--security-opt','no-new-privileges','--memory','256m','--env-file',str(env),'-e','NODE_OPTIONS=','-e','NODE_PATH=/app/node_modules','-v',str(release)+':/app/account-models:ro','--workdir','/app/account-models','--entrypoint','node',IMAGE,entry,*args],input=input,check=False)
++ opname='naumi-model-op-'+release.name[:12]+'-'+(args[0] if args else 'none');receipt={'entry':entry,'action':args[0] if args else None,'container':opname,'exit':None,'status':'PENDING','sqlShapes':[]};NODE_RECORDS.append(receipt)
++ result=subprocess.run(['docker','run','--rm','--name',opname,'-i','--network','naumi47_staging','--read-only','--tmpfs','/tmp:rw,nosuid,noexec,size=16m','--cap-drop','ALL','--security-opt','no-new-privileges','--memory','256m','--env-file',str(env),'-e','NODE_OPTIONS=','-e','NODE_PATH=/app/node_modules','-v',str(release)+':/app/account-models:ro','--workdir','/app/account-models','--entrypoint','node',IMAGE,entry,*args],input=input,capture_output=True,timeout=90)
++ receipt.update({'exit':result.returncode,'status':'COMPLETE','sqlShapes':[x for x in result.stderr.decode(errors='replace').splitlines() if x.startswith('IMPORT_SQL_SHAPES ')]})
++ return result.stdout
 +def jsonnode(*args,**kw):
 + v=json.loads(node(*args,**kw));assert v.get('status')=='PASS',v.get('status','INVALID_OPERATOR_RECEIPT');return v
 +def check_original(before):
 + now=inventory();assert all(now.get(n)==v for n,v in before.items()),'ORIGINAL_CONTAINER_CHANGED'
 +def main():
-+ p=argparse.ArgumentParser();p.add_argument('phase',choices=['prepare','ingress','rollback-ingress']);p.add_argument('--source',required=True);p.add_argument('--archive');p.add_argument('--archive-sha');p.add_argument('--gateway-sha',required=True);a=p.parse_args()
++ p=argparse.ArgumentParser();p.add_argument('phase',choices=['prepare','ingress','rollback-ingress']);p.add_argument('--source',required=True);p.add_argument('--archive');p.add_argument('--archive-sha');p.add_argument('--gateway-sha',required=True);p.add_argument('--expected-dump-sha',required=True);p.add_argument('--not-after',required=True);a=p.parse_args()
 + assert len(a.source)==40 and all(c in 'abcdef0123456789' for c in a.source),'SOURCE_PIN_REQUIRED'
++ deadline=datetime.datetime.fromisoformat(a.not_after.replace('Z','+00:00'));assert deadline.tzinfo and 0<(deadline-datetime.datetime.now(datetime.timezone.utc)).total_seconds()<=600,'INVALID_BOUNDED_WINDOW'
 + BASE.mkdir(mode=0o700,exist_ok=True)
 + with contextlib.ExitStack() as stack:
-+  locks(stack);before=GATE.read_bytes();assert sha(before)==a.gateway_sha,'NGINX_CAS_CHANGED';original=inventory()
++  locks(stack);before=GATE.read_bytes();assert sha(before)==a.gateway_sha,'NGINX_CAS_CHANGED';original=inventory();dump=run(['nginx','-T']);assert sha(dump)==a.expected_dump_sha,'NGINX_FULL_CLOSURE_CHANGED'
++  protected={f:sha(pathlib.Path(f).read_bytes()) for f in re.findall(rb'^# configuration file ([^:]+):$',dump,re.M).copy() for f in [f.decode()]}
 +  assert request(ORIGIN+'/api/auth/session')==(200,{'user':None}),'AUTH_PREFLIGHT_FAILED'
 +  release=BASE/'releases'/a.source;record=BASE/'evidence'/a.source;record.mkdir(parents=True,mode=0o700,exist_ok=True)
 +  container='naumi-desktop-models-'+a.source[:12];snippet=release/'nginx-location.conf'
++  atomic(record/'nginx-T.before',dump);state={'import':'NOT_STARTED','role':'NOT_STARTED','container':'NOT_STARTED','defaults':'NOT_STARTED'} if a.phase=='prepare' else {'ingress':'NOT_STARTED'}
++  def admission():
++   assert datetime.datetime.now(datetime.timezone.utc)<deadline,'WINDOW_EXPIRED'
++   free=shutil.disk_usage('/').free;mem=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024
++   assert free>=10*1024**3+1200*1024**2,'ROOT_SPACE_ADMISSION';assert mem>=768*1024**2,'MEMORY_ADMISSION';return free,mem
++  def checkpoint():atomic(record/('PREPARE_STATE.json' if a.phase=='prepare' else 'INGRESS_STATE.json'),(json.dumps({'source':a.source,'state':state,'operators':NODE_RECORDS,'rootFree':shutil.disk_usage('/').free,'memAvailable':int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024})+'\n').encode())
++  atexit.register(checkpoint)
 +  if a.phase=='prepare':
 +   assert not release.exists(),'OWN_RELEASE_EXISTS';assert not (BASE/'private/service.env').exists(),'OWN_SERVICE_EXISTS'
 +   archive=pathlib.Path(a.archive);assert sha(archive.read_bytes())==a.archive_sha,'ARCHIVE_PIN_CHANGED'
-+   free=shutil.disk_usage('/').free;mem=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))*1024
++   free,mem=admission()
 +   # Includes archive/expanded bundle, 512MiB DB, WAL, consistent backup and logs/growth.
 +   disk_peak=1200*1024**2;assert free>=10*1024**3+disk_peak,'ROOT_SPACE_ADMISSION';assert mem>=768*1024**2,'MEMORY_ADMISSION'
 +   with socket.socket() as s:s.bind(('127.0.0.1',3192))
@@ -320,28 +376,32 @@ index 0000000..7dfcd97
 +   manifest=json.loads((release/'DEPLOYMENT_PIN.json').read_text());assert manifest['source']==a.source
 +   for f in manifest['files']:assert sha((release/f['path']).read_bytes())==f['sha256'],'RELEASE_FILE_DRIFT'
 +   info=json.loads(run(['docker','inspect','naumi47-web-layer-export-20261120-r1']))[0];assert info['Image']==IMAGE,'RUNTIME_IMAGE_CHANGED'
-+   env=dict(x.split('=',1) for x in info['Config']['Env'] if '=' in x);assert env.get('DATABASE_URL') and len(env.get('SETTINGS_SECRET',''))>=32
++   env=dict(x.split('=',1) for x in info['Config']['Env'] if '=' in x);assert env.get('NAUMI_ENTERPRISE_DEPLOYMENT_MODE')=='dedicated','DEDICATED_AUTHORITY_REQUIRED';assert env.get('DATABASE_URL') and len(env.get('SETTINGS_SECRET',''))>=32
 +   private=BASE/'private';private.mkdir(mode=0o700,exist_ok=True);os.chmod(private,0o700);operator_env=private/'operator.env'
 +   atomic(operator_env,('DATABASE_URL='+env['DATABASE_URL']+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IMPORT_SQL_TRACE=shape\n').encode())
 +   try:
 +    # Secret payload arrives only through pinned SSH stdin, never the archive.
 +    payload=sys.stdin.buffer.read(2*1024*1024+1);assert len(payload)<=2*1024*1024
-+    req=json.loads(payload);allow=json.loads((release/'IMPORT_ALLOWLIST.json').read_text());assert req['operationId']==allow['operationId'] and req['configDigest']==allow['configDigest'],'IMPORT_PIN_CHANGED'
++    envelope=json.loads(payload);req=envelope['request'];policy=envelope['adminPolicy'];assert policy['mode']=='native-owner' and len(policy['subject'])<255 and re.fullmatch(r'[^@\s]+@[^@\s]+',policy['subject']),'ADMIN_SUBJECT_INVALID';payload=json.dumps(req).encode();allow=json.loads((release/'IMPORT_ALLOWLIST.json').read_text());assert req['schemaVersion']==1 and req['sourceId']==allow['sourceId'] and req['operationId']==allow['operationId'] and req['configDigest']==allow['configDigest'],'IMPORT_PIN_CHANGED';assert set(req)=={'schemaVersion','sourceId','operationId','configDigest','connections'},'IMPORT_FIELDS_CHANGED'
 +    assert [{k:v for k,v in c.items() if k!='key'} for c in req['connections']]==allow['connections'],'IMPORT_CONFIG_DRIFT'
++    assert env.get('NAUMI_ENTERPRISE_ALLOWED_IDS')==policy['enterpriseId'],'ADMIN_ENTERPRISE_BINDING_CHANGED'
 +    exclude=[c['providerId'] for c in allow['connections']];snapinput=json.dumps({'excludeProviders':exclude}).encode();prior=jsonnode(release,operator_env,'operator.mjs',['snapshot'],input=snapinput)
-+    imported=json.loads(node(release,operator_env,'import.cjs',['apply','--existing-schema'],input=payload));(record/'import.json').write_text(json.dumps(imported,indent=2)+'\n');assert imported['status']=='PASS',imported['status']
++    admission();state['import']='PENDING';checkpoint()
++    imported=json.loads(node(release,operator_env,'import.cjs',['apply','--existing-schema'],input=payload));(record/'import.json').write_text(json.dumps(imported,indent=2)+'\n');state['import']=imported['status'];checkpoint();assert imported['status']=='PASS',imported['status']
 +    after=jsonnode(release,operator_env,'operator.mjs',['snapshot'],input=snapinput)
 +    (record/'existing-data-digests.json').write_text(json.dumps({'before':prior,'after':after},indent=2)+'\n');assert prior==after,'EXISTING_DATABASE_DRIFT'
-+    password=secrets.token_urlsafe(32);role=jsonnode(release,operator_env,'operator.mjs',['role'],input=json.dumps({'password':password}).encode())
++    admission();state['role']='PENDING';checkpoint();password=secrets.token_urlsafe(32);role=jsonnode(release,operator_env,'operator.mjs',['role'],input=json.dumps({'password':password}).encode())
++    state['role']='CREATED';checkpoint()
 +    from urllib.parse import urlsplit,urlunsplit,quote
 +    u=urlsplit(env['DATABASE_URL']);netloc=role['role']+':'+quote(password,safe='')+'@'+u.hostname+(':'+str(u.port) if u.port else '')
 +    database_url=urlunsplit((u.scheme,netloc,u.path,u.query,u.fragment))
-+    service_env=('DATABASE_URL='+database_url+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IDENTITY_ORIGIN='+ORIGIN+'\nNAUMI_AUTH_INTERNAL_ORIGIN='+ORIGIN+'\nNAUMI_ACCOUNT_MODEL_REQUIRE_RO=1\nNAUMI_ACCOUNT_MODEL_CATALOG=/app/account-models/catalog.json\nNAUMI_ACCOUNT_MODEL_DATA=/data\nNAUMI_ACCOUNT_MODEL_ASSETS=/app/account-models\nHOST=0.0.0.0\nPORT=3192\nNODE_OPTIONS=\n')
++    service_env=('DATABASE_URL='+database_url+'\nSETTINGS_SECRET='+env['SETTINGS_SECRET']+'\nNAUMI_IDENTITY_ORIGIN='+ORIGIN+'\nNAUMI_AUTH_INTERNAL_ORIGIN='+ORIGIN+'\nNAUMI_ACCOUNT_MODEL_ADMIN_ENTERPRISE='+policy['enterpriseId']+'\nNAUMI_ACCOUNT_MODEL_ADMIN_SUBJECT='+policy['subject']+'\nNAUMI_ACCOUNT_MODEL_REQUIRE_RO=1\nNAUMI_ACCOUNT_MODEL_CATALOG=/app/account-models/catalog.json\nNAUMI_ACCOUNT_MODEL_DATA=/data\nNAUMI_ACCOUNT_MODEL_ASSETS=/app/account-models\nHOST=0.0.0.0\nPORT=3192\nNODE_OPTIONS=\n')
 +    atomic(private/'service.env',service_env.encode());(record/'role.json').write_text(json.dumps(role,indent=2)+'\n')
 +   finally:operator_env.unlink(missing_ok=True)
 +   data=BASE/'data';data.mkdir(mode=0o700);os.chown(data,1001,1001)
++   admission();state['container']='CREATE_PENDING';checkpoint()
 +   run(['docker','create','--name',container,'--user','1001:1001','--network','naumi47_staging','-p','127.0.0.1:3192:3192','--restart','unless-stopped','--read-only','--tmpfs','/tmp:rw,nosuid,noexec,size=16m','--cap-drop','ALL','--security-opt','no-new-privileges','--memory','384m','--cpus','1','--pids-limit','100','--log-opt','max-size=5m','--log-opt','max-file=3','--env-file',str(private/'service.env'),'-v',str(release)+':/app/account-models:ro','-v',str(data)+':/data','--workdir','/app/account-models','--entrypoint','node',IMAGE,'server.mjs'])
-+   run(['docker','network','connect','naumi47_public_egress',container]);run(['docker','start',container])
++   state['container']='CREATED';checkpoint();run(['docker','network','connect','naumi47_public_egress',container]);admission();state['container']='START_PENDING';checkpoint();run(['docker','start',container]);state['container']='STARTED';checkpoint()
 +   for i in range(60):
 +    try:
 +     if request('http://127.0.0.1:3192/api/desktop-models/health')[0]==200:break
@@ -352,27 +412,35 @@ index 0000000..7dfcd97
 +   tls=json.loads(run(['docker','exec',container,'node','--input-type=module','-e',"const r=await fetch('https://47.105.59.142/api/auth/session');console.log(JSON.stringify({status:r.status,user:(await r.json()).user}));"]))
 +   assert tls=={'status':200,'user':None},'TLS_AUTH_FAILED'
 +   catalog=json.loads(run(['docker','exec',container,'node','operator.mjs','catalog']));assert catalog['status']=='PASS' and len(catalog['models'])==4,'READONLY_CATALOG_FAILED'
-+   defaults=json.loads(run(['docker','exec',container,'node','operator.mjs','defaults']));assert defaults['status']=='PASS','DEFAULT_GRANT_FAILED'
++   admission();state['defaults']='PENDING';checkpoint();defaults=json.loads(run(['docker','exec',container,'node','operator.mjs','defaults']));assert defaults['status']=='PASS','DEFAULT_GRANT_FAILED';state['defaults']='ENABLED';checkpoint()
 +   with sqlite3.connect('file:'+str(data/'account-models.sqlite')+'?mode=ro',uri=True) as src,sqlite3.connect(record/'initial.sqlite') as dest:src.backup(dest)
 +   assert sqlite3.connect(record/'initial.sqlite').execute('PRAGMA integrity_check').fetchone()[0]=='ok','INITIAL_BACKUP_INVALID'
 +   check_original(original);assert GATE.read_bytes()==before,'NGINX_CHANGED_DURING_PREPARE'
-+   report={'status':'READY_FOR_INGRESS','source':a.source,'image':IMAGE,'archiveSHA256':a.archive_sha,'rootFreeBefore':free,'memAvailableBefore':mem,'diskRemainingPeakBudget':disk_peak,'container':container,'tls':tls,'catalog':catalog,'defaults':defaults,'originalContainersUnchanged':len(original),'gatewayUnchanged':True,'modelCalls':0}
++   after_dump=run(['nginx','-T']);atomic(record/'nginx-T.after-prepare',after_dump);assert after_dump==dump,'NGINX_FULL_CLOSURE_CHANGED';assert all(sha(pathlib.Path(f).read_bytes())==v for f,v in protected.items()),'NGINX_INCLUDED_FILE_CHANGED'
++   report={'status':'READY_FOR_INGRESS','source':a.source,'image':IMAGE,'archiveSHA256':a.archive_sha,'rootFreeBefore':free,'memAvailableBefore':mem,'diskRemainingPeakBudget':disk_peak,'container':container,'tls':tls,'catalog':catalog,'defaults':defaults,'originalContainersUnchanged':len(original),'gatewayUnchanged':True,'nginxFullStdoutSHA256':sha(after_dump),'protectedFiles':protected,'state':state,'operators':NODE_RECORDS,'importedProviders':exclude,'importedRows':{k:4 for k in ['app_supplier_source_snapshots','app_supplier_model_metadata','app_supplier_model_metadata_versions','app_model_credentials']},'modelCalls':0}
 +   atomic(record/'PREPARED.json',(json.dumps(report,indent=2)+'\n').encode());print(json.dumps(report));return
 +  assert (record/'PREPARED.json').exists(),'PREPARATION_REQUIRED'
 +  marker=' include '+str(snippet)+';';anchor=' listen 443 ssl; server_name 47.105.59.142;'
 +  if a.phase=='ingress':
 +   text=before.decode();assert text.count(anchor)==1 and marker not in text,'NGINX_ANCHOR_CHANGED';after=text.replace(anchor,anchor+'\n'+marker).encode()
 +   atomic(record/'nginx.before',before);atomic(record/'nginx.after',after)
++   assert all(sha(pathlib.Path(f).read_bytes())==v for f,v in protected.items()),'NGINX_INCLUDED_FILE_CHANGED';admission()
 +   try:
-+    atomic(GATE,after,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx'])
-+    assert request(ORIGIN+'/api/desktop-models/health')[0]==200,'PUBLIC_HEALTH_FAILED'
++    state['ingress']='WRITE_PENDING';checkpoint();atomic(GATE,after,0o644);state['ingress']='WRITTEN';checkpoint()
++    for label,cmd in [('nginx-test',['nginx','-t']),('nginx-reload',['systemctl','reload','nginx'])]:
++     assert datetime.datetime.now(datetime.timezone.utc)<deadline,'WINDOW_EXPIRED'
++     result=subprocess.run(cmd,capture_output=True,timeout=30);atomic(record/(label+'.log'),result.stdout+result.stderr);assert result.returncode==0,'INGRESS_COMMAND_FAILED'
++    after_dump=run(['nginx','-T']);atomic(record/'nginx-T.after-ingress',after_dump)
++    assert all(sha(pathlib.Path(f).read_bytes())==(sha(after) if os.path.realpath(f)==str(GATE) else v) for f,v in protected.items()),'NGINX_INCLUDED_FILE_CHANGED'
++    wait_public_health(ORIGIN+'/api/desktop-models/health',record)
 +    assert request(ORIGIN+'/admin/desktop-models')[0]==401,'ADMIN_ANONYMOUS_NOT_DENIED'
 +    assert request(ORIGIN+'/api/desktop-models/v1/admin/catalog')[0]==401,'ADMIN_API_ANONYMOUS_NOT_DENIED'
 +    assert request(ORIGIN+'/api/auth/session')==(200,{'user':None}),'AUTH_REGRESSION'
 +    check_original(original)
-+   except Exception:
-+    assert GATE.read_bytes()==after,'ROLLBACK_GATEWAY_DRIFT';atomic(GATE,before,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);raise
-+   report={'status':'INGRESS_PASS','source':a.source,'gatewayBefore':sha(before),'gatewayAfter':sha(after),'snippetSHA256':sha(snippet.read_bytes()),'nginxFullStdoutSHA256':sha(run(['nginx','-T'])),'publicTLSHealth':200,'anonymousAdmin':401,'originalContainersUnchanged':len(original),'modelCalls':0,'centralSupervisorAcceptance':False}
++   except Exception as error:
++    atomic(record/'INGRESS_ERROR.json',(json.dumps({'type':type(error).__name__,'error':str(error) if str(error).replace('_','').isalnum() else 'READINESS_OR_POSTFLIGHT_FAILED','state':state})+'\n').encode())
++    assert GATE.read_bytes()==after,'ROLLBACK_GATEWAY_DRIFT';atomic(GATE,before,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);restored=run(['nginx','-T']);atomic(record/'nginx-T.after-failed-ingress-rollback',restored);assert restored==dump,'NGINX_ROLLBACK_CLOSURE_DRIFT';atomic(record/'FAILED_INGRESS_ROLLBACK.json',(json.dumps({'status':'CAS_RESTORED','gatewaySHA256':sha(before),'nginxFullStdoutSHA256':sha(restored),'persistentDataPreserved':True})+'\n').encode());state['ingress']='CAS_RESTORED';checkpoint();raise
++   state['ingress']='PASS';checkpoint();report={'status':'INGRESS_PASS','source':a.source,'gatewayBefore':sha(before),'gatewayAfter':sha(after),'snippetSHA256':sha(snippet.read_bytes()),'nginxFullStdoutSHA256':sha(run(['nginx','-T'])),'publicTLSHealth':200,'anonymousAdmin':401,'originalContainersUnchanged':len(original),'modelCalls':0,'centralSupervisorAcceptance':False}
 +  else:
 +   expected=(record/'nginx.after').read_bytes();assert before==expected,'ROLLBACK_GATEWAY_DRIFT';restored=(record/'nginx.before').read_bytes();atomic(GATE,restored,0o644);run(['nginx','-t']);run(['systemctl','reload','nginx']);check_original(original)
 +   report={'status':'INGRESS_ROLLBACK_PASS','restoredGatewaySHA256':sha(restored),'persistentDataPreserved':True,'modelsServiceRetained':True,'originalContainersUnchanged':len(original)}
@@ -414,11 +482,11 @@ index bbce4f9..6c50d4d 100644
  main().catch(()=>{console.log(JSON.stringify({status:'FAIL',error:'CLI_FAILED'}));process.exitCode=1;});
 diff --git a/scripts/lib/account-model-takeover-input.mjs b/scripts/lib/account-model-takeover-input.mjs
 new file mode 100644
-index 0000000..deddb65
+index 0000000..51c0299
 --- /dev/null
 +++ b/scripts/lib/account-model-takeover-input.mjs
-@@ -0,0 +1,11 @@
-+import fs from 'node:fs';import {createHash} from 'node:crypto';import {prepareDesktopImport} from './desktop-model-import.mjs';
+@@ -0,0 +1,17 @@
++import assert from 'node:assert/strict';import fs from 'node:fs';import {createHash} from 'node:crypto';import {prepareDesktopImport} from './desktop-model-import.mjs';
 +export function takeoverInput(file){
 + const v=JSON.parse(fs.readFileSync(file));
 + // Preserve the installed native adapter's effective configured budgets, not official limits.
@@ -428,6 +496,12 @@ index 0000000..deddb65
 +export function takeoverCatalog(request){
 + const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex'),names=['claude fable5.2','gpt6.1sol','gpt6.1terra','claude opus5.5'];
 + return {version:1,models:request.connections.map(c=>({id:'m-'+digest(c.models[0].name).slice(0,24),name:c.models[0].name,sourceRoute:'r-'+digest([c.providerId,c.models[0].id]).slice(0,32)})).sort((a,b)=>names.indexOf(a.name)-names.indexOf(b.name))};
++}
++
++export function validateTakeoverRequest(request,allow){
++ assert.equal(request.schemaVersion,1);assert.equal(request.sourceId,allow.sourceId);assert.equal(request.operationId,allow.operationId);
++ const normalized=prepareDesktopImport({providers:Object.fromEntries(request.connections.map(c=>[c.sourceProviderId,{...c.configuration,models:c.models,apiKeyEnv:c.sourceProviderId}])),refs:Object.fromEntries(request.connections.map(c=>[c.sourceProviderId,c.key])),sourceId:request.sourceId,operationId:request.operationId});
++ assert.deepEqual(normalized,request);assert.equal(normalized.configDigest,allow.configDigest);assert.deepEqual(normalized.connections.map(({key,...c})=>c),allow.connections);return normalized;
 +}
 diff --git a/scripts/lib/desktop-model-import-ready.mjs b/scripts/lib/desktop-model-import-ready.mjs
 new file mode 100644
@@ -562,6 +636,24 @@ index 99ba897..c268943 100644
    const manifest = path.join(output, 'latest.yml');
    const installer = path.join(output, `Naumi-Setup-${version}-x64.exe`);
    assertModelPickerRelease(output, version);
+diff --git a/scripts/verify-account-ingress-readiness.py b/scripts/verify-account-ingress-readiness.py
+new file mode 100644
+index 0000000..6e0978f
+--- /dev/null
++++ b/scripts/verify-account-ingress-readiness.py
+@@ -0,0 +1,12 @@
++import ast,threading,http.server,tempfile,pathlib,json,os,time,urllib.request,urllib.error
++source=pathlib.Path('scripts/deploy-account-models47.py').read_text(encoding='utf8');module=ast.parse(source);functions=[x for x in module.body if isinstance(x,ast.FunctionDef) and x.name in ['atomic','request','wait_public_health']];assert len(functions)==3;ns=globals();exec(compile(ast.Module(body=functions,type_ignores=[]),'exact-deploy-functions','exec'),ns)
++class H(http.server.BaseHTTPRequestHandler):
++ count=0
++ def do_GET(self):
++  H.count+=1;self.send_response(404 if H.count==1 else 200);self.end_headers();self.wfile.write(b'<html>old route</html>' if H.count==1 else b'{"product":"Naumi Account Models","protocol":1}')
++ def log_message(self,*args):pass
++server=http.server.ThreadingHTTPServer(('127.0.0.1',0),H);threading.Thread(target=server.serve_forever,daemon=True).start()
++try:
++ with tempfile.TemporaryDirectory() as d:
++  wait_public_health('http://127.0.0.1:'+str(server.server_port),pathlib.Path(d));v=json.loads((pathlib.Path(d)/'PUBLIC_HEALTH_READINESS.json').read_text());assert v['observations']==[{'status':404,'validJSON':False},{'status':200,'validJSON':True}];print('INGRESS_READINESS_PASS html404_then_json200 readOnlyGET=2 writesReplayed=0')
++finally:server.shutdown();server.server_close()
 diff --git a/scripts/verify-account-model-service.mjs b/scripts/verify-account-model-service.mjs
 index 0874c84..9428e9f 100644
 --- a/scripts/verify-account-model-service.mjs
@@ -675,11 +767,39 @@ index d2c61cb..aef9524 100644
 +
 +## 全账号接管切片
 +见 [2026-11-25 实施记录](../../docs/changes/2026-11-25-account-model-takeover.md)。标准分发拒绝内嵌凭据，正式PG只读权限与上游旧Key吊销分开验收。
+diff --git a/services/account-models/auth.mjs b/services/account-models/auth.mjs
+index 5b3f485..1dc09e1 100644
+--- a/services/account-models/auth.mjs
++++ b/services/account-models/auth.mjs
+@@ -1,9 +1,21 @@
+ import {canvasAuthentication} from '../../market/auth.mjs';
+ import {email,fault} from './registry.mjs';
+-export function accountAuthentication({origin,fetcher=fetch}){
++export function accountAuthentication({origin,fetcher=fetch,adminPolicy}){
++ if(adminPolicy){if(adminPolicy.mode!=='native-owner'||!/^[a-f0-9-]{36}$/.test(adminPolicy.enterpriseId))throw fault('ACCOUNT_MODEL_ADMIN_POLICY_INVALID',503);adminPolicy={...adminPolicy,subject:email(adminPolicy.subject)};}
++ const native=canvasAuthentication({origin,fetcher,includeSubject:true});
++ async function owner(cookie){
++  const actor=await native({headers:{cookie}});if(actor.subject.value!==adminPolicy.subject)throw fault('ACCOUNT_MODEL_ADMIN_REQUIRED',403);
++  let response;try{response=await fetcher(origin+'/api/enterprise?enterpriseId='+adminPolicy.enterpriseId,{headers:{cookie},redirect:'error',signal:AbortSignal.timeout(8000)});}catch{throw fault('ACCOUNT_MODEL_IDENTITY_UNAVAILABLE',503);}
++  if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw fault('ACCOUNT_MODEL_ADMIN_REQUIRED',403);
++  let size=0,chunks=[];for await(const c of response.body){size+=c.length;if(size>524288)throw fault('ACCOUNT_MODEL_IDENTITY_INVALID',503);chunks.push(Buffer.from(c));}
++  let v;try{v=JSON.parse(Buffer.concat(chunks));}catch{throw fault('ACCOUNT_MODEL_IDENTITY_INVALID',503);}
++  if(v?.enterprise?.id!==adminPolicy.enterpriseId||v?.actor?.owner!==true)throw fault('ACCOUNT_MODEL_ADMIN_REQUIRED',403);
++  return {subject:actor.subject.value};
++ }
+ 
+  return async(req,{admin=false}={})=>{
+  const cookie=req.headers.cookie;if(!cookie||cookie.length>16384)throw fault('ACCOUNT_MODEL_LOGIN_REQUIRED',401);
++ if(admin&&adminPolicy)return owner(cookie);
+  if(admin){let r;try{r=await fetcher(origin+'/api/admin/login',{headers:{cookie},redirect:'error',signal:AbortSignal.timeout(8000)});}catch{throw fault('ACCOUNT_MODEL_IDENTITY_UNAVAILABLE',503);}if(!r.ok||!r.headers.get('content-type')?.includes('application/json'))throw fault('ACCOUNT_MODEL_ADMIN_REQUIRED',403);let size=0,chunks=[];for await(const c of r.body){size+=c.length;if(size>65536)throw fault('ACCOUNT_MODEL_IDENTITY_INVALID',503);chunks.push(Buffer.from(c));}const text=Buffer.concat(chunks).toString('utf8');let v;try{v=JSON.parse(text);}catch{throw fault('ACCOUNT_MODEL_IDENTITY_INVALID',503);}if(v.localAuthed!==true&&!(v.passwordRequired===false&&v.nativeAdmin===true))throw fault('ACCOUNT_MODEL_ADMIN_REQUIRED',403);return {subject:'canvas-admin'};}
+- const actor=await canvasAuthentication({origin,fetcher,includeSubject:true})(req);return {subject:email(actor.subject.value)};
++ const actor=await native(req);return {subject:email(actor.subject.value)};
+  };}
 diff --git a/services/account-models/main.mjs b/services/account-models/main.mjs
-index fcc9ce7..a9826ea 100644
+index fcc9ce7..e8b016c 100644
 --- a/services/account-models/main.mjs
 +++ b/services/account-models/main.mjs
-@@ -3,14 +3,18 @@ import path from 'node:path';
+@@ -3,15 +3,19 @@ import path from 'node:path';
  import {fileURLToPath} from 'node:url';
  import pg from 'pg';
  import {createCredentialReader} from 'naumi-credentials-owner';
@@ -698,8 +818,10 @@ index fcc9ce7..a9826ea 100644
 +const registry=new CatalogRegistry(source,JSON.parse(fs.readFileSync(catalogFile))),assets=process.env.NAUMI_ACCOUNT_MODEL_ASSETS??path.dirname(fileURLToPath(import.meta.url));
 +if(process.env.NAUMI_ACCOUNT_MODEL_REQUIRE_RO==='1'){const {rows}=await pool.query("SELECT r.rolsuper,r.rolcreatedb,r.rolcreaterole,r.rolreplication,r.rolbypassrls,r.rolinherit FROM pg_roles r WHERE r.rolname=current_user");if(rows.length!==1||Object.values(rows[0]).some(Boolean))throw Error('ACCOUNT_MODEL_READONLY_ROLE_REQUIRED');await registry.list();}
  registry.adminHTML=()=>fs.promises.readFile(path.join(assets,'admin.html'));registry.adminJS=()=>fs.promises.readFile(path.join(assets,'admin.js'));
- const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin})});
+-const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin})});
++const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin,adminPolicy:process.env.NAUMI_ACCOUNT_MODEL_REQUIRE_RO==='1'?{mode:'native-owner',enterpriseId:process.env.NAUMI_ACCOUNT_MODEL_ADMIN_ENTERPRISE,subject:process.env.NAUMI_ACCOUNT_MODEL_ADMIN_SUBJECT}:undefined})});
  server.listen(Number(process.env.PORT??3192),process.env.HOST??'127.0.0.1',()=>console.log('NAUMI_ACCOUNT_MODELS_READY protocol=1 port='+server.address().port));
+ const stop=()=>{server.closeAllConnections();server.close(async()=>{store.close();await pool.end();process.exit(0);});};process.on('SIGTERM',stop);process.on('SIGINT',stop);
 diff --git a/services/account-models/readonly-role.mjs b/services/account-models/readonly-role.mjs
 new file mode 100644
 index 0000000..c26882e
@@ -785,6 +907,33 @@ index d393167..fea4c51 100644
   CREATE TABLE IF NOT EXISTS grants(subject TEXT PRIMARY KEY,revision INTEGER NOT NULL,policy_revision INTEGER NOT NULL,enabled INTEGER NOT NULL,routes TEXT NOT NULL,updated_at INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS leases(token_hash TEXT PRIMARY KEY,subject TEXT NOT NULL,device TEXT NOT NULL,revision INTEGER NOT NULL,catalog_hash TEXT NOT NULL,expires INTEGER NOT NULL);
+diff --git a/tests/account-model-deploy-guards.test.mjs b/tests/account-model-deploy-guards.test.mjs
+new file mode 100644
+index 0000000..21f4bbd
+--- /dev/null
++++ b/tests/account-model-deploy-guards.test.mjs
+@@ -0,0 +1,5 @@
++import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
++import {prepareDesktopImport} from '../scripts/lib/desktop-model-import.mjs';import {validateTakeoverRequest} from '../scripts/lib/account-model-takeover-input.mjs';
++const request=()=>prepareDesktopImport({providers:{fixture:{api:'anthropic-messages',baseURL:'https://fixture.test',displayName:'Fixture',apiKeyEnv:'K',models:[{id:'fixture'}]}},refs:{K:'fixture-only'},sourceId:'fixture-central',operationId:'8ad47265-5fbc-489d-b977-e1680dc84753'});
++test('prepare re-derives exact public source, provider IDs and config digest before any remote transfer',()=>{const r=request(),allow={sourceId:r.sourceId,operationId:r.operationId,configDigest:r.configDigest,connections:r.connections.map(({key,...c})=>c)};assert.deepEqual(validateTakeoverRequest(r,allow),r);for(const mutate of [v=>v.sourceId='foreign',v=>v.schemaVersion=2,v=>v.connections[0].providerId='desktop-foreign',v=>v.connections[0].configuration.baseURL='https://foreign.test',v=>v.configDigest='0'.repeat(64)]){const v=structuredClone(r);mutate(v);assert.throws(()=>validateTakeoverRequest(v,allow));}});
++test('remote preparation uses bounded writes, whole nginx closure and original container identity without changing ingress',()=>{const s=fs.readFileSync('scripts/deploy-account-models47.py','utf8'),prepare=s.slice(s.indexOf("if a.phase=='prepare':"),s.indexOf("assert (record/'PREPARED.json').exists()"));assert(s.includes("p.add_argument('--not-after',required=True)"));assert(s.includes("sha(dump)==a.expected_dump_sha"));assert(prepare.includes("after_dump==dump"));assert(prepare.includes("sha(pathlib.Path(f).read_bytes())==v"));assert(s.includes("'Id':r['Id'],'Image':r['Image'],'StartedAt'"));assert(prepare.includes("admission();state['import']='PENDING'"));assert(prepare.includes("admission();state['role']='PENDING'"));assert(prepare.includes("admission();state['defaults']='PENDING'"));assert(!prepare.includes('reload'));assert(!prepare.includes('atomic(GATE'));assert(s.includes("'status':'PENDING','sqlShapes':[]"));assert(s.includes('atexit.register(checkpoint)'));});
+diff --git a/tests/account-model-owner-auth.test.mjs b/tests/account-model-owner-auth.test.mjs
+new file mode 100644
+index 0000000..e60ca2e
+--- /dev/null
++++ b/tests/account-model-owner-auth.test.mjs
+@@ -0,0 +1,10 @@
++import test from 'node:test';import assert from 'node:assert/strict';import {accountAuthentication} from '../services/account-models/auth.mjs';
++const enterpriseId='1095114e-6b57-429e-a954-7d663907e0c9',subject='owner@example.test',adminPolicy={mode:'native-owner',enterpriseId,subject};
++test('dedicated owner authority requires exact pinned native subject and fixed enterprise owner, never role/admin flag',async()=>{
++ for(const mode of ['valid','foreign-subject','not-owner','wrong-enterprise','role-admin-only','missing-actor','owner-string','missing-enterprise','404','non-json','timeout','oversize']){
++  const calls=[],authenticate=accountAuthentication({origin:'https://identity.test',adminPolicy,fetcher:async(url,options)=>{calls.push({url,options});if(url.endsWith('/api/auth/session'))return Response.json({user:{email:mode==='foreign-subject'?'other@example.test':subject,role:'admin'}});if(mode==='timeout')throw Error('fixture-timeout');if(mode==='404')return Response.json({},{status:404});if(mode==='non-json')return new Response('<html>',{headers:{'Content-Type':'text/html'}});if(mode==='oversize')return new Response('x'.repeat(524289),{headers:{'Content-Type':'application/json'}});return Response.json({enterprise:mode==='missing-enterprise'?undefined:{id:mode==='wrong-enterprise'?'00000000-0000-4000-8000-000000000000':enterpriseId},actor:mode==='missing-actor'?undefined:{owner:mode==='not-owner'?false:mode==='owner-string'?'true':mode==='role-admin-only'?undefined:true,canManageIdentity:true,role:'admin'}});}});
++  if(mode==='valid')assert.deepEqual(await authenticate({headers:{cookie:'fixture-session'}},{admin:true}),{subject});else await assert.rejects(authenticate({headers:{cookie:'fixture-session'}},{admin:true}));
++  assert(calls.every(c=>c.options.headers.cookie==='fixture-session'&&c.options.redirect==='error'&&c.options.signal));assert.equal(calls.length,mode==='foreign-subject'?1:2);
++ }
++});
++test('ordinary account bootstrap remains independent of administrator ownership; missing cookie/policy fails closed',async()=>{let calls=0;const authenticate=accountAuthentication({origin:'https://identity.test',adminPolicy,fetcher:async()=>{calls++;return Response.json({user:{email:'member@example.test'}});}});assert.deepEqual(await authenticate({headers:{cookie:'fixture-member'}}),{subject:'member@example.test'});assert.equal(calls,1);await assert.rejects(authenticate({headers:{}},{admin:true}),/LOGIN_REQUIRED/);assert.throws(()=>accountAuthentication({origin:'https://identity.test',adminPolicy:{...adminPolicy,subject:undefined}}),/SUBJECT_INVALID/);});
 diff --git a/tests/account-model-takeover.test.mjs b/tests/account-model-takeover.test.mjs
 new file mode 100644
 index 0000000..745b48a

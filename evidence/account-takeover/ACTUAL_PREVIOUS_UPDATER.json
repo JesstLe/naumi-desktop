@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "previousVersion": "0.4.13",
+  "discoveredVersion": "0.4.14",
+  "updateStatus": "ready",
+  "defaultUpdateFeedUnchanged": true,
+  "downloadedAndVerified": true,
+  "installRequested": false,
+  "userInstallationModified": false,
+  "accountManaged": true,
+  "models": [
+    "claude fable5.2",
+    "gpt6.1sol",
+    "gpt6.1terra",
+    "claude opus5.5"
+  ],
+  "notesClean": true,
+  "error": null,
+  "observedAt": "2026-11-25T04:55:15.776Z"
+}

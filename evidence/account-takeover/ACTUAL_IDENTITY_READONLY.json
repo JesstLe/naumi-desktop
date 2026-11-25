@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "authenticated": true,
+  "adminStatus": 404,
+  "admin": {},
+  "cookiesCopied": true,
+  "originalSessionModified": false,
+  "modelCalls": 0
+}
