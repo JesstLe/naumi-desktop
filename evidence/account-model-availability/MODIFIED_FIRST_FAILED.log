@@ -1,0 +1,71 @@
+✔ upstream pool explicitly budgets 30s connection/TLS, uses ordinary Agent not RetryAgent, and leaves global fetch unchanged (1.6493ms)
+✔ connection failure is one POST attempt, never an alternate endpoint or implicit retry (0.227ms)
+✔ typed failure traverses bounded nested causes but whitelists only codes, request identity, stage and elapsed time (1.2089ms)
+✖ certificate failures retain verification, resets/client disconnect/known upstream rejection remain distinct (0.6944ms)
+✔ real HTTP timeout returns typed 504+UUID, preserves UNKNOWN and same UUID replay is 409 with one dispatch (38.7804ms)
+✔ diagnostic sink failure never replaces receipt/status, upstream rejection remains rejected not falsely unknown (52.9626ms)
+✖ invalid stream is not retried or rewritten into successful completion (16.4294ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (15.4979ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.3968ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (284.6132ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (377.4779ms)
+{"event":"ACCOUNT_MODEL_GATEWAY_FAILURE","stage":"upstream-connect","code":"ACCOUNT_MODEL_UPSTREAM_CONNECTION_FAILED","requestId":"30258891-00b1-47ef-b393-891946f181bc","elapsedMs":3,"causeCodes":[],"receipt":"preserved","automaticRetry":false}
+{"event":"ACCOUNT_MODEL_GATEWAY_FAILURE","stage":"upstream-headers","code":"ACCOUNT_MODEL_UPSTREAM_REJECTED","requestId":"4c245853-8bd2-45a3-951c-ba15f7a8987a","elapsedMs":3,"causeCodes":[],"receipt":"preserved","automaticRetry":false}
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (75.5333ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (31.1392ms)
+✔ first login also fails closed on missing service; cross-account late response is discarded (1.6682ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (8.9045ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.454ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (14.6956ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (28.0494ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (202.3582ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (9.6265ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (34.6792ms)
+✔ opaque catalog model IDs are rewritten only at the server, and upstream never receives the display alias (22.8937ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 20
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1578.8415
+
+✖ failing tests:
+
+test at tests\account-model-availability.test.mjs:23:1
+✖ certificate failures retain verification, resets/client disconnect/known upstream rejection remain distinct (0.6944ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'ACCOUNT_MODEL_UPSTREAM_CONNECTION_FAILED'
+  - 'ACCOUNT_MODEL_UPSTREAM_TLS_FAILED'
+                            ^
+  
+      at TestContext.<anonymous> (file:///E:/Workspace/naumi-account-model-availability-20261125/tests/account-model-availability.test.mjs:24:113)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'ACCOUNT_MODEL_UPSTREAM_CONNECTION_FAILED',
+    expected: 'ACCOUNT_MODEL_UPSTREAM_TLS_FAILED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\account-model-availability.test.mjs:46:1
+✖ invalid stream is not retried or rewritten into successful completion (16.4294ms)
+  [TypeError: fetch failed] {
+    [cause]: Error [SocketError]: other side closed
+        at Socket.onHttpSocketEnd (node:internal/deps/undici/undici:7833:26)
+        at Socket.emit (node:events:521:24)
+        at endReadableNT (node:internal/streams/readable:1736:12)
+        at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+      code: 'UND_ERR_SOCKET',
+      socket: { localAddress: '127.0.0.1', localPort: 51230, remoteAddress: '127.0.0.1', remotePort: 51229, remoteFamily: 'IPv4', timeout: undefined, bytesWritten: 609, bytesRead: 0 }
+    }
+  }

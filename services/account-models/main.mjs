@@ -7,6 +7,7 @@ import {ImportedRegistry,CatalogRegistry} from './registry.mjs';
 import {AccountModelStore} from './store.mjs';
 import {accountAuthentication} from './auth.mjs';
 import {accountModelServer} from './server.mjs';
+import {gatewayTransport} from './upstream.mjs';
 const origin=process.env.NAUMI_IDENTITY_ORIGIN;if(!origin||new URL(origin).origin!==origin)throw Error('ACCOUNT_MODEL_ORIGIN_REQUIRED');
 const home=path.resolve(process.env.NAUMI_ACCOUNT_MODEL_DATA??'/data');fs.mkdirSync(home,{recursive:true,mode:0o700});
 const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:4,connectionTimeoutMillis:5000,query_timeout:10000});
@@ -16,6 +17,7 @@ if(!catalogFile)throw Error('ACCOUNT_MODEL_CATALOG_REQUIRED');
 const registry=new CatalogRegistry(source,JSON.parse(fs.readFileSync(catalogFile))),assets=process.env.NAUMI_ACCOUNT_MODEL_ASSETS??path.dirname(fileURLToPath(import.meta.url));
 if(process.env.NAUMI_ACCOUNT_MODEL_REQUIRE_RO==='1'){const {rows}=await pool.query("SELECT r.rolsuper,r.rolcreatedb,r.rolcreaterole,r.rolreplication,r.rolbypassrls,r.rolinherit FROM pg_roles r WHERE r.rolname=current_user");if(rows.length!==1||Object.values(rows[0]).some(Boolean))throw Error('ACCOUNT_MODEL_READONLY_ROLE_REQUIRED');await registry.list();}
 registry.adminHTML=()=>fs.promises.readFile(path.join(assets,'admin.html'));registry.adminJS=()=>fs.promises.readFile(path.join(assets,'admin.js'));
-const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin,adminPolicy:process.env.NAUMI_ACCOUNT_MODEL_REQUIRE_RO==='1'?{mode:'native-owner',enterpriseId:process.env.NAUMI_ACCOUNT_MODEL_ADMIN_ENTERPRISE,subject:process.env.NAUMI_ACCOUNT_MODEL_ADMIN_SUBJECT}:undefined})});
+const transport=gatewayTransport();
+const store=new AccountModelStore(path.join(home,'account-models.sqlite')),server=accountModelServer({store,registry,origin,request:transport.request,authenticate:accountAuthentication({origin:process.env.NAUMI_AUTH_INTERNAL_ORIGIN??origin,adminPolicy:process.env.NAUMI_ACCOUNT_MODEL_REQUIRE_RO==='1'?{mode:'native-owner',enterpriseId:process.env.NAUMI_ACCOUNT_MODEL_ADMIN_ENTERPRISE,subject:process.env.NAUMI_ACCOUNT_MODEL_ADMIN_SUBJECT}:undefined})});
 server.listen(Number(process.env.PORT??3192),process.env.HOST??'127.0.0.1',()=>console.log('NAUMI_ACCOUNT_MODELS_READY protocol=1 port='+server.address().port));
-const stop=()=>{server.closeAllConnections();server.close(async()=>{store.close();await pool.end();process.exit(0);});};process.on('SIGTERM',stop);process.on('SIGINT',stop);
+const stop=()=>{server.closeAllConnections();server.close(async()=>{await transport.close();store.close();await pool.end();process.exit(0);});};process.on('SIGTERM',stop);process.on('SIGINT',stop);
