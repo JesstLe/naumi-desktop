@@ -1,0 +1,117 @@
+{
+  "status": "PASS",
+  "models": 15,
+  "imageModels": 14,
+  "textOnlyModels": 1,
+  "rows": [
+    {
+      "name": "gpt6.2astra",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt6.2sol",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt6.1sol",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt6.1terra",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt6astra",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt6sol",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt6luna",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt5.6sol",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt5.6terra",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "gpt5.6luna",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "claude fable5.2",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "claude opus5.5",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "DeepSeek V4.1 Flash",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "GLM 5.3 Flash",
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "name": "Ling 3.1 Flash",
+      "input": [
+        "text"
+      ]
+    }
+  ],
+  "privateInputSHA256": "f235de4ea05b80ac19a7dfeb2c9b8983837143beab316f781c171130ea20328f",
+  "nativeCatalog": true,
+  "modelManagementRequests": 0,
+  "realSupplierRequests": 0,
+  "secretValuesPrinted": 0
+}

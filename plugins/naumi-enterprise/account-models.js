@@ -12,7 +12,8 @@ const fail=code=>{throw new LlmError(code,code);};
 export function accountProfiles(value){
  return new Map(value.routes.map(r=>{const m={...r.model,provider:r.provider,baseUrl:r.baseURL,api:r.api,reasoning:r.model.reasoning??false,cost:r.model.cost??{input:0,output:0,cacheRead:0,cacheWrite:0}},api=({'openai-completions':openAICompletionsApi,'openai-responses':openAIResponsesApi,'anthropic-messages':anthropicMessagesApi})[r.api];
  if(!api)fail('ACCOUNT_MODEL_PROTOCOL_INVALID');
- const piProvider=createProvider({id:r.provider,name:r.group,baseUrl:r.baseURL,models:[m],auth:{apiKey:envApiKeyAuth('Naumi account credential',[])},api:api()});
+ const native=api(),transport=r.wireModel?{...native,stream:(model,context,options)=>native.stream({...model,id:r.wireModel},context,options),streamSimple:(model,context,options)=>native.streamSimple({...model,id:r.wireModel},context,options)}:native;
+ const piProvider=createProvider({id:r.provider,name:r.group,baseUrl:r.baseURL,models:[m],auth:{apiKey:envApiKeyAuth('Naumi account credential',[])},api:transport});
  return[r.provider,{provider:r.provider,displayName:r.group,api:r.api,baseURL:r.baseURL,streamIdleTimeoutMs:300000,maxRequestImageBytes:8*1024*1024,maxRequestImages:15,imageOffloadCountQuantum:5,requestImagePixelBudget:4194304,requestImageMaxBytes:1048576,retryPolicy:NO_RETRY,piProvider,modelErrors:new Map(),configuredMaxTokens:new Map([[m.id,m.maxTokens]])}];}));
 }
 export class AccountModels{
@@ -25,14 +26,19 @@ export class AccountModels{
  if(!v||v.subject!==this.value.subject||v.deviceId!==this.value.deviceId||v.revision<this.value.revision||v.expiresAt<=this.clock())fail('ACCOUNT_MODEL_RESPONSE_INVALID');const changed=JSON.stringify(this.value.routes)!==JSON.stringify(v.routes);this.value=v;this.lastRefresh=this.clock();if(changed)this.onChange();return v;
  })();this.flight=f;try{return await f;}finally{if(this.flight===f)this.flight=null;}}
 }
-export function createAccountAdapter(ctx,client){return new PiAiAdapter({profiles:()=>accountProfiles(client.value),resolveApiKey:async()=>{await client.refresh();return client.value.token;},auth:{credentials:new InMemoryCredentialStore(),authContext:defaultProviderAuthContext()},prepareHeaders:(_req,headers)=>{headers.set('X-Naumi-Device',client.value.deviceId);headers.set('X-Naumi-Request-Id',randomUUID());return headers;},resolveAttachments:()=>ctx.get('attachments'),resolveImageAccess:(attachments,ref)=>resolveImageAttachmentAccess(attachments,p=>ctx.get('fs')?.processPathFromHostPath(p),ref)});}
+export function createAccountAdapter(ctx,client){return new PiAiAdapter({profiles:()=>accountProfiles(client.value),resolveApiKey:async provider=>{await client.refresh();return client.resolveApiKey?client.resolveApiKey(provider):client.value.token;},auth:{credentials:new InMemoryCredentialStore(),authContext:defaultProviderAuthContext()},prepareHeaders:(_req,headers)=>{if(client.mode!=='bundled')headers.set('X-Naumi-Device',client.value.deviceId);headers.set('X-Naumi-Request-Id',randomUUID());return headers;},resolveAttachments:()=>ctx.get('attachments'),resolveImageAccess:(attachments,ref)=>resolveImageAttachmentAccess(attachments,p=>ctx.get('fs')?.processPathFromHostPath(p),ref)});}
 export function installAccountModels(ctx,{config=process.env.NAUMI_ACCOUNT_MODELS_CONFIG,home=process.env.DSH_HOME}={}){
  if(!config)return;if(fs.lstatSync(config).isSymbolicLink()||fs.statSync(config).size>524288)fail('ACCOUNT_MODEL_CONFIG_INVALID');const initial={...JSON.parse(fs.readFileSync(config)),token:process.env.NAUMI_ACCOUNT_MODELS_TOKEN};delete process.env.NAUMI_ACCOUNT_MODELS_CONFIG;delete process.env.NAUMI_ACCOUNT_MODELS_TOKEN;
  return ctx.inject(['llm','agents','agentDefaultModel'],scope=>{
- const client=new AccountModels({initial,home}),adapter=createAccountAdapter(scope,client);scope.provide('naumiAccountModels',client);let registration;
+ return installModelClient(scope,new AccountModels({initial,home}),'naumiAccountModels');
+ });
+}
+
+export function installModelClient(scope,client,serviceName){
+ const adapter=createAccountAdapter(scope,client);scope.provide(serviceName,client);let registration;
  const register=()=>{const ids=client.value.routes.map(r=>r.provider);if(registration)registration.replace(ids);else registration=scope.llm.registerAdapter(ids,adapter);};client.onChange=register;register();scope.effect(()=>()=>{client.onChange=()=>{};registration?.();});
  scope.on('agent/created',({agent})=>client.select(agent));scope.on('ready',async()=>{const current=scope.agentDefaultModel.currentSelection();if(!client.allowed(current)){const r=client.value.routes.find(r=>r.model.id===current?.model)??client.value.routes[0];await scope.agentDefaultModel.saveSelection({provider:r.provider,model:r.model.id});}for(const a of scope.agents.list())client.select(a);});
- scope.on('llm/stream',async function*(options,next){await client.refresh();if(!client.allowed(options))fail('ACCOUNT_MODEL_ROUTE_DENIED');yield* next();});
+ scope.on('llm/stream',async function*(options,next){await client.refresh();if(!client.allowed(options))fail(client.mode==='bundled'?'BUNDLED_MODEL_ROUTE_DENIED':'ACCOUNT_MODEL_ROUTE_DENIED');yield* next();});
+ if(client.mode==='bundled')return;
  const timer=setInterval(()=>client.refresh().catch(()=>{}),60000);timer.unref?.();scope.effect(()=>()=>clearInterval(timer));
- });
 }

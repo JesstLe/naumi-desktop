@@ -68,9 +68,9 @@ function capture(command, args) {
   return {ok: result.status === 0, output: (result.stdout ?? '') + (result.stderr ?? '')};
 }
 
-export function assertEmbeddedPublication(manifest,ack=false){if(manifest.edition==='embedded-test'){if(!ack||manifest.personalCredentials!==true||manifest.embeddedModels?.distribution!=='two-user-test'||manifest.embeddedModels?.models!==4||!(/^[a-f0-9]{64}$/).test(manifest.embeddedModels?.sha256))throw Error('EMBEDDED_TEST_PUBLICATION_ACK_REQUIRED');}else if(manifest.personalCredentials)throw Error('PERSONAL_CREDENTIAL_PUBLICATION_FORBIDDEN');}
+export function assertEmbeddedPublication(manifest,ack=false){if(manifest.edition==='bundled-models'){if(!ack||manifest.personalCredentials!==true||manifest.modelControl?.mode!=='bundled'||manifest.accountModels||manifest.bundledModels?.distribution!=='release-bundled'||!Number.isInteger(manifest.bundledModels.models)||manifest.bundledModels.models<1||!(/^[a-f0-9]{64}$/).test(manifest.bundledModels.sha256))throw Error('BUNDLED_RELEASE_PUBLICATION_ACK_REQUIRED');return;} if(manifest.edition==='embedded-test'){if(!ack||manifest.personalCredentials!==true||manifest.embeddedModels?.distribution!=='two-user-test'||manifest.embeddedModels?.models!==4||!(/^[a-f0-9]{64}$/).test(manifest.embeddedModels?.sha256))throw Error('EMBEDDED_TEST_PUBLICATION_ACK_REQUIRED');}else if(manifest.personalCredentials)throw Error('PERSONAL_CREDENTIAL_PUBLICATION_FORBIDDEN');}
 
-export function assertAccountModelsPublication(resource){if(resource.personalCredentials||resource.embeddedModels||resource.trial||resource.accountModels?.required!==true||resource.accountModels?.protocol!==1)throw Error('ACCOUNT_MODEL_CLOUD_DISTRIBUTION_REQUIRED');}
+export function assertAccountModelsPublication(resource,{bundled=false}={}){if(bundled){assertEmbeddedPublication(resource,true);if(resource.edition!=='bundled-models')throw Error('BUNDLED_RELEASE_REQUIRED');return;}if(resource.personalCredentials||resource.embeddedModels||resource.trial||resource.accountModels?.required!==true||resource.accountModels?.protocol!==1)throw Error('ACCOUNT_MODEL_CLOUD_DISTRIBUTION_REQUIRED');}
 
 function main() {
   const args = process.argv.slice(2);
@@ -84,8 +84,8 @@ function main() {
   const stagedManifest = path.join(root, 'runtime', 'desktop-backend', 'runtime-manifest.json');
   if (fs.existsSync(stagedManifest) && JSON.parse(fs.readFileSync(stagedManifest)).edition === 'internal-trial') throw Error('INTERNAL_TRIAL_PUBLICATION_FORBIDDEN');
   const resource=JSON.parse(fs.readFileSync(stagedManifest));
-  assertEmbeddedPublication(resource,args.includes('--ack-embedded-test'));
-  assertAccountModelsPublication(resource);
+  assertEmbeddedPublication(resource,args.includes('--ack-embedded-test')||args.includes('--ack-bundled-models'));
+  assertAccountModelsPublication(resource,{bundled:args.includes('--ack-bundled-models')});
   const manifest = path.join(output, 'latest.yml');
   const installer = path.join(output, `Naumi-Setup-${version}-x64.exe`);
   assertModelPickerRelease(output, version);

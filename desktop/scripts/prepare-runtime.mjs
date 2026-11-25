@@ -36,13 +36,15 @@ export function scanRuntimeInventory(files){
   for(const file of files)if(forbidden.test(file.path)||/^(?:sessions|logs|browser-profiles)\//i.test(file.path)||/(?:^|\/)(?:\.git|\.dsh|browser-profiles|identity-profiles|business-private|creation-private)\//i.test(file.path))throw Error('RUNTIME_PRIVATE_FILE '+file.path);
   return {files:files.length,forbiddenPaths:0};
 }
-export async function prepareRuntime({root=project,target=path.join(root,'runtime/desktop-backend'),archive=process.env.NAUMI_DINGTALK_ARCHIVE,trialInput,modelPolicy=process.env.NAUMI_BUILD_MODEL_POLICY,embeddedInput=process.env.NAUMI_EMBEDDED_MODELS_FILE}={}){
+export async function prepareRuntime({root=project,target=path.join(root,'runtime/desktop-backend'),archive=process.env.NAUMI_DINGTALK_ARCHIVE,trialInput,modelPolicy=process.env.NAUMI_BUILD_MODEL_POLICY,embeddedInput=process.env.NAUMI_EMBEDDED_MODELS_FILE,bundledInput=process.env.NAUMI_BUNDLED_MODELS_FILE}={}){
+  if(bundledInput&&(trialInput||embeddedInput||modelPolicy||process.env.NAUMI_BUNDLED_MODELS_ACK!=='release-bundled-20261125'))throw Error('BUNDLED_RELEASE_BUILD_ACK_REQUIRED');
   if(embeddedInput&&(trialInput||process.env.NAUMI_EMBEDDED_TEST_ACK!=='two-users-accepted-20261120'||modelPolicy!=='three-options-vision-20261120'))throw Error('EMBEDDED_TEST_BUILD_ACK_REQUIRED');
   if(modelPolicy!==undefined&&modelPolicy!=='three-options-vision-20261120')throw Error('MODEL_POLICY_RESOURCE_INVALID');
   root=path.resolve(root);target=path.resolve(target);
   const runtime=path.join(root,'runtime');
   if(!target.startsWith(runtime+path.sep)||fs.existsSync(target)&&fs.lstatSync(target).isSymbolicLink())throw Error('RUNTIME_TARGET_INVALID');
   if(fs.existsSync(target)&&!fs.existsSync(path.join(target,'runtime-manifest.json')))throw Error('RUNTIME_TARGET_NOT_OWNED');
+  if(!trialInput&&!embeddedInput&&!bundledInput)throw Error('BUNDLED_RELEASE_INPUT_REQUIRED');
   if(process.versions.node!=='24.19.0'||process.platform!=='win32'||process.arch!=='x64')throw Error('RUNTIME_BUILD_PLATFORM_VERSION');
   auditPackage(path.join(root,'plugins/naumi-enterprise'),{checkInstalled:true});
   fs.mkdirSync(runtime,{recursive:true});const staged=path.join(runtime,'desktop-stage-'+randomUUID());fs.mkdirSync(staged);
@@ -71,10 +73,11 @@ export async function prepareRuntime({root=project,target=path.join(root,'runtim
     verifyStagedImports(staged);
     const trial=trialInput?stageTrialModels(staged,trialInput):null;
     const embeddedModels=embeddedInput?stageEmbeddedModels(staged,embeddedInput):null;
+    const bundledModels=bundledInput?stageEmbeddedModels(staged,bundledInput,{bundled:true}):null;
     const inventory=runtimeInventory(staged),scan=scanRuntimeInventory(inventory);
     fs.writeFileSync(path.join(staged,'runtime-files.json'),JSON.stringify(inventory,null,2)+'\n');
-    const manifest={product:'Naumi',...trial?{edition:'internal-trial',trial}:{},...embeddedModels?{edition:'embedded-test',embeddedModels}:{},schemaVersion:2,desktop:{profileVersion:1,identityProtocol:2,maintenanceProtocol:1,workspaceProtocol:1},version:JSON.parse(fs.readFileSync(path.join(root,'desktop/package.json'))).version,node:process.versions.node,harness:'0.2.2-rc.1',desktopEngine:'cua',cuaDriver:'0.54.0',dingtalk,personalCredentials:!!trial||!!embeddedModels,browserProfiles:false,bootstrap:'offline',nodeSHA256:sha(path.join(staged,'node.exe')),inventorySHA256:sha(path.join(staged,'runtime-files.json')),closure,scan};
-    if(!trial&&!embeddedModels)manifest.accountModels={protocol:1,required:true};
+    const manifest={product:'Naumi',...trial?{edition:'internal-trial',trial}:{},...embeddedModels?{edition:'embedded-test',embeddedModels}:{},...bundledModels?{edition:'bundled-models',bundledModels}:{},schemaVersion:2,desktop:{profileVersion:1,identityProtocol:2,maintenanceProtocol:1,workspaceProtocol:1},version:JSON.parse(fs.readFileSync(path.join(root,'desktop/package.json'))).version,node:process.versions.node,harness:'0.2.2-rc.1',desktopEngine:'cua',cuaDriver:'0.54.0',dingtalk,personalCredentials:!!trial||!!embeddedModels||!!bundledModels,browserProfiles:false,bootstrap:'offline',nodeSHA256:sha(path.join(staged,'node.exe')),inventorySHA256:sha(path.join(staged,'runtime-files.json')),closure,scan};
+    if(bundledModels)manifest.modelControl={mode:'bundled',version:1};
     if(modelPolicy)manifest.modelPolicy=modelPolicy;
     manifest.modelPicker=MODEL_PICKER_POLICY;
     fs.writeFileSync(path.join(staged,'runtime-manifest.json'),JSON.stringify(manifest,null,2)+'\n');

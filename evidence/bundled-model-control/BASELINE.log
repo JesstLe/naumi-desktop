@@ -1,0 +1,43 @@
+✔ explicit four-model input validates exact wire IDs and references, never an arbitrary route overlay (1.5625ms)
+✔ upgrade replaces model providers only, preserves other settings/comments and old credentials, then is idempotent (112.5417ms)
+✔ failure at every migration boundary restores exact old bytes and permits retry (229.0619ms)
+✔ foreign config drift is preserved and journal remains pending rather than overwriting later edits (33.8509ms)
+✔ a newer explicit revision replaces its own keys, leaving unrelated refs untouched (55.3418ms)
+✔ external backend is never rewritten, normal packages do not seed secrets (6.4952ms)
+✔ manifest data hash is required before consuming embedded credentials (9.886ms)
+✔ fresh profile without any model node or credential file receives all four configured choices (25.1191ms)
+✔ embedded test edition is not mistaken for the legacy trial overlay (8.0145ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (14.3553ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.4659ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (278.6325ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (346.4808ms)
+{"event":"ACCOUNT_MODEL_GATEWAY_FAILURE","stage":"upstream-connect","code":"ACCOUNT_MODEL_UPSTREAM_CONNECTION_FAILED","requestId":"c277ecf4-b198-48cd-b368-6496b1834da4","elapsedMs":3,"causeCodes":[],"receipt":"preserved","automaticRetry":false}
+{"event":"ACCOUNT_MODEL_GATEWAY_FAILURE","stage":"upstream-headers","code":"ACCOUNT_MODEL_UPSTREAM_REJECTED","requestId":"d34385b9-5d0f-4214-8026-e5790f6158ff","elapsedMs":3,"causeCodes":[],"receipt":"preserved","automaticRetry":false}
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (74.0861ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (31.8289ms)
+✔ first login also fails closed on missing service; cross-account late response is discarded (1.6784ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (11.3172ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.5291ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (23.5794ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (36.4784ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (207.9622ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (4.733ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (43.93ms)
+✔ opaque catalog model IDs are rewritten only at the server, and upstream never receives the display alias (24.2384ms)
+✔ baseline native summarize routes the retired request header and reproduces screenshot denial without a paid dispatch (1.9467ms)
+✔ native summarize hook uses only this Session explicitly selected allowed route, reports actual route and preserves history (1.1173ms)
+✔ authorized old summarization route keeps original native behavior instead of switching it implicitly (0.2504ms)
+✔ revoked selection, provider error, truncated summary and cancellation never become a successful checkpoint or retry (0.728ms)
+✔ dispatch source provenance never transfers ordinary thread ownership or its native children to Bot navigation (0.2674ms)
+✔ managed model description uses public display label, unknown/legacy routes do not disclose internal IDs or infer vendors (0.1696ms)
+✔ native prompt and native model-switch notice use scoped Naumi presentation without touching user text or other scopes (7.6487ms)
+✔ preset-isolated native engine resolves through public serviceFor and never creates a parallel compactor (1.4704ms)
+✔ refresh-time revocation fails before dispatch, and only the exact selected route may summarize (0.2173ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1582.9189
