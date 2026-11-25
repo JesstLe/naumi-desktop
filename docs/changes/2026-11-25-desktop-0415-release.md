@@ -12,3 +12,10 @@
 
 ## Iteration
 - Release metadata slice; feature iteration count unchanged.
+
+## Real EXE upgrade fixture correction
+- First mandatory package gate passed the fresh native scenarios, then reproduced `PACKAGED_STARTUP_ACCOUNT_MODEL_SERVICE_REQUIRED` on the actual previous 0.4.14 EXE. Original failure retained at D:/NaumiReleases/0.4.15/evidence/MANDATORY_GATE_FIRST_FAILURE.json.
+- Root cause: fixture enabled bootstrap only for candidate-path equality, though 0.4.14 already requires cloud account models. The fixture now reads the launched EXE's own sibling runtime-manifest.json. Missing/invalid manifests fail closed; pre-cloud manifests retain 404 bootstrap behavior. Product startup and bootstrap code unchanged.
+- Focused module tests: `node --test tests/model-picker-distribution.test.mjs`, 6 PASS/0 FAIL. Actual full four-case gate follows.
+- Separate actual 0.4.15 EXE live read-only acceptance passed: client/service 0.4.15, 15 exact opaque catalog IDs/names, 14 image/1 text-only, supplierCalls=0, originalProfileWrites=0. This does not replace the warm-cache/linked-service package gate.
+- A separately owned three-issue client fix is in progress. The package remains unpublished while that verified fixed main is coordinated; do not mark public release complete.
