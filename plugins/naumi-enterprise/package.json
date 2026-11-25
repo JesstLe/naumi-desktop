@@ -12,6 +12,7 @@
   },
   "files": [
     "agent-presentation.js",
+    "bundled-models.js",
     "managed-compaction.js",
     "context-recovery.js",
     "host.js",

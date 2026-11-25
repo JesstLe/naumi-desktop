@@ -224,14 +224,16 @@ async function boot(){
   }
   if(identityRuntime?.active&&settings.isolated)await creation.activate(settings.home);
   if(settings.linkedService)installerState.registerProfile(path.resolve(process.resourcesPath,'..'),app.getPath('userData'));
-  settings.accountModels=identityRuntime?.active?await accountModels.bootstrap({force:true}):null;
+  const modelManifestPath=path.join(settings.releaseRoot??settings.root,'runtime-manifest.json'),modelManifest=fs.existsSync(modelManifestPath)?JSON.parse(fs.readFileSync(modelManifestPath)):{};
+  settings.bundledModels=!!modelManifest.bundledModels;
+  settings.accountModels=!settings.bundledModels&&identityRuntime?.active?await accountModels.bootstrap({force:true}):null;
   const nextBackend=settings.linkedServiceCandidate?await require('./linked-service-migration.cjs').adopt(settings,{ensureBackend,stopBackend,launchFromLog:require('./backend.cjs').launchFromLog}):await ensureBackend(settings);
   if(settings.linkedService)installerState.registerProfile(path.resolve(process.resourcesPath,'..'),app.getPath('userData'));
   backend=backend?.owned&&!nextBackend.owned&&backend.child.exitCode===null&&backend.child.signalCode===null?{...nextBackend,owned:true,child:backend.child}:nextBackend;
   const account=identityRuntime?.active?'identity-'+identityRuntime.active.profileId+'-'+settings.workspaceId:!settings.isolated||settings.workspaceId==='default'?'local':'enterprise-'+settings.workspaceId;
   if(!guests){guests=new Guests({hostURL:settings.url,account,timeout:process.env.NAUMI_TEST==='1'?Number(process.env.NAUMI_TEST_TIMEOUT??30000):30000});guests.attach(window);}
   else if(guests.hostURL!==settings.url||guests.account!==account)await guests.reset({hostURL:settings.url,account});
-  if(!bridge)bridge=await startBridge({home:settings.home,guests,window,enterprise,market,accountModels,browserConnections:new BrowserConnections({root:path.join(identityRuntime?.active?.root??identityUserData??app.getPath('userData'),'browser-private'),hostURL:settings.url,safeStorage}),maintenance:{blocked:maintenanceBlocked,perform:performMaintenance,quit:ticket=>{if(maintenanceBlocked()&&ticket===maintenanceTicket)app.quit();}}});
+  if(!bridge)bridge=await startBridge({home:settings.home,guests,window,enterprise,market,accountModels:settings.bundledModels?null:accountModels,browserConnections:new BrowserConnections({root:path.join(identityRuntime?.active?.root??identityUserData??app.getPath('userData'),'browser-private'),hostURL:settings.url,safeStorage}),maintenance:{blocked:maintenanceBlocked,perform:performMaintenance,quit:ticket=>{if(maintenanceBlocked()&&ticket===maintenanceTicket)app.quit();}}});
   editingConnection=false;await window.loadURL(backend.launchURL);
   const serviceVersion=await verifyServiceVersion();
   require('./profile.cjs').atomic(path.join(app.getPath('userData'),'desktop-runtime.json'),{version:1,pid:process.pid,clientVersion:app.getVersion(),executable:process.execPath,backendMode:settings.isolated||settings.linkedService?'managed':'external',backendURL:settings.url,serviceVersion,serviceBundleId:settings.runtime?.bundleId??null,readyAt:new Date().toISOString()});

@@ -24,3 +24,17 @@ test('EXE upgrade fixture follows each launched package policy, including cloud-
   assert(script.includes('usingCloud=packagedAccountModelsRequired(binary);'));
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('bundled EXE publication requires exact resource identity, all models, direct wire proof and zero management requests',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'naumi-bundled-gate-')),backend=path.join(dir,'win-unpacked/resources/backend'),file=path.join(backend,'node_modules/@deepseek-ai/dsh-client-ui-model-selection/lib/client.js');
+ try{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,extendNativeModelPicker(original));fs.writeFileSync(path.join(backend,'runtime-manifest.json'),JSON.stringify({version:'9.9.9',modelPicker:MODEL_PICKER_POLICY,bundledModels:{models:15,sha256:'a'.repeat(64)}}));fs.writeFileSync(path.join(dir,'Naumi-Setup-9.9.9-x64.exe'),'fixture-installer');
+ const good={payloadVerified:true,status:'PASS',version:'9.9.9',nativeSHA256:hash(fs.readFileSync(file)),installerSHA256:hash('fixture-installer'),bundledConfigVerified:true,bundledModels:15,bundledConfigSHA256:'a'.repeat(64),bundledWireVerified:true,modelManagementRequests:0,cases:['fresh','legacy-first','legacy-r2','linked-legacy'].map(name=>({name,cachedUpgrade:name!=='fresh',...(name==='linked-legacy'?{linkedUpgrade:true,activeNativeSHA256:hash(fs.readFileSync(file))}:{}),modelsOnly:true,folderDrop:true,dingtalkCli:true,dingtalkSkill:true,settingsModelsOnly:true,settingsPayloadClean:true,switchAndReload:true,scenes:['bot','ordinary','group']}))};
+ const receipt=path.join(dir,'MODEL_PICKER_GATE.json');fs.writeFileSync(receipt,JSON.stringify(good));assertModelPickerRelease(dir);
+ for(const [key,value]of [['bundledConfigVerified',false],['bundledModels',14],['bundledConfigSHA256','b'.repeat(64)],['bundledWireVerified',false],['modelManagementRequests',1],['modelManagementRequests',undefined]]){fs.writeFileSync(receipt,JSON.stringify({...good,[key]:value}));assert.throws(()=>assertModelPickerRelease(dir),/BUNDLED_MODEL_GATE_REQUIRED/,key);}
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('bundled EXE gate preserves shipped protocol and checks exact native route catalog, not just its self-reported model count',()=>{
+ const script=fs.readFileSync('scripts/verify-model-picker-distribution.mjs','utf8');
+ assert(script.includes("pathname.endsWith('/chat/completions')"));assert(!script.includes("if(v.mode==='bundled-release')p.api="));assert(script.includes('BUNDLED_BOOTSTRAP_MUST_BE_LOCAL'));assert(script.includes('assert.equal(names.length,manifest.bundledModels.models)'));assert(script.includes('Object.entries(bundled.providers).map'));
+});

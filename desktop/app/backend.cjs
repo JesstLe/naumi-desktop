@@ -98,7 +98,7 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
   settings.url=localURL(settings.url);profile.profileState(settings.home,settings.identity.id);const receipt=profile.runtimeReceipt(settings.home,settings.identity.id);
   const candidate={...settings,url:receipt?`http://127.0.0.1:${receipt.port}`:settings.url},remote=await probeIdentity(candidate,{fetcher});
   if(remote){
-   if(!!settings.accountModels!==!!receipt?.accountModels)throw Error('ACCOUNT_MODEL_RESTART_REQUIRED');
+   if(remote.bundleId===settings.runtime.bundleId&&!!settings.accountModels!==!!receipt?.accountModels)throw Error('ACCOUNT_MODEL_RESTART_REQUIRED');
    if(remote.bundleId!==settings.runtime.bundleId){
     if(!settings.linkedService)throw Error('BACKEND_UPGRADE_REQUIRES_STOP');
     // Reuse the signed admission latch. Running/unknown work is deferred, never cancelled.
@@ -129,11 +129,12 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
  const entry=path.join(settings.root,'node_modules/@deepseek-ai/dsh/lib/bin.js');if(!fs.existsSync(entry))throw Error('BACKEND_RUNTIME_MISSING');
  fs.mkdirSync(settings.logDir,{recursive:true});
  const trial=settings.accountModels?{args:[],env:{}}:require('./internal-trial.cjs').trialLaunch(settings);
- if(settings.accountModels){const patch=path.join(settings.home,'account-models-runtime.patch.json');profile.atomic(patch,[{id:'llm-pi-ai',disabled:true}]);trial.args.push('--patch',patch);}
+ if(settings.accountModels||settings.bundledModels){const patch=path.join(settings.home,'account-models-runtime.patch.json');profile.atomic(patch,[{id:'llm-pi-ai',disabled:true}]);trial.args.push('--patch',patch);}
  const target=new URL(settings.url),runId=randomUUID(),env=backendEnvironment(settings);
  Object.assign(env,trial.env);
  // Only an explicitly staged rollout enables replacement. Ordinary/frozen bundles stay unchanged.
- delete env.NAUMI_MODEL_POLICY;delete env.NAUMI_ACCOUNT_MODELS_CONFIG;delete env.NAUMI_ACCOUNT_MODELS_TOKEN;
+ delete env.NAUMI_MODEL_POLICY;delete env.NAUMI_BUNDLED_MODELS_CONFIG;delete env.NAUMI_ACCOUNT_MODELS_CONFIG;delete env.NAUMI_ACCOUNT_MODELS_TOKEN;
+ if(settings.bundledModels){const release=settings.releaseRoot??settings.root,manifest=JSON.parse(fs.readFileSync(path.join(release,'runtime-manifest.json')));let config=path.join(release,'defaults/bundled-models.json');const bytes=fs.readFileSync(config);if(require('node:crypto').createHash('sha256').update(bytes).digest('hex')!==manifest.bundledModels.sha256)throw Error('BUNDLED_RESOURCE_CHANGED');if(process.env.NAUMI_TEST==='1'&&process.env.NAUMI_EMBEDDED_TEST_FIXTURE)config=process.env.NAUMI_EMBEDDED_TEST_FIXTURE;env.NAUMI_BUNDLED_MODELS_CONFIG=config;}
  if(settings.accountModels){const {token,...catalog}=settings.accountModels,config=path.join(settings.home,'account-models-catalog.json');profile.atomic(config,catalog);env.NAUMI_ACCOUNT_MODELS_CONFIG=config;env.NAUMI_ACCOUNT_MODELS_TOKEN=token;}
  if(settings.isolated||settings.linkedService){
   const manifestFile=path.join(settings.releaseRoot??settings.root,'runtime-manifest.json');

@@ -7,7 +7,7 @@ function trialResources(root){
  if(!fs.existsSync(manifestFile))return null;
  const manifest=JSON.parse(fs.readFileSync(manifestFile));
  if(!manifest.edition)return null;
- if(manifest.edition==='embedded-test'){if(!manifest.embeddedModels||manifest.personalCredentials!==true)throw Error('EMBEDDED_MANIFEST_INVALID');return null;}
+ if(['embedded-test','bundled-models'].includes(manifest.edition)){if(!(manifest.embeddedModels||manifest.bundledModels)||manifest.personalCredentials!==true)throw Error('EMBEDDED_MANIFEST_INVALID');return null;}
  if(manifest.edition!=='internal-trial'||manifest.trial?.version!==1)throw Error('TRIAL_EDITION_INVALID');
  const read=(name,expected)=>{const file=path.join(root,'defaults',name);if(fs.lstatSync(file).isSymbolicLink())throw Error('TRIAL_RESOURCE_LINK');const bytes=fs.readFileSync(file);if(hash(bytes)!==expected)throw Error('TRIAL_RESOURCE_CHANGED');return {file,bytes};};
  const overlay=read('internal-trial.patch.json',manifest.trial.overlaySHA256);

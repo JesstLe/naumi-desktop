@@ -1,0 +1,25 @@
+{
+  "status": "SOURCE_PASS_NOT_PACKAGE_RELEASE",
+  "baseline": "b4eb6418d0c7fccf400b7fc943434cf27b04d96a",
+  "baselineTests": 33,
+  "concentratedTests": 50,
+  "fullTests": 1184,
+  "nativeChecks": 12,
+  "nativeBoots": 4,
+  "nativeLoopbackRequests": 13,
+  "realSupplierRequests": 0,
+  "catalog": {
+    "models": 15,
+    "image": 14,
+    "textOnly": 1
+  },
+  "productionWrites": 0,
+  "installerBuiltByThisTask": false,
+  "publisherOwns": [
+    "version",
+    "CHANGELOG",
+    "installer",
+    "feed"
+  ],
+  "artifactsRoot": "E:/tmp/naumi-bundled-model-control-20261125"
+}

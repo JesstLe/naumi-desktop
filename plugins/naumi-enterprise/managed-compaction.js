@@ -3,15 +3,15 @@ import {BlockAssembler,LlmError,contentHasImage,createUserMessage} from '@deepse
 /** Only the native summarize hook owns this adaptation. No request/header/history
  * rewrite, stream retry, arbitrary model fallback or second compaction engine. */
 export async function managedSummary(engine,input,agent,signal){
- const client=agent.ctx.get?.('naumiAccountModels');if(!client)return;
+ const client=(agent.ctx.get?.('naumiBundledModels')??agent.ctx.get?.('naumiAccountModels'));if(!client)return;
  await client.refresh();signal?.throwIfAborted();
  const previous=agent.session.requestHeader()?.config;
  const conversation=previous??agent.options;
  const policy=engine.config.modelPolicies?.find(p=>p.provider===conversation?.provider&&p.model===conversation?.model)??{};
  const configured={provider:policy.summarizationProvider??engine.config.summarizationProvider,model:policy.summarizationModel??engine.config.summarizationModel};
  const source=configured.provider?configured:previous??agent.options;
- if(client.allowed(source))return;
- const selected=agent.model.current();if(!client.allowed(selected))throw new LlmError('当前所选模型已不在账号授权目录中，请重新选择可用模型。','ACCOUNT_MODEL_ROUTE_DENIED');
+ if(client.allowed(source)&&client.mode!=='bundled')return;
+ const selected=client.allowed(source)?source:agent.model.current();if(!client.allowed(selected))throw new LlmError(client.mode==='bundled'?'当前所选模型不在本版本目录中，请重新选择可用模型。':'当前所选模型已不在账号授权目录中，请重新选择可用模型。',client.mode==='bundled'?'BUNDLED_MODEL_ROUTE_DENIED':'ACCOUNT_MODEL_ROUTE_DENIED');
  const route=client.value.routes.find(r=>r.provider===selected.provider&&r.model.id===selected.model);
  const maxTokens=Math.min(policy.maxTokens??engine.config.maxTokens,route.model.maxTokens);
  const request={provider:selected.provider,model:selected.model,sessionId:agent.session.id,purpose:'compaction',signal,maxTokens,
