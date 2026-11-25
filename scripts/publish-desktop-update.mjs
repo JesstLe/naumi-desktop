@@ -70,6 +70,8 @@ function capture(command, args) {
 
 export function assertEmbeddedPublication(manifest,ack=false){if(manifest.edition==='embedded-test'){if(!ack||manifest.personalCredentials!==true||manifest.embeddedModels?.distribution!=='two-user-test'||manifest.embeddedModels?.models!==4||!(/^[a-f0-9]{64}$/).test(manifest.embeddedModels?.sha256))throw Error('EMBEDDED_TEST_PUBLICATION_ACK_REQUIRED');}else if(manifest.personalCredentials)throw Error('PERSONAL_CREDENTIAL_PUBLICATION_FORBIDDEN');}
 
+export function assertAccountModelsPublication(resource){if(resource.personalCredentials||resource.embeddedModels||resource.trial||resource.accountModels?.required!==true||resource.accountModels?.protocol!==1)throw Error('ACCOUNT_MODEL_CLOUD_DISTRIBUTION_REQUIRED');}
+
 function main() {
   const args = process.argv.slice(2);
   const desktop = path.join(root, 'desktop');
@@ -83,6 +85,7 @@ function main() {
   if (fs.existsSync(stagedManifest) && JSON.parse(fs.readFileSync(stagedManifest)).edition === 'internal-trial') throw Error('INTERNAL_TRIAL_PUBLICATION_FORBIDDEN');
   const resource=JSON.parse(fs.readFileSync(stagedManifest));
   assertEmbeddedPublication(resource,args.includes('--ack-embedded-test'));
+  assertAccountModelsPublication(resource);
   const manifest = path.join(output, 'latest.yml');
   const installer = path.join(output, `Naumi-Setup-${version}-x64.exe`);
   assertModelPickerRelease(output, version);

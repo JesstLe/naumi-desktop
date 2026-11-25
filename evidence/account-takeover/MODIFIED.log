@@ -1,0 +1,35 @@
+✔ explicit four-model input validates exact wire IDs and references, never an arbitrary route overlay (1.5856ms)
+✔ upgrade replaces model providers only, preserves other settings/comments and old credentials, then is idempotent (90.8834ms)
+✔ failure at every migration boundary restores exact old bytes and permits retry (181.6571ms)
+✔ foreign config drift is preserved and journal remains pending rather than overwriting later edits (29.134ms)
+✔ a newer explicit revision replaces its own keys, leaving unrelated refs untouched (63.0255ms)
+✔ external backend is never rewritten, normal packages do not seed secrets (5.4292ms)
+✔ manifest data hash is required before consuming embedded credentials (7.8908ms)
+✔ fresh profile without any model node or credential file receives all four configured choices (26.5856ms)
+✔ embedded test edition is not mistaken for the legacy trial overlay (5.7132ms)
+✔ server aliases are stable opaque IDs, preserve upstream protocol/capacity/secret ownership, reject lost sources (1.0227ms)
+✔ upgrade retires only owned embedded keys in active files and old backups, preserving personal keys and sessions (137.9162ms)
+✔ forward-only sanitized journal recovers interrupted retirement, never resurrecting owned secrets (330.7032ms)
+✔ foreign drift blocks retirement recovery; no authority or symlink cannot rewrite home (83.4712ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (25.8717ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.5207ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (289.205ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (271.1381ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (83.4728ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (47.0236ms)
+✔ first login also fails closed on missing service; cross-account late response is discarded (1.4318ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (10.5294ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.4886ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (21.2362ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (43.8854ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (199.5351ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (4.0402ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (60.766ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1810.1682

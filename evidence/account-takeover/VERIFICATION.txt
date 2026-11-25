@@ -1,0 +1,45 @@
+Account model takeover — source and local acceptance
+Baseline SHA: 6471c6d974c9ddf232afec7e870cb66284d27366
+Branch: codex/account-models-takeover-20261125
+Changed branch/fields:
+- bootstrap HTTP404 => ACCOUNT_MODEL_SERVICE_REQUIRED for first and enrolled login; no embedded fallback.
+- runtime-manifest.accountModels={protocol:1,required:true}; public release rejects personalCredentials/embeddedModels/trial.
+- publicRoute.model.id becomes opaque; only server request body uses original model.id.
+- retirement removes owned NAUMI_EMBEDDED_TEST_* refs from active files and embedded backups, forward-only recovery.
+- import --existing-schema validates bounded contract without DDL/global schema-ready cache.
+- post-COMMIT verification failure => COMMITTED_VERIFY_PENDING.
+Four artifacts (stable paths after integration):
+E:/Workspace/naumi-desktop/evidence/account-takeover/MODIFIED_FILE.zip
+E:/Workspace/naumi-desktop/evidence/account-takeover/DIFF_FILE.patch
+E:/Workspace/naumi-desktop/evidence/account-takeover/VERIFICATION.txt
+E:/Workspace/naumi-desktop/evidence/account-takeover/ROLLBACK.sh
+BASELINE
+Command: node --test --test-concurrency=2 tests/account-models.test.mjs desktop/tests/embedded-models.test.cjs
+Input: baseline source 6471c6d, isolated HTTP/SQLite fixtures.
+Literal result: ℹ tests 23 / ℹ pass 23 / ℹ fail 0
+Exit status: 0
+MODIFIED
+Command: node --test --test-concurrency=2 tests/account-models.test.mjs tests/account-model-takeover.test.mjs tests/desktop-model-import47.test.mjs desktop/tests/embedded-models.test.cjs
+Input: modified source, isolated HTTP/SQLite fixtures.
+Literal result: ℹ tests 34 / ℹ pass 34 / ℹ fail 0
+Exit status: 0
+Command: node scripts/verify-account-model-takeover-pg.mjs
+Input: disposable PostgreSQL16; original credential-owner bundle; no real upstream key/model calls.
+Literal output: ACCOUNT_TAKEOVER_PG_PASS checks=13 productionWrites=0 modelCalls=0
+Exit status: 0
+Command: node --test --test-concurrency=2 tests/*.test.mjs desktop/tests/*.test.cjs
+Input: complete source, original pinned CUA build cache.
+Literal result: ℹ tests 1145 / ℹ pass 1145 / ℹ fail 0
+Exit status: 0
+First full-suite failure CUA_BUNDLE_MISSING preserved in FULL_FIRST_MISSING_CACHE.log, not a product fix.
+ROLLBACK
+Command: D:/DEV/Git/bin/bash.exe -c 'evidence/account-takeover/ROLLBACK.sh E:/Workspace/naumi-desktop-account-takeover/runtime/account-takeover-rollback-copy'
+Input: marked disposable source copy; all 32 modified hashes match MODIFIED_FILE.zip.
+Literal output: ROLLBACK_PASS files=32 sourceCopyOnly=true
+Exit status: 0
+Command (cwd rollback copy): node --test --test-concurrency=2 tests/account-models.test.mjs
+Input: restored baseline source; original isolated fixtures.
+Literal result: ℹ tests 14 / ℹ pass 14 / ℹ fail 0
+Exit status: 0
+Restored behavior/status: original pre-enrollment HTTP404=>null is restored in the disposable copy. Actual task worktree remains modified and bootstrap fails closed. No installed files, production grant, PG or SQLite restoration performed.
+Deployment/package publication: pending; source/local PASS is not production all-client takeover.

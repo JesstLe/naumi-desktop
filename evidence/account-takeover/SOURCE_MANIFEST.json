@@ -1,0 +1,165 @@
+{
+  "baseline": "6471c6d974c9ddf232afec7e870cb66284d27366",
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "before": "42ba695f3d76b67b96c3dcaa5a8d6da59a70090a929ecb7a8b256297183e0c70",
+      "after": "cb189f93be1916a62bbf0877461c53043e050d0da38906d64792caa0f7d59791"
+    },
+    {
+      "path": "desktop/app/account-model-retirement.cjs",
+      "before": null,
+      "after": "353ca86ef2155259c42a0ba6df20f20ca18bc7119adb964c38e40bde9d8a2c07"
+    },
+    {
+      "path": "desktop/app/account-models.cjs",
+      "before": "562cd76e10da48c6cd7d5ae634c0807c3a29c9908e2bc35ddbdae0bf68c91d71",
+      "after": "12359e3e29516b0b563367d133adfa6d5f55c9f22be109cf31c3d33c6eac5af8"
+    },
+    {
+      "path": "desktop/app/backend.cjs",
+      "before": "e473b91f1a53cb0f6196d11f1d3892ad9319c491dc77ad4e46d44068333c0908",
+      "after": "2ab3bea60944389eafb7690a50eab83882ee8c257dd2491a2b521131cd54fdc9"
+    },
+    {
+      "path": "desktop/app/startup.js",
+      "before": "22a1bf936f5e6f6a95c5b4eb0679b40f4cab0d23cf05ca7ab25c01da8af259b0",
+      "after": "a477d16a6cb79d63f777758944724972257c031441246c4b0b567c3088cbedb4"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "before": "0036aac195a4343afffc3ee8a2b682dd9eafb58b49725809a277a58de30f1047",
+      "after": "3a2955277d774f2acaf6220f560ea0ef47b6eab1e2e0e38884bb04c982e4a935"
+    },
+    {
+      "path": "desktop/package.json",
+      "before": "2574b3f7fbcc650219e4614a9491ffd7b21d2048dd7f76097f46cd38869e81d0",
+      "after": "6ffac86c0f093d438509f1cdd17bd16f2b973f085f6fecc6baa96dc4a9565e59"
+    },
+    {
+      "path": "desktop/scripts/prepare-runtime.mjs",
+      "before": "125809dcd8c82daa33eb0a5b721b77cf3beb31a155327dfae7f1feb866d8b491",
+      "after": "d84ecc0b6aa08a27482f8f64af5da46e22f00d3223143a35bf081f52a6ab918e"
+    },
+    {
+      "path": "docs/changes/2026-11-25-account-model-takeover.md",
+      "before": null,
+      "after": "b1e71da7f171842f67cfb4a972a5c35f077facb178631d41b0ad16e367176692"
+    },
+    {
+      "path": "plugins/naumi-enterprise/product-version.js",
+      "before": "27578c2274a487319f81c7fdc411b183011c9462c6958ecab634b583543732f8",
+      "after": "df72b7c95d374e7c5dfb70e69bcfe65bfb13c026fdb45b992de3ad504b74e6ee"
+    },
+    {
+      "path": "scripts/account-models-operator.mjs",
+      "before": null,
+      "after": "b89540a5b74c5cbab8f9fe230228f79b0c1ed1f9a0781480a0955a516b6707cf"
+    },
+    {
+      "path": "scripts/deploy-account-models47.mjs",
+      "before": null,
+      "after": "670f038b242539227e88b7592a3942e926d79978e2a550ea9ea2c3b174f95c1e"
+    },
+    {
+      "path": "scripts/deploy-account-models47.py",
+      "before": null,
+      "after": "616a09a5372ff6ad7fa46902bcd82508b878ba2bfaed9dba41f615dbb4e0671c"
+    },
+    {
+      "path": "scripts/desktop-model-import47-cli.mjs",
+      "before": "0aa8680b917513535692e1eb0bd37bd6ebe718311b77a07f62ab8c6f7ba55f13",
+      "after": "098e265575112b9b75aa6bfc24a2ce5b243346cd3bb2ea5477236852d4e0c0b6"
+    },
+    {
+      "path": "scripts/lib/account-model-takeover-input.mjs",
+      "before": null,
+      "after": "65c43e2e5c2a96f525088a8f1264d08b84ba5f26e59c191dc7aeef0f13d4a5f9"
+    },
+    {
+      "path": "scripts/lib/desktop-model-import-ready.mjs",
+      "before": null,
+      "after": "815bb092b74b33b97c482dea30f8271857272d344408dc0c0203887d509462ac"
+    },
+    {
+      "path": "scripts/lib/desktop-model-import-store.mjs",
+      "before": "267b862579a951051e35eed46073603615f573ed3c94d5fb1a1d4e1e01a0877a",
+      "after": "7aa89c95cb6f7b55460b7a690e07dd6de34f347a103a484aa4502296c3bcd35d"
+    },
+    {
+      "path": "scripts/native-model-picker-extension.mjs",
+      "before": "f52a989d46e011421c470f0f46d574fe6d9d929922ba34d1973ea140a908b296",
+      "after": "893f7290377ee366d999f087d5f704429741102bb7415c77937a0f98039c2839"
+    },
+    {
+      "path": "scripts/prepare-account-models.mjs",
+      "before": "007b1ab121b8fecc5baa70571289f1e2bf07bf77a1624185cf75655d2dbe3a3a",
+      "after": "9621ca9dd6c4c6f114eb7075c1145d04d00ce345fdf6ad1a509921d2caa030b5"
+    },
+    {
+      "path": "scripts/prepare-desktop-model-import47.mjs",
+      "before": "9810dbf1a6cfb5f4d928b170dd9eb982246747911dce39615bc42ef6ef1dcaf2",
+      "after": "cdcb56ba9a6752bff4306ad0d0b799502b34998d799908a838f1d2c3bebf1c4d"
+    },
+    {
+      "path": "scripts/publish-desktop-update.mjs",
+      "before": "6c6a4350465cc189960ea534d96aed26fefc067d2a228861d4aa994cb96cd209",
+      "after": "ce783f4d35b9b92021761e428118ad11c892eeba769d85674a1e5846537c5eff"
+    },
+    {
+      "path": "scripts/verify-account-model-service.mjs",
+      "before": "a763023870dd950e7036524d73b82616b163434c4e55055e3dd3ac856b947827",
+      "after": "b1db9f5a3dcdcf2fe6ab9313ee0fd86e49a8d0a75b023042dcc496d560e9d5d6"
+    },
+    {
+      "path": "scripts/verify-account-model-takeover-pg.mjs",
+      "before": null,
+      "after": "0d0391fae9a563ccb781048405294625bde3cb72a2c1286c9c97647160ebb376"
+    },
+    {
+      "path": "scripts/verify-model-picker-distribution.mjs",
+      "before": "c1f8f3b6e56d724dc1d1ff255e5d79b2aedcbbad800023ca20f822f55c485842",
+      "after": "cee2cff67522ed9a45f90817444492a61e30c523cced859f294df5749ac6129b"
+    },
+    {
+      "path": "services/account-models/README.md",
+      "before": "e112f21232279c1fb480d873a39c4b657ec9a9432f587933ea6a0f686268724a",
+      "after": "38fc073e7400b818abca7fdbab6c1fdf7e5dd1903e4cd2b623d2d2c58e5dbf31"
+    },
+    {
+      "path": "services/account-models/main.mjs",
+      "before": "2960c577ef2ec19987cea700d7de590bbfa3d17c6aa96e21faf2b822039605ce",
+      "after": "c677dbfe6a626ffa5f05f7184ec1eab5931e2ec696b05ef2f8bbee5533976bf2"
+    },
+    {
+      "path": "services/account-models/readonly-role.mjs",
+      "before": null,
+      "after": "442e41bb27971cc0468a75274a663e1b492ed313c6c7b1b0e400219c780bb58d"
+    },
+    {
+      "path": "services/account-models/registry.mjs",
+      "before": "9e5ad82d6127670d5b95e26d16e49b56656eedc997aa31735569de64b9903213",
+      "after": "e2b885a3dcccbb7382fedb663a7d3b21a5f846db6596847558fb1cbdbd2aa3da"
+    },
+    {
+      "path": "services/account-models/server.mjs",
+      "before": "f220e11a1a831dec18ac585f7f0e8e408298a9863fa037cd78ebb12524ecc18b",
+      "after": "cb577cdfe6ff9140edbd97e94c8cf08c97eea1eb6e21e3613cf360b5efe5f4c8"
+    },
+    {
+      "path": "services/account-models/store.mjs",
+      "before": "ddd24065648b011b95b697faa54cdca850cf8058b610a9d1807c1854cda8db5d",
+      "after": "7d2c607721627554a6200fc5fd79db2d2ef66d5cfffc47053990162afdfdb502"
+    },
+    {
+      "path": "tests/account-model-takeover.test.mjs",
+      "before": null,
+      "after": "e60c80b14ee4ef6ea3fc5b895cca754e172b5aa7b4d9548f7309700daabefd45"
+    },
+    {
+      "path": "tests/account-models.test.mjs",
+      "before": "c3678921b5a631725bcf2399856521d390f612a16263a5d97cbfb3585f5920c3",
+      "after": "22c5cd57a62da8413ce6106787388f98ca48b112347ae79c07eee12a6c0f90a1"
+    }
+  ]
+}

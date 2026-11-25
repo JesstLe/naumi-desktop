@@ -74,6 +74,7 @@ export async function prepareRuntime({root=project,target=path.join(root,'runtim
     const inventory=runtimeInventory(staged),scan=scanRuntimeInventory(inventory);
     fs.writeFileSync(path.join(staged,'runtime-files.json'),JSON.stringify(inventory,null,2)+'\n');
     const manifest={product:'Naumi',...trial?{edition:'internal-trial',trial}:{},...embeddedModels?{edition:'embedded-test',embeddedModels}:{},schemaVersion:2,desktop:{profileVersion:1,identityProtocol:2,maintenanceProtocol:1,workspaceProtocol:1},version:JSON.parse(fs.readFileSync(path.join(root,'desktop/package.json'))).version,node:process.versions.node,harness:'0.2.2-rc.1',desktopEngine:'cua',cuaDriver:'0.54.0',dingtalk,personalCredentials:!!trial||!!embeddedModels,browserProfiles:false,bootstrap:'offline',nodeSHA256:sha(path.join(staged,'node.exe')),inventorySHA256:sha(path.join(staged,'runtime-files.json')),closure,scan};
+    if(!trial&&!embeddedModels)manifest.accountModels={protocol:1,required:true};
     if(modelPolicy)manifest.modelPolicy=modelPolicy;
     manifest.modelPicker=MODEL_PICKER_POLICY;
     fs.writeFileSync(path.join(staged,'runtime-manifest.json'),JSON.stringify(manifest,null,2)+'\n');

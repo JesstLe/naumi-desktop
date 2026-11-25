@@ -23,4 +23,16 @@ export class ImportedRegistry{
  async secret(route){return this.credentials.read(route.credentialRef,route.providerId);}
  async userExists(subject){return !!(await this.pool.query('SELECT 1 FROM app_users WHERE lower(email)=$1',[email(subject)])).rows.length;}
 }
-export function publicRoute(r,origin){return {id:r.id,group:r.group,provider:'naumi-account-'+r.id,api:r.api,baseURL:origin+'/api/desktop-models/v1/gateway/'+r.id,model:r.model};}
+export function publicRoute(r,origin){return {id:r.id,group:r.group,provider:'naumi-account-'+r.id,api:r.api,baseURL:origin+'/api/desktop-models/v1/gateway/'+r.id,model:{...r.model,id:r.publicModelId??r.model.id}};}
+
+/** Server-owned aliases share the original source and credential reader. */
+export class CatalogRegistry {
+ constructor(source,config){
+  if(config?.version!==1||!Array.isArray(config.models)||!config.models.length||config.models.length>100)throw fault('ACCOUNT_MODEL_CATALOG_INVALID',503);
+  const ids=new Set();for(const m of config.models){if(Object.keys(m).some(k=>!['id','sourceRoute','name'].includes(k))||!/^m-[a-f0-9]{24}$/.test(m.id)||ids.has(m.id)||!/^r-[a-f0-9]{32}$/.test(m.sourceRoute)||typeof m.name!=='string'||!m.name.trim()||m.name.length>160)throw fault('ACCOUNT_MODEL_CATALOG_INVALID',503);ids.add(m.id);}
+  this.source=source;this.config=structuredClone(config);
+ }
+ async list(){const all=await this.source.list();const rows=this.config.models.map(m=>{const source=all.find(r=>r.id===m.sourceRoute);if(!source)throw fault('ACCOUNT_MODEL_CATALOG_SOURCE_MISSING',503);return {...source,id:m.id,publicModelId:m.id,group:'Naumi',model:{...source.model,name:m.name}};});this.unavailable=[];return rows;}
+ secret(route){return this.source.secret(route);}
+ userExists(subject){return this.source.userExists(subject);}
+}

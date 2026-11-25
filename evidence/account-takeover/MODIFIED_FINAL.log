@@ -1,0 +1,42 @@
+✔ explicit four-model input validates exact wire IDs and references, never an arbitrary route overlay (1.5471ms)
+✔ upgrade replaces model providers only, preserves other settings/comments and old credentials, then is idempotent (77.0348ms)
+✔ failure at every migration boundary restores exact old bytes and permits retry (130.5348ms)
+✔ foreign config drift is preserved and journal remains pending rather than overwriting later edits (18.9024ms)
+✔ a newer explicit revision replaces its own keys, leaving unrelated refs untouched (37.9273ms)
+✔ external backend is never rewritten, normal packages do not seed secrets (4.8102ms)
+✔ manifest data hash is required before consuming embedded credentials (7.5557ms)
+✔ fresh profile without any model node or credential file receives all four configured choices (19.4051ms)
+✔ embedded test edition is not mistaken for the legacy trial overlay (5.4127ms)
+✔ server aliases are stable opaque IDs, preserve upstream protocol/capacity/secret ownership, reject lost sources (0.9563ms)
+✔ upgrade retires only owned embedded keys in active files and old backups, preserving personal keys and sessions (145.8054ms)
+✔ forward-only sanitized journal recovers interrupted retirement, never resurrecting owned secrets (218.6007ms)
+✔ foreign drift blocks retirement recovery; no authority or symlink cannot rewrite home (52.7793ms)
+✔ durable grant CAS, idempotency and stale writers preserve authoritative revision (12.2029ms)
+✔ short account/device leases revoke immediately on grant/registry change, expire and resist clock rollback (1.457ms)
+✔ server reuses actual account/admin HTTP authority; no grants by login, subject spoof, CSRF or unprivileged admin (282.2497ms)
+✔ native PiAiAdapter calls all three exact protocols through account gateway; upstream key never reaches client (245.002ms)
+✔ gateway denies wrong route/model/device, retains UNKNOWN, refuses UUID replay and hides upstream errors (60.633ms)
+✔ desktop bootstraps with existing Chromium account, persists only nonsecret enrollment, and never falls back after managed (32.5473ms)
+✔ first login also fails closed on missing service; cross-account late response is discarded (1.3427ms)
+✔ bridge renews only authenticated local account, never exposes credential through browser origins (9.9653ms)
+✔ registry reuses original encrypted credential reader, requires declared capacity, and emits no secrets (0.4897ms)
+✔ process restart retains request UNKNOWN and refuses a replay, not a paid automatic retry (12.42ms)
+✔ real Cordis LLM registration remaps defaults, exposes native models and enforces dispatch without persisting a key (30.9503ms)
+✔ default model policy automatically provisions both authenticated accounts, while account override and revocation win (210.3894ms)
+✔ desktop accepts a five-minute grant from an issuer four seconds ahead but rejects excessive future expiry (4.6206ms)
+✔ all native protocols finish on terminal SSE while real upstream socket stays open, without retrying (29.1818ms)
+✔ opaque catalog model IDs are rewritten only at the server, and upstream never receives the display alias (19.1978ms)
+✔ original protocol, endpoint, context, output and reasoning remain exact (6.7607ms)
+✔ public digest and metadata never contain plaintext keys or credential refs (0.7961ms)
+✔ stable namespaced supplier ids preserve separate connections (0.8341ms)
+✔ protocol conversion, malformed URL, missing key and invalid model fields reject before transfer (0.3502ms)
+✔ duplicate wire models and unsafe operation ids are rejected (0.1709ms)
+✔ imported metadata records configured, not verified or employee-enabled (0.5116ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1577.9654

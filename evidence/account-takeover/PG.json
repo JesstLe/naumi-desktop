@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "checks": [
+    "real_pg_original_crypto_import",
+    "no_ddl_import_sql_trace",
+    "same_operation_idempotent",
+    "provider_conflict_zero_additional_rows",
+    "missing_column_rejects_before_write",
+    "wrong_type_rejects_before_write",
+    "missing_unique_constraint_rejected",
+    "commit_then_verify_failure_is_explicit",
+    "committed_operation_read_only_verify",
+    "separate_role_zero_business_writes",
+    "readonly_role_can_read_exact_contract",
+    "no_write_grants_even_if_read_only_default_disabled",
+    "own_rows_rollback_preserves_unrelated_user"
+  ],
+  "trace": [
+    {
+      "mode": "apply",
+      "status": "PASS",
+      "exit": 0,
+      "shapes": "IMPORT_SQL_SHAPES {\"BEGIN\":4,\"SET\":4,\"SELECT\":18,\"ROLLBACK\":2,\"INSERT\":4,\"COMMIT\":2}"
+    },
+    {
+      "mode": "apply",
+      "status": "PASS",
+      "exit": 0,
+      "shapes": "IMPORT_SQL_SHAPES {\"BEGIN\":3,\"SET\":3,\"SELECT\":12,\"ROLLBACK\":2,\"COMMIT\":1}"
+    },
+    {
+      "mode": "apply",
+      "status": "FAIL",
+      "exit": 1,
+      "shapes": "IMPORT_SQL_SHAPES {\"BEGIN\":2,\"SET\":2,\"SELECT\":6,\"ROLLBACK\":2}"
+    },
+    {
+      "mode": "apply",
+      "status": "FAIL",
+      "exit": 1,
+      "shapes": "IMPORT_SQL_SHAPES {\"BEGIN\":1,\"SET\":1,\"SELECT\":1,\"ROLLBACK\":1}"
+    },
+    {
+      "mode": "apply",
+      "status": "FAIL",
+      "exit": 1,
+      "shapes": "IMPORT_SQL_SHAPES {\"BEGIN\":1,\"SET\":1,\"SELECT\":1,\"ROLLBACK\":1}"
+    },
+    {
+      "mode": "verify",
+      "status": "PASS",
+      "exit": 0,
+      "shapes": "IMPORT_SQL_SHAPES {\"BEGIN\":1,\"SET\":1,\"SELECT\":8,\"COMMIT\":1}"
+    }
+  ],
+  "isolatedPG": true,
+  "productionWrites": 0,
+  "modelCalls": 0
+}

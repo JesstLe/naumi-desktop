@@ -91,6 +91,7 @@ function backendEnvironment(settings,source=process.env){
  return env;
 }
 async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs=350,portRetries=2}={}){
+ if(settings.isolated||settings.linkedService){const f=path.join(settings.releaseRoot??settings.root,'runtime-manifest.json');if(fs.existsSync(f)&&JSON.parse(fs.readFileSync(f)).accountModels?.required&&!settings.accountModels)throw Error('ACCOUNT_MODEL_SERVICE_REQUIRED');}
  if(settings.accountModels&&!settings.isolated&&!settings.linkedService)throw Error('ACCOUNT_MODEL_MANAGED_BACKEND_REQUIRED');
  if(settings.linkedService&&!settings.serviceLease){const release=require('./linked-service.cjs').acquire(settings.root,'desktop-linked-update');settings.serviceLease=true;try{return await ensureBackend(settings,{fetcher,startTimeoutMs,pollMs,portRetries});}finally{delete settings.serviceLease;release();}}
  if(settings.isolated||settings.linkedService){
@@ -116,7 +117,8 @@ async function ensureBackend(settings,{fetcher=fetch,startTimeoutMs=90000,pollMs
    settings.url='http://127.0.0.1:'+await freePort();
   }
   if(settings.linkedService)require('./linked-service.cjs').synchronize(settings);else profile.prepareProfile(settings);
-  if(!settings.accountModels)require('./embedded-models.cjs').apply(settings);
+  if(settings.accountModels)require('./account-model-retirement.cjs').retireEmbedded(settings);
+  else require('./embedded-models.cjs').apply(settings);
   settings.workspace??=path.join(settings.home,'workspace');
   if(profile.exists(settings.workspace)&&(!fs.lstatSync(settings.workspace).isDirectory()||fs.lstatSync(settings.workspace).isSymbolicLink()))throw Error('PROFILE_WORKSPACE_UNMANAGED');
   if(!settings.linkedService)await require(path.join(settings.root,'plugins/naumi-enterprise/managed-workspace.cjs')).createManagedWorkspace(settings.workspace,{parent:settings.home});

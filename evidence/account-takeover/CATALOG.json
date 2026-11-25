@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "m-b04c941c20fc992cff7f867f",
+      "name": "claude fable5.2",
+      "sourceRoute": "r-68fd38c14991eb9b4421655d2cb8ea00"
+    },
+    {
+      "id": "m-2baf5dd4ce986f59fb47b2e3",
+      "name": "gpt6.1sol",
+      "sourceRoute": "r-403498a0eeff126b7e90257afb4fa0f8"
+    },
+    {
+      "id": "m-f044f1b212edc58e60450119",
+      "name": "gpt6.1terra",
+      "sourceRoute": "r-bd167e160b0c2be393dc83d68c30f115"
+    },
+    {
+      "id": "m-cf42291d9a1a39008ebffe49",
+      "name": "claude opus5.5",
+      "sourceRoute": "r-6cd6d19d46d9ea0480113323755b9126"
+    }
+  ]
+}

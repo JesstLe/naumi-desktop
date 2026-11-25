@@ -30,7 +30,7 @@ export async function importDesktopModels({pool,contracts,request,mode='apply',f
  // Revalidate the finite transfer contract, including every original protocol/key.
  request=prepareDesktopImport({providers:Object.fromEntries(request.connections.map(c=>[c.sourceProviderId,{...c.configuration,models:c.models,apiKeyEnv:c.sourceProviderId}])),refs:Object.fromEntries(request.connections.map(c=>[c.sourceProviderId,c.key])),sourceId:request.sourceId,operationId:request.operationId});
  assert(['apply','verify'].includes(mode),'IMPORT_MODE_INVALID');
- const credentials=mode==='verify'?contracts.createCredentialReader(pool):contracts.createCredentialStore(pool),tx=await pool.connect();
+ let committed=false;const credentials=mode==='verify'?contracts.createCredentialReader(pool):contracts.createCredentialStore(pool),tx=await pool.connect();
  try{
   await tx.query(mode==='verify'?'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY':'BEGIN');await tx.query("SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='20s'");
   await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['desktop-model-import:'+request.sourceId]);
@@ -59,9 +59,9 @@ export async function importDesktopModels({pool,contracts,request,mode='apply',f
   // Read keys through the same transaction; public credential reads use another connection.
   const rows=await existing(tx,request.operationId);assert.equal(rows.length,request.connections.length);
   await tx.query('COMMIT');
-  const verified=await importDesktopModels({pool,contracts,request,mode:'verify'});
+  committed=true;fault('committed');const verified=await importDesktopModels({pool,contracts,request,mode:'verify'});
   return {...verified,mode:'apply',replayed:false};
- }catch(e){await tx.query('ROLLBACK').catch(()=>{});throw e;}finally{tx.release();}
+ }catch(e){if(committed){e.committed=true;e.operationId=request.operationId;}else await tx.query('ROLLBACK').catch(()=>{});throw e;}finally{tx.release();}
 }
 export async function rollbackDesktopModels({pool,operationId}){
  assert(/^[a-f0-9-]{36}$/i.test(operationId),'OPERATION_ID_INVALID');const tx=await pool.connect();
