@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "E:\Workspace\naumi-desktop-account-takeover\scripts/deploy-account-models47.py", line 6, in <module>
+    import argparse,contextlib,fcntl,hashlib,json,os,pathlib,secrets,shutil,socket,sqlite3,subprocess,sys,tarfile,time,urllib.request,urllib.error
+ModuleNotFoundError: No module named 'fcntl'
